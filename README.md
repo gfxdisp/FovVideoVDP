@@ -8,6 +8,8 @@ However, unlike traditional quality metrics, FovVideoVDP works for videos in add
 
 FovVideoVDP currently has both a Pytorch and MATLAB implementation. The usage is described below.
 
+
+
 ## Usage
 
 ## Pytorch
@@ -156,7 +158,7 @@ FovVideoVDP will run the best (fastest) when CUDA is available on your system. W
 
 ### Display specification
 
-When running the metric, you should specify the display on which the images are viewed by passing the `display_name` parameter as shown in the example above. The list of display specifications can be found in the JSON file `matlab/display_models/display_models.json`. Note that the format of this file is currently different from that used in the Python version of the metric. Refer to the JSON file for examples of display specifications. 
+When running the metric, you should specify the display on which the images are viewed by passing the `display_name` parameter as shown in the example above. The list of display specifications can be found in the JSON file `display_models/display_models.json`. Refer to the JSON file for examples of display specifications. 
 
 Note the the specification in `display_models.json` is for the display and not the image. If you select to use `sdr_4k_30` with the resolution of 3840x2160 for your display and pass a 1920x1080 image, the metric will assume that the image occupies one quarter of that display. 
 
@@ -166,7 +168,7 @@ If you need more flexibility in specifying display geometry (size, fov, viewing 
 
 `fvvdp` function is the suitable choice for most cases. But if you need to run metric on large datasets, you can use a low-level function `fvvdp_core`. It requires as input an object of the class `fvvdp_video_source`, which supplies the metric with the frames. Refer to the documentation of that class for further details. 
 
-### Checking and reporting the version
+## Checking and reporting the version
 
-The metric may change over time and therefore it is worth noting the version of the metric used to calculate the results. The version of the metric can be checked by calling `fvvdp_version()`.
+The metric may change over time and therefore it is worth noting the version of the metric used to calculate the results. The version of the metric can be checked by calling `fvvdp_version()`. Check `ChangeLog.md` for the list of changes between different versions.
 
