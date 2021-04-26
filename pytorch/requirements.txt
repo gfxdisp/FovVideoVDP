@@ -1,11 +1,10 @@
 pytorch_msssim==0.2.1
 scikit_video==1.1.11
-numpy==1.19.4+vanilla
+numpy==1.19.4
 scipy==1.3.0
 graphviz==0.16
-ffmpeg_python==0.2.0
+ffmpeg-python==0.2.0
 torch==1.7.1
 natsort==6.0.0
 ffmpeg==1.4
 Pillow==8.1.0
-skvideo==0.1.1

@@ -8,7 +8,15 @@ However, unlike traditional quality metrics, FovVideoVDP works for videos in add
 
 FovVideoVDP currently has both a Pytorch and MATLAB implementation. The usage is described below.
 
+The details of the metric can be found in:
 
+Mantiuk, Rafał K., Gyorgy Denes, Alexandre Chapiro, Anton Kaplanyan, Gizem Rufo, Romain Bachy, Trisha Lian, and Anjul Patney. 
+“FovVideoVDP : A Visible Difference Predictor for Wide Field-of-View Video.” 
+ACM Transaction on Graphics, 2021.
+
+Project page: https://github.com/gfxdisp/FovVideoVDP
+
+If you use the metric in your research, please cite the paper above. 
 
 ## Usage
 

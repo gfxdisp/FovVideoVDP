@@ -5,7 +5,6 @@ import numpy as np
 import scipy.io as spio
 import os
 import sys
-import skvideo.io
 import torch.autograd.profiler as profiler
 
 class hdrvdp_lpyr_dec():
