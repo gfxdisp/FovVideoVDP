@@ -67,8 +67,8 @@ class DisplayModel():
 
     @classmethod
     def load(cls, model_name, color_space_name):
-        models_file      = os.path.join(os.path.dirname(__file__), "../display_models/display_models.json")
-        colorspaces_file = os.path.join(os.path.dirname(__file__), "../display_models/color_spaces.json")
+        models_file      = os.path.join(os.path.dirname(__file__), "../fvvdp_data/display_models.json")
+        colorspaces_file = os.path.join(os.path.dirname(__file__), "../fvvdp_data/color_spaces.json")
 
         obj = cls.__new__(cls)
 

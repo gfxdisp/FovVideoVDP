@@ -35,7 +35,11 @@ def make_grayscale(x):
     )
 
 def load_video_as_tensor(vidfile, device, frames=60):
-    probe = ffmpeg.probe(vidfile)
+    try:
+        probe = ffmpeg.probe(vidfile)
+    except:
+        print("Failed to open file " + vidfile)
+        raise
 
     # select the first video stream
     video_stream = next((stream for stream in probe['streams'] if stream['codec_type'] == 'video'), None)
