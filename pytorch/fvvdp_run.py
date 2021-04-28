@@ -7,7 +7,7 @@ import glob
 import ffmpeg
 import numpy as np
 from PIL import Image
-from fovvvdp import FovVideoVDP, DisplayModel
+from fvvdp import FovVideoVDP, DisplayModel
 from visualize_diff_map import visualize_diff_map
 import torch
 from pytorch_msssim import SSIM
@@ -74,15 +74,17 @@ def load_image_as_tensor(imgfile, device, frames=60):
     # srgb_tensor = torch.tensor(img2np(Image.open(imgfile).convert("RGB"))).to(device)
     # lin_tensor = srgb2linear_torch(srgb_tensor)
 
-    # # add batch and frame dimensions
-    # lin_tensor = lin_tensor.permute(2, 0, 1).unsqueeze(dim=0).unsqueeze(dim=2)
 
     # if return_grayscale:
     #     lin_tensor = make_grayscale(lin_tensor)
     raw_tensor = torch.tensor(img2np(Image.open(imgfile).convert("RGB"))).to(device)
 
+    # # add batch and frame dimensions
+    raw_tensor = raw_tensor.permute(2, 0, 1).unsqueeze(dim=0).unsqueeze(dim=2)
+
     # repeat frames
     video_tensor = raw_tensor.expand(1, raw_tensor.shape[1], frames, raw_tensor.shape[3], raw_tensor.shape[4])
+    #video_tensor = raw_tensor.expand(1, raw_tensor.shape[0], frames, raw_tensor.shape[1], raw_tensor.shape[2])
 
     return video_tensor, 60.0
 
@@ -147,7 +149,7 @@ if __name__ == '__main__':
     # these extensions switch mode to images instead
     image_extensions = [".png", ".jpg", ".gif", ".bmp", ".jpeg", ".ppm", ".tiff", ".dds"]
 
-    if os.path.splitext(args.ref) in image_extensions:
+    if os.path.splitext(args.ref)[1] in image_extensions:
         loader = load_image_as_tensor
         print("Mode: Image")
     else:
@@ -179,12 +181,8 @@ if __name__ == '__main__':
             ssim = sum([ssim_module(ref_vid[:,:,i,...], test_vid[:,:,i,...]) for i in range(cur_frames)]) * 1.0/float(cur_frames)
             print("    SSIM %0.4f " % (ssim), end='', flush=True)
 
-            loss, jod, diff_map = vdploss(
-                display_model.get_luminance_pytorch(test_vid[:,:,0:cur_frames,...]), 
-                ref_vid_luminance[:,:,0:cur_frames,...])
-
+            loss, jod, diff_map = vdploss(display_model.get_luminance_pytorch(test_vid[:,:,0:cur_frames,...]), ref_vid_luminance[:,:,0:cur_frames,...])
             print( "VDP: %0.4f (JOD % 0.4f)" % (loss.cpu().item(), jod.cpu().item()))
-            
         else:
             if ref_avg_fps.is_integer() and test_avg_fps.is_integer():
                 cur_fps = np.lcm(int(ref_avg_fps), int(test_avg_fps))                
@@ -194,6 +192,9 @@ if __name__ == '__main__':
                 cur_test_vid = torch.repeat_interleave(test_vid, cur_fps//int(test_avg_fps), axis=2)
 
                 cur_frames = min(120, min(cur_ref_vid.shape[2], cur_test_vid.shape[2]))
+
+                # np2vid((linear2srgb_torch(cur_ref_vid[0])).permute((1,2,3,0)).cpu().numpy(), "cur_ref.mp4", cur_fps)
+                # np2vid((linear2srgb_torch(cur_test_vid[0])).permute((1,2,3,0)).cpu().numpy(), "cur_test.mp4", cur_fps)
 
                 cur_ref_vid  = cur_ref_vid [:,:,0:cur_frames,...]
                 cur_test_vid = cur_test_vid[:,:,0:cur_frames,...]

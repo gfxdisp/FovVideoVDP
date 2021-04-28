@@ -17,19 +17,7 @@ from third_party.cpuinfo import cpuinfo
 from hdrvdp_lpyr_dec import hdrvdp_lpyr_dec
 from interp import interp1, interp3
 from utils import *
-from fovvvdp_test import FovVideoVDP_Testbench
-
-# Todo
-#  - [done] display models
-#  - [done] partition test code outside
-#  - args:
-#   - [done] diff maps
-#   - [done] image vs video
-#   - persistence
-#   - do_foveated
-#   - moving gaze
-#  - [done] color spaces
-#  - [done] partition any third-party code
+from fvvdp_test import FovVideoVDP_Testbench
 
 class DisplayModel():
     def __init__(self, W, H, diagonal_fov_degrees, distance_m, diag_size_m, min_luminance, max_luminance, gamma_func, rgb2X, rgb2Y, rgb2Z):
@@ -105,38 +93,43 @@ class DisplayModel():
         if "RGB2Z" in color_space: rgb2Z = color_space["RGB2Z"]
         else:                      rgb2Z = None
 
-        if model_name in models:
-            model = models[model_name]
+        for mk in models:
+            #if models[mk]["name"] == model_name:
+            if mk == model_name:
+                model = models[mk]
+                assert "resolution" in model
 
-            assert "res" in model
+                W, H = model["resolution"]
 
-            W, H = model["res"]
+                inches_to_meters = 0.0254
 
-            inches_to_meters = 0.0254
+                if "fov_diagonal" in model: fov_diagonal = model["fov_diagonal"]
+                else:                       fov_diagonal = None
 
-            if "diagonal_fov_degrees" in model:   diagonal_fov_degrees = model["diagonal_fov_degrees"]
-            else:                                 diagonal_fov_degrees = None
+                if   "viewing_distance_meters" in model: distance_m = model["viewing_distance_meters"]
+                elif "viewing_distance_inches" in model: distance_m = model["viewing_distance_inches"] * inches_to_meters
+                else:                                    distance_m = None
 
-            if   "distance_m" in model:           distance_m = model["distance_m"]
-            elif "distance_inches" in model:      distance_m = model["distance_inches"] * inches_to_meters
-            else:                                 distance_m = None
+                if   "diagonal_size_meters" in model: diag_size_m = model["diagonal_size_meters"]
+                elif "diagonal_size_inches" in model: diag_size_m = model["diagonal_size_inches"] * inches_to_meters
+                else:                                 diag_size_m = None
 
-            if   "diagonal_size_m" in model:      diag_size_m = model["diagonal_size_m"]
-            elif "diagonal_size_inches" in model: diag_size_m = model["diagonal_size_inches"] * inches_to_meters
-            else:                                 diag_size_m = None
+                if "max_luminance" in model and "min_luminance" in model:
+                    max_luminance = model["max_luminance"]
+                    min_luminance = model["min_luminance"]
+                elif "max_luminance" in model and "contrast" in model:
+                    max_luminance = model["max_luminance"]
+                    min_luminance = max_luminance / model["contrast"]
+                else:
+                    max_luminance = 200.0
+                    min_luminance = 0.1
 
-            if "min_luminance" in model:         min_luminance = model["min_luminance"]
-            else:                                 min_luminance = 0.1
+                obj.__init__(W, H, fov_diagonal, distance_m, diag_size_m, min_luminance, max_luminance, gamma_func, rgb2X, rgb2Y, rgb2Z)
 
-            if "max_luminance" in model:         max_luminance = model["max_luminance"]
-            else:                                 max_luminance = 200.0
+                return obj
 
-            obj.__init__(W, H, diagonal_fov_degrees, distance_m, diag_size_m, min_luminance, max_luminance, gamma_func, rgb2X, rgb2Y, rgb2Z)
-
-            return obj
-        else:
-            print("Error: Display Model %s not found in display_models.json" % model_name)
-            return None
+        print("Error: Display Model %s not found in display_models.json" % model_name)
+        return None
 
 
     def get_ppd(self, ecc_deg = 0.0):
@@ -292,42 +285,45 @@ class FovVideoVDP(torch.nn.Module):
             frames_per_s,
             do_diff_map, # Produce a map of the differences between test and reference images
             device                  = torch.device('cpu'),
-            k_mask_self             = 1, #1, # optimized value - old: 0.5,
-            mask_p                  = 2.4, #2.4, # optimized value - old:  2.2,
+            k_mask_self             = 1, #1, # optimized value - old: 0.5, !!
+            mask_p                  = 2.4, #2.4, # optimized value - old:  2.2, !!
             mask_q                  = 2.0, #2.0,
             mask_s                  = -1, #2.0,
-            mask_c                  = -0.785374, #0.591832, # content masking adjustment
-            pu_dilate               = 0,
+            mask_c                  = -0.544583, # content masking adjustment !!
+            pu_dilate               = 0, # !!
             debug                   = False,
             fixation_point          = [], # in pixel coordinates (x,y)
-            w_transient             = 1.0, #0.016792, # The weight of the transient temporal channel
-            beta                    = 2.06186, #2, # The exponent of the spatial summation (p-norm)
-            beta_t                  = 1, # The exponent of the summation over time (p-norm)
-            beta_tch                = 2.01651, # The exponent of the summation over temporal channels (p-norm)
-            beta_sch                = 1, # The exponent of the summation over spatial channels (p-norm)
-            filter_len              = -1,
+            w_transient             = 0.25, #0.016792, # The weight of the transient temporal channel !!
+            beta                    = 0.95753, #2, # The exponent of the spatial summation (p-norm) !!
+            beta_t                  = 1, # The exponent of the summation over time (p-norm) !!
+            beta_tch                = 0.684842, # The exponent of the summation over temporal channels (p-norm) !!
+            beta_sch                = 1, # The exponent of the summation over spatial channels (p-norm) !!
+            filter_len              = -1, # !!
             video_name              = 'channels',
-            sustained_sigma         = 0.5,
-            sustained_beta          = 0.06,
-            csf_sigma               = -2.5,
+            sustained_sigma         = 0.5, # !!
+            sustained_beta          = 0.06, # !!
+            csf_sigma               = -1.5, # !!
             do_foveated             = True,
-            sensitivity_correction  = 10.5456, #0, # Correct CSF values in dB. Negative values make the metric less sensitive.
+            sensitivity_correction  = 10, #0, # Correct CSF values in dB. Negative values make the metric less sensitive. !!
             masking_model           = 'min_mutual_masking_perc_norm2', # 'joint_mutual_masking_perc_norm',
             band_callback           = [],
             local_adapt             = 'gpyr',  # Local adaptation: 'simple' or or 'gpyr'
             contrast                = 'weber',  # Either 'weber' or 'log'
-            jod_a                   = -0.0129523, # -1.6922; # After updated JOD-mapping function, was 2.1441;
-            log_jod_exp             = np.log10(0.596953), #-0.161369,
-            use_gpu                 = True, # Set to False to disable processing on a GPU (eg. when CUDA is not supported)
+            jod_a                   = -0.249449, # -1.6922; # After updated JOD-mapping function, was 2.1441; !!
+            log_jod_exp             = np.log10(0.372455), #-0.161369, !!
+            use_gpu                 = False, # Set to False to disable processing on a GPU (eg. when CUDA is not supported)
             do_temporal_channels    = True,  # Set to False to disable temporal channels and treat each frame as a image (for an ablation study)
 
             # Parameters that are specific to a given masking model
-            te_slope                = 1,   # Slope of the threshold elevation function of Daly's model
-            mask_q_sust             = 1.44698,
-            mask_q_trans            = 5.0,
+            te_slope                = 1,   # Slope of the threshold elevation function of Daly's model !!
+            mask_q_sust             = 3.23726, # !!
+            mask_q_trans            = 3.02625, # !!
 
             mask_s_sust             = 0.4,
             mask_s_trans            = 0.2,
+
+            k_cm                    = 0.405835, # new parameter controlling cortical magnification !!
+
 
             frame_padding           = "replicate"
         ):
@@ -373,12 +369,14 @@ class FovVideoVDP(torch.nn.Module):
         self.mask_s_sust             = mask_s_sust
         self.mask_s_trans            = mask_s_trans
 
+        self.k_cm = k_cm
+
         self.frame_padding          = frame_padding
 
         self.frames_per_s           = frames_per_s
         self.csf_cache              = {}
         self.csf_cache_dirs         = [
-                                        "/mnt/graphics_ssd/home/anjul/vdp-loss-test/project/csf_cache", 
+                                        "csf_cache",
                                         os.path.join(os.path.dirname(__file__), "csf_cache"),
                                       ]
 
@@ -652,15 +650,17 @@ class FovVideoVDP(torch.nn.Module):
 
         return ecc, res_mag
 
-    def get_cache_key(self, omega, sigma):
-        return ("o%g_s%g" % (omega, sigma)).replace('-', 'n').replace('.', '_')
+    def get_cache_key(self, omega, sigma, k_cm):
+        return ("o%g_s%g_cm%f" % (omega, sigma, k_cm)).replace('-', 'n').replace('.', '_')
 
     def preload_cache(self, omega, sigma):
-        key = self.get_cache_key(omega, sigma)
+        key = self.get_cache_key(omega, sigma, self.k_cm)
         for csf_cache_dir in self.csf_cache_dirs:
-            fname = os.path.join(csf_cache_dir, key + '_cpu.mat')
+            #fname = os.path.join(csf_cache_dir, key + '_cpu.mat')
+            fname = os.path.join(csf_cache_dir, key + '_gpu0.mat')
             if os.path.isfile(fname):
-                lut = load_mat_dict(fname, "lut_cpu", self.device)
+                #lut = load_mat_dict(fname, "lut_cpu", self.device)
+                lut = load_mat_dict(fname, "lut", self.device)
                 for k in lut:
                     lut[k] = torch.tensor(lut[k], device=self.device, requires_grad=False)
                 self.csf_cache[key] = {"lut" : lut}
@@ -669,7 +669,7 @@ class FovVideoVDP(torch.nn.Module):
             print("Error: cache file for %s not found" % key)
 
     def cached_sensitivity(self, rho, omega, L_bkg, ecc, sigma):
-        key = self.get_cache_key(omega, sigma)
+        key = self.get_cache_key(omega, sigma, self.k_cm)
 
         if key in self.csf_cache:
             lut = self.csf_cache[key]["lut"]
