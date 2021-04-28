@@ -128,7 +128,7 @@ if ~(~isempty( p.Results.display_photometry ) && ~isempty( p.Results.display_geo
     end
     
     if ~isfield( disp_list, p.Results.display_name )
-        error( 'Unknown display model "%s". Check display_models/display_models.json for available display models.', display_name );
+        error( 'Unknown display model "%s". Check display_models/display_models.json for available display models.', p.Results.display_name );
     end
     dm_struct = disp_list.(p.Results.display_name);
 end
@@ -151,7 +151,9 @@ else
 end
 
 if ~p.Results.quiet
-    fprintf( 1, 'Display name: %s\n', dm_struct.name );
+    if exist( 'dm_struct', 'var' ) && isfield( dm_struct, 'name' )
+        fprintf( 1, 'Display name: %s\n', dm_struct.name );
+    end
     display_geom.print();
     display_ph_model.print();
     vid_sz = vs.get_video_size();

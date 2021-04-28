@@ -29,48 +29,49 @@ if ~exist( 'get_temporal_filters', 'file' )
 end
 
 
-% The calibration parameters are beased on the calibration from 18/04/2021
-% and the intrenal model 'fovvideovdp_fixed_k_cm'
+% Calibration parameters are read from JSON file to make sure they are
+% consistent between Matlab and Python versions of the metric.
+metric_par = load_parameters_from_json();
 
-metric_par = struct();
-metric_par.k_mask_self = 1; %1; % optimized value - old: 0.5;
-metric_par.mask_p = 2.4; %2.4; % optimized value - old:  2.2;
-metric_par.mask_c = -0.544583; % content masking adjustment
-metric_par.pu_dilate = 0;
-metric_par.debug = false;
+% The calibration parameters (normally loaded from the JSON file)
+% metric_par.mask_p = 2.4;  % The exponent of the exitation signal of the
+                           % masking model
+% metric_par.mask_c = -0.544583; % log10() of the coefficient of the masking
+                           % signal; "k" in the paper
+% metric_par.pu_dilate = 0; % Spatial integration of the inhibitory masking
+                           % signal - not used in the main model
+% metric_par.w_transient = 0.25; % The weight of the transient temporal channel
+% metric_par.beta = 0.95753; % The exponent of the spatial summation (p-norm)
+% metric_par.beta_t = 1; % The exponent of the summation over time (p-norm)
+% metric_par.beta_tch = 0.684842; % The exponent of the summation over temporal channels (p-norm)
+% metric_par.beta_sch = 1; % The exponent of the summation over spatial channels (p-norm)
+% metric_par.filter_len = -1; % The length of the temporal filter. Set to -1 for an adaptive length
+% metric_par.sustained_sigma = 0.5; % Parameter of the sustained channel temporal filter. Eq. 3 in the paper
+% metric_par.sustained_beta = 0.06; % Parameter of the sustained channel temporal filter. Eq. 3 in the paper
+% metric_par.csf_sigma = -1.5;  % The size of the stimulus passed to the CSF. Wavelength if negative. \sigma_0 in the paper (if negative).
+% metric_par.sensitivity_correction = 10; % Sensitity adjustmemnt of the CSF in dB. Negative values make the metric less sensitive. Note that this is 20*log10(S_corr) from the paper. 
+% metric_par.masking_model = 'min_mutual_masking_perc_norm2'; % The ID of the masking model
+% metric_par.local_adapt = 'gpyr';  % Local adaptation: 'simple' or or 'gpyr'
+% metric_par.contrast = 'weber';  % Either 'weber' or 'log'
+% metric_par.jod_a = -0.249449; % The alpha parameter of the JOD regression. Eq. 19 in the paper. 
+% metric_par.log_jod_exp = log10(0.372455); % The log10() of the beta parameter of the JOD regression. Eq. 19 in the paper. 
+% metric_par.mask_q_sust = 3.23726;  % The exponent of the inhibitory signal in the masking model, sustained channel. q_S in the paper.
+% metric_par.mask_q_trans = 3.02625; % The exponent of the inhibitory signal in the masking model, trasient channel. q_T in the paper.
+% metric_par.k_cm = 0.405835;  % The parameter controlling the effect of cortical magnification. See eq. 11 in the paper.
+
+% Operational options/parameters
+metric_par.do_foveated = false;
+metric_par.frame_padding = 'replicate'; % How to pad frame at the beginning of the video (for the temporal filters): 'replicate' or 'circular'
+metric_par.use_gpu = true; % Set to false to disable processing on a GPU (eg. when CUDA is not supported)
+metric_par.do_diff_map = false; % Produce a map of the differences between test and reference images
+metric_par.debug = false;       % [internal]: Enable debugging
 metric_par.fixation_point = []; % in pixel coordinates (x,y)
                                 % fixation_point can be also an [N 2] matrix
                                 % where N is the number of frames
+metric_par.band_callback = [];  % [internal] Used to analyze the masking model
+metric_par.video_name = 'channels'; % Where to store "debug" video
+metric_par.do_temporal_channels = true;  % [internal] Set to false to disable temporal channels and treat each frame as a image (for an ablation study)
 
-metric_par.w_transient = 0.25; % The weight of the transient temporal channel
-metric_par.beta = 0.95753; % The exponent of the spatial summation (p-norm)
-metric_par.beta_t = 1; % The exponent of the summation over time (p-norm)
-metric_par.beta_tch = 0.684842; % The exponent of the summation over temporal channels (p-norm)
-metric_par.beta_sch = 1; % The exponent of the summation over spatial channels (p-norm)
-metric_par.filter_len = -1;
-metric_par.video_name = 'channels';
-metric_par.sustained_sigma = 0.5;
-metric_par.sustained_beta = 0.06;
-metric_par.csf_sigma = -1.5;
-metric_par.do_foveated = false;
-metric_par.sensitivity_correction = 10; % Correct CSF values in dB. Negative values make the metric less sensitive.
-metric_par.masking_model = 'min_mutual_masking_perc_norm2';
-metric_par.band_callback = [];
-metric_par.local_adapt = 'gpyr';  % Local adaptation: 'simple' or or 'gpyr'
-metric_par.contrast = 'weber';  % Either 'weber' or 'log'
-metric_par.frame_padding = 'replicate'; % How to pad frame at the beginning of the video (for the temporal filters): 'replicate' or 'circular'
-metric_par.jod_a = -0.249449; % After updated JOD-mapping function, was 2.1441;
-metric_par.log_jod_exp = log10(0.372455);
-metric_par.do_diff_map = false; % Produce a map of the differences between test and reference images
-metric_par.use_gpu = true; % Set to false to disable processing on a GPU (eg. when CUDA is not supported)
-metric_par.do_temporal_channels = true;  % Set to false to disable temporal channels and treat each frame as a image (for an ablation study)
-
-% Parameters that are specific to a given masking model
-metric_par.te_slope = 1;   % Slope of the threshold elevation function of Daly's model
-metric_par.mask_q_sust = 3.23726;
-metric_par.mask_q_trans = 3.02625;
-
-metric_par.k_cm = 0.405835;  % The parameter controlling the effect of cortical magnification
 
 
 metric_par.content_mapping = [];
@@ -532,11 +533,23 @@ D = min( D, 1e4 ); % This prevents Infs when beta is pooling is high
 
     function R = mask_func_perc_norm2( G, G_mask, p, q )
         % Masking on perceptually normalized quantities (as in Daly's VDP)
-        
-        %k = metric_par.k_mask_self;
-        
+                
         R = G.^p ./ ( 1 + (G_mask).^q ) ;
     end
+
+end
+
+function metric_pars = load_parameters_from_json()
+        
+param_file_fname = fullfile( fvvdp_data_dir(), 'fvvdp_parameters.json' );
+if ~isfile( param_file_fname )
+    error( 'JSON file with the metric parameters not found. Missing file: "%s"', param_file_fname );
+end
+fid = fopen(param_file_fname);
+raw = fread(fid,inf);
+str = char(raw');
+fclose(fid);
+metric_pars = jsondecode(str);
 
 end
 

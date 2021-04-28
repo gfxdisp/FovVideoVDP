@@ -38,9 +38,11 @@ classdef fvvdp_video_source
     methods( Static )
 
         function val = load_json( fname )
-            pathstr = fileparts(mfilename( 'fullpath' ));
-            colspace_fname = fullfile( pathstr, '..', 'display_models', fname );            
-            fid = fopen(colspace_fname);
+            fname_full = fullfile( fvvdp_data_dir(), fname );            
+            if ~isfile( fname_full )
+                error( 'Cannot find the configuration file "%s"', fname_full );
+            end
+            fid = fopen(fname_full);
             raw = fread(fid,inf);
             str = char(raw');
             fclose(fid);
