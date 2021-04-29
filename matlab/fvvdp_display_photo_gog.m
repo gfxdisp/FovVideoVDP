@@ -25,7 +25,8 @@ classdef fvvdp_display_photo_gog < fvvdp_display_photometry
             %          office monitor
             % contrast - [1000] the contrast of the display. The value 1000 means
             %          1000:1
-            % gamma - [2.2] gamma of the display.
+            % gamma - [-1] gamma of the display, typically 2.2. If -1 is
+            %         passed, sRGB non-linearity is used.         
             % E_ambient - [0] ambient light illuminance in lux, e.g. 600 for bright
             %         office
             % k_refl - [0.005] reflectivity of the display screen
@@ -44,7 +45,7 @@ classdef fvvdp_display_photo_gog < fvvdp_display_photometry
             end
             
             if ~exist( 'gamma', 'var' ) || isempty( gamma )
-                dm.gamma = 2.2;
+                dm.gamma = -1;
             else
                 dm.gamma = gamma;
             end
@@ -74,7 +75,11 @@ classdef fvvdp_display_photo_gog < fvvdp_display_photometry
             
             Y_black = dm.get_black_level();
             
-            L = (dm.Y_peak-Y_black)*(V.^dm.gamma) + Y_black;
+            if dm.gamma==-1
+                L = (dm.Y_peak-Y_black)*srgb2lin(V) + Y_black;
+            else
+                L = (dm.Y_peak-Y_black)*(V.^dm.gamma) + Y_black;
+            end
             
         end
         
