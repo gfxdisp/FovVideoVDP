@@ -51,7 +51,9 @@ def load_video_as_tensor(vidfile, device, frames=60):
     num_frames = int(video_stream['nb_frames'])
     avg_fps_num, avg_fps_denom = [float(x) for x in video_stream['r_frame_rate'].split("/")]
     avg_fps = avg_fps_num/avg_fps_denom
-    assert num_frames >= frames
+    if num_frames < frames:
+        print( 'Expecting {needed_frames} frames but only {available_frames} available in the file \"{file}\"'.format( needed_frames=frames, available_frames=num_frames, file=vidfile) )
+        raise RuntimeError( 'Missing frames' )
 
     video = ffmpeg.input(vidfile)
     out, _ = (
