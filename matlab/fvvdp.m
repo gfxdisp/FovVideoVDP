@@ -157,7 +157,7 @@ if ~p.Results.quiet
     display_geom.print();
     display_ph_model.print();
     vid_sz = vs.get_video_size();
-    if vid_sz(3)==1 
+    if ismatrix(vid_sz) || vid_sz(3)==1 
         content_type = 'Image';
     else
         content_type = 'Video';

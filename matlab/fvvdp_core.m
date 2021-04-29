@@ -109,7 +109,7 @@ end
 
 % ===== Split into sustained and transient channels
 
-is_image = (video_sz(3) == 1) || ~metric_par.do_temporal_channels; % Are we testing an image or video
+is_image = numel(video_sz)==2 || (video_sz(3) == 1) || ~metric_par.do_temporal_channels; % Are we testing an image or video
 
 if is_image
     temp_ch = 1; % How many temporal channels
@@ -136,7 +136,11 @@ else
     ms.do_gauss = true;
 end
 
-N = video_sz(3); % How many frames
+if numel(video_sz)==2
+    N = 1;
+else
+    N = video_sz(3); % How many frames
+end
 
 if( metric_par.debug ) % For debugging
     D_debug = cell(2,1);
