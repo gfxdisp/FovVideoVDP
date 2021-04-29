@@ -1,4 +1,3 @@
-
 import torch
 import torch.nn.functional as Func
 import numpy as np 
@@ -8,6 +7,9 @@ import argparse
 import time
 import math
 import torch.utils.benchmark as torchbench
+
+# For debugging only
+# from pfs import pfs
 
 from PIL import Image
 
@@ -123,6 +125,21 @@ class DisplayModel():
                 else:
                     max_luminance = 200.0
                     min_luminance = 0.1
+
+                # Ambient light
+                if "E_ambient" in model:
+                    E_ambient = model["E_ambient"]
+                else:
+                    E_ambient = 0
+                
+                # Reflectivity of the display panel
+                if "k_refl" in model: 
+                    k_refl = model["k_refl"]
+                else:
+                    k_refl = 0.005
+
+                # Add screen reflections
+                min_luminance += E_ambient*k_refl/math.pi
 
                 obj.__init__(W, H, fov_diagonal, distance_m, diag_size_m, min_luminance, max_luminance, gamma_func, rgb2X, rgb2Y, rgb2Z)
 

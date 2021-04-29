@@ -130,6 +130,7 @@ def parse_args():
     parser.add_argument("--gpu", type=int,  default=-1, help="select which GPU to use (e.g. 0), default is CPU")
     parser.add_argument("--diff", type=str, default=None, help="type of difference map (None, subthreshold, suprathreshold)")
     parser.add_argument("--verbose", action='store_true', default=False, help="Verbose mode")
+    parser.add_argument("--foveated", action='store_true', default=False, help="Run in a foveated mode (non-foveated is the default)")
     parser.add_argument("--display", type=str, default="24-inch SDR Monitor", help="display name, e.g. HTC Vive")
     args = parser.parse_args()
     return args
@@ -164,6 +165,12 @@ if __name__ == '__main__':
         loader = load_video_as_tensor
         print("Mode: Video")
 
+    if args.foveated:
+        print('Foveated mode.')
+    else:
+        print('Non-foveated mode (default)')
+
+
     ssim_module = SSIM(data_range=1.0, size_average=True, channel=3)
 
     args.test = sanitize_filelist(args.test, do_sort=False)
@@ -175,7 +182,7 @@ if __name__ == '__main__':
 
     H, W = ref_vid.shape[-2], ref_vid.shape[-1]
 
-    vdploss = FovVideoVDP(H=H, W=W, display_model=display_model, frames_per_s=ref_avg_fps, do_diff_map=do_diff, device=device)
+    vdploss = FovVideoVDP(H=H, W=W, display_model=display_model, frames_per_s=ref_avg_fps, do_diff_map=do_diff, do_foveated=args.diff, device=device)
 
     for testfile in args.test:
         print(testfile + "... ", flush=True)

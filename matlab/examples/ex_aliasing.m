@@ -15,7 +15,7 @@ quiet = false;
 for dd=1:length(TST_FILEs)
     test_file = fullfile( TST_FILEs(dd).folder, TST_FILEs(dd).name );
     tic
-    [Q_JOD] = fvvdp( test_file, ref_file, 'display_name', display_name, 'heatmap', 'threshold', 'foveated', true, 'quiet', quiet, 'options', options );
+    [Q_JOD] = fvvdp( test_file, ref_file, 'display_name', display_name, 'heatmap', 'threshold', 'foveated', false, 'quiet', quiet, 'options', options );
     toc
     fprintf( 1, '==== %s: Q_JOD = %g\n', TST_FILEs(dd).name, Q_JOD );
     quiet = true;
