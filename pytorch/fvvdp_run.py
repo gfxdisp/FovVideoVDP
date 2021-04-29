@@ -1,6 +1,5 @@
-
-
 import os, sys
+import os.path
 import argparse
 from natsort import natsorted
 import glob
@@ -38,7 +37,10 @@ def load_video_as_tensor(vidfile, device, frames=60):
     try:
         probe = ffmpeg.probe(vidfile)
     except:
-        print("Failed to open file " + vidfile)
+        if not os.path.isfile(vidfile):
+            print("input file does not exist: \"" + vidfile + "\"")    
+        else:
+            print("ffmpeg failed to open file \"" + vidfile + "\"")
         raise
 
     # select the first video stream
