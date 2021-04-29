@@ -7,6 +7,7 @@ function [Q_JOD, diff_map, Q] = fvvdp(test_video, reference_video, varargin)
 % Q_JOD = fvvdp(test_image, reference_image)
 % [Q_JOD, diff_map, Q] = fvvdp(test_image, reference_image)
 % [...] = fvvdp(test_video, reference_video, 'frames_per_second', 30)
+% [...] = fvvdp(test_video_file, reference_video_file)
 % [...] = fvvdp(..., 'display_name', 'htc_vive_pro' )
 % [...] = fvvdp(..., 'display_name', '?' )
 % [...] = fvvdp(..., 'display_photometry', disp_photo )
@@ -17,12 +18,18 @@ function [Q_JOD, diff_map, Q] = fvvdp(test_video, reference_video, varargin)
 % [...] = fvvdp(..., 'options', { 'fixation_point', [100 100] } )
 % [...] = fvvdp(..., 'quiet', true )
 %
-% test_image and reference_image must be a [height x width x 1] matrix for
-% grayscale image or [height x width x 3] matrix for color image. 
+% test_image and reference_image must be either a path to a video file or 
+% a tensor of the size:
+% [height x width x 1] for grayscale image 
+% [height x width x 3] matrix for color image
+% [height x width x 1 x frames] for grayscale video
+% [height x width x 3 x frames] matrix for color video
 %
-% test_video and reference_video must be a [height x width x frames] matrix for
-% grayscale video or [height x width x 3 x frames] matrix for color video.
-% You must specify 'frames_per_second', parameter when passing video.
+% If image/video is supplied as a tensor, you must specify 'frames_per_second',
+% parameter when passing video.
+%
+% If file name is provided, the video frames are read by Matlab's
+% VideoReader class.
 %
 % Q_JOD - is the image quality on the 10-level scale, with the highest
 %         quality at 10. 
@@ -92,8 +99,10 @@ function [Q_JOD, diff_map, Q] = fvvdp(test_video, reference_video, varargin)
 % FovVideoVDP: A visible difference predictor for wide field-of-view video
 
 p = inputParser();
-p.addRequired('test_video',@isnumeric);
-p.addRequired('reference_video',@isnumeric);
+
+valid_input = @(in) isnumeric(in) || ischar(in);
+p.addRequired('test_video',valid_input);
+p.addRequired('reference_video',valid_input);
 p.addParameter('frames_per_second', 0, @(x)validateattributes(x,{'numeric'},{'nonempty','nonnegative'}) );
 p.addParameter('display_name', 'sdr_4k_30', @ischar);
 p.addParameter('display_photometry', []);
@@ -142,7 +151,12 @@ if ~isempty( p.Results.display_photometry )
 else                            
     display_ph_model = fvvdp_display_photometry.create_from_json( dm_struct );
 end
-vs = fvvdp_video_source_sdr( test_video, reference_video, p.Results.frames_per_second, display_ph_model, p.Results.color_space );
+
+if ischar( test_video ) && ischar( reference_video )
+    vs = fvvdp_video_source_sdr_file( test_video, reference_video, display_ph_model, p.Results.color_space );
+else    
+    vs = fvvdp_video_source_sdr( test_video, reference_video, p.Results.frames_per_second, display_ph_model, p.Results.color_space );
+end
 
 if ~isempty( p.Results.display_geometry )
     display_geom = p.Results.display_geometry;
@@ -157,12 +171,13 @@ if ~p.Results.quiet
     display_geom.print();
     display_ph_model.print();
     vid_sz = vs.get_video_size();
-    if ismatrix(vid_sz) || vid_sz(3)==1 
+    if length(vid_sz)==2 || vid_sz(3)==1 
         content_type = 'Image';
     else
         content_type = 'Video';
+        fprintf( 1, 'Frames per second: %g\n', vs.get_frames_per_second() );
     end
-    fprintf( 1, '%s resolution: [%d %d] pix\n', content_type, vid_sz(2), vid_sz(1) );
+    fprintf( 1, '%s resolution: [%d %d] pix\n', content_type, vid_sz(2), vid_sz(1) );    
     if vid_sz(1)<display_geom.resolution(2) || vid_sz(2)<display_geom.resolution(1)
         fprintf( 1, '  Content is smaller the the display resolution. The metric assumes that the image is shown in the native resolution in the central portion of the screen.\n' );
     end
