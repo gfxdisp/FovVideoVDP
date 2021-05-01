@@ -17,6 +17,14 @@ classdef fvvdp_video_source_sdr < fvvdp_video_source
         function vs = fvvdp_video_source_sdr( test_video, reference_video, fps, display_model, color_space_name )
             assert( all( size(test_video)==size(reference_video) ) );
 
+            if any( size(test_video)~=size(reference_video) )
+                error( 'Test and reference image/video tensors must be exactly the same size' );
+            end
+            
+            if fps==0 && ( (ndims(test_video)==3 && size(test_video,3)>3) || (ndims(test_video)==4 && size(test_video,4)>1) )
+                error( 'When passing video sequences, you must set ''frames_per_second'' parameter' );
+            end
+            
             vs.fps = fps;
             vs.is_video = (fps>0);            
             vs.is_color = (~vs.is_video && size(test_video,3)==3) || (vs.is_video && length(size(test_video))==4 && size(test_video,3)==3);

@@ -10,7 +10,7 @@ display_name = 'sdr_4k_30';
 ref_file = '../../pytorch_examples/aliasing/ferris-ref.mp4';
 TST_FILEs = dir( '../../pytorch_examples/aliasing/ferris-*-*.mp4' );
 
-options = {};
+options = { 'use_gpu', false };
 quiet = false;
 for dd=1:length(TST_FILEs)
     test_file = fullfile( TST_FILEs(dd).folder, TST_FILEs(dd).name );

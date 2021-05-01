@@ -152,9 +152,9 @@ else
     display_ph_model = fvvdp_display_photometry.create_from_json( dm_struct );
 end
 
-if ischar( test_video ) && ischar( reference_video )
+if ischar( test_video ) && ischar( reference_video ) % If privided with file names
     vs = fvvdp_video_source_sdr_file( test_video, reference_video, display_ph_model, p.Results.color_space );
-else    
+else % If provided with tensors
     vs = fvvdp_video_source_sdr( test_video, reference_video, p.Results.frames_per_second, display_ph_model, p.Results.color_space );
 end
 
