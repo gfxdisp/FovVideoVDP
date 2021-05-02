@@ -5,12 +5,12 @@ if ~exist( 'fovvdp', 'file' )
     addpath( fullfile( pwd, '..') );
 end
 
-display_name = 'sdr_4k_30';
+display_name = 'sdr_fhd_24';
 
 ref_file = '../../pytorch_examples/aliasing/ferris-ref.mp4';
 TST_FILEs = dir( '../../pytorch_examples/aliasing/ferris-*-*.mp4' );
 
-options = { 'use_gpu', false };
+options = { 'use_gpu', true };
 quiet = false;
 for dd=1:length(TST_FILEs)
     test_file = fullfile( TST_FILEs(dd).folder, TST_FILEs(dd).name );
