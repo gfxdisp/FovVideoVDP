@@ -169,7 +169,6 @@ imshow( diff_map_noise );
 
 FovVideoVDP will run the best (fastest) when CUDA is available on your system. When no CUDA is detected, the metric will automatically switch to a much slower CPU execution. 
 
-
 ### Display specification
 
 When running the metric, you should specify the display on which the images are viewed by passing the `display_name` parameter as shown in the example above. The list of display specifications can be found in the JSON file `display_models/display_models.json`. Refer to the JSON file for examples of display specifications. 
@@ -181,6 +180,13 @@ If you need more flexibility in specifying display geometry (size, fov, viewing 
 ### Low-level interface
 
 `fvvdp` function is the suitable choice for most cases. But if you need to run metric on large datasets, you can use a low-level function `fvvdp_core`. It requires as input an object of the class `fvvdp_video_source`, which supplies the metric with the frames. Refer to the documentation of that class for further details. 
+
+## Differences between Matlab and Pytorch versions
+
+* Both versions are implementation of the same metric, but due to the differences in video loaders, you can expect to see small differences in their predictions, typically up to 0.05 JOD.
+* Currently, Pytorch version processes images are 30 frames video, while the Matlab version has a dedicated "image" mode. Pytorch version will be updated to make it identical to Matlab. 
+* Pytorch version loads the entire video into a GPU memory and therefore, cannot process very large sequences and may require more memory. Matlab version loads a frame at the time and requires less GPU memory.
+* Pytorch version reports also the SSIM score. 
 
 ## Checking and reporting the version
 
