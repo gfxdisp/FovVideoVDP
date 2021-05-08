@@ -33,7 +33,7 @@ def make_grayscale(x):
         0.0722 * x[:,2:3,...]
     )
 
-def load_video_as_tensor(vidfile, device, frames=60):
+def load_video_as_tensor(vidfile, device, frames):
     try:
         probe = ffmpeg.probe(vidfile)
     except:
@@ -132,6 +132,7 @@ def parse_args():
     parser.add_argument("--verbose", action='store_true', default=False, help="Verbose mode")
     parser.add_argument("--foveated", action='store_true', default=False, help="Run in a foveated mode (non-foveated is the default)")
     parser.add_argument("--display", type=str, default="24-inch SDR Monitor", help="display name, e.g. HTC Vive")
+    parser.add_argument("--nframes", type=int, default=60, help="# of frames from video you want to load")
     args = parser.parse_args()
     return args
 
@@ -155,6 +156,9 @@ if __name__ == '__main__':
     else:
         do_diff = False
 
+    # set number of frames from video to be loaded as passed by user
+    frames = args.nframes
+
     # these extensions switch mode to images instead
     image_extensions = [".png", ".jpg", ".gif", ".bmp", ".jpeg", ".ppm", ".tiff", ".dds"]
 
@@ -177,7 +181,7 @@ if __name__ == '__main__':
 
     display_model = DisplayModel.load(args.display, 'sRGB')
 
-    ref_vid, ref_avg_fps = loader(args.ref, device=device)
+    ref_vid, ref_avg_fps = loader(args.ref, device=device, frames=frames)
     ref_vid_luminance = display_model.get_luminance_pytorch(ref_vid)
 
     H, W = ref_vid.shape[-2], ref_vid.shape[-1]
@@ -187,7 +191,7 @@ if __name__ == '__main__':
     for testfile in args.test:
         print(testfile + "... ", flush=True)
 
-        test_vid, test_avg_fps = loader(testfile, device=device)
+        test_vid, test_avg_fps = loader(testfile, device=device, frames=frames)
 
         if ref_avg_fps == test_avg_fps:
             cur_fps = ref_avg_fps
