@@ -174,8 +174,10 @@ if __name__ == '__main__':
     else:
         print('Non-foveated mode (default)')
 
+    run_ssim = False # not running SSIM by default, change here if you want to run it
 
-    ssim_module = SSIM(data_range=1.0, size_average=True, channel=3)
+    if run_ssim:
+        ssim_module = SSIM(data_range=1.0, size_average=True, channel=3)
 
     args.test = sanitize_filelist(args.test, do_sort=False)
 
@@ -197,8 +199,9 @@ if __name__ == '__main__':
             cur_fps = ref_avg_fps
             cur_frames = min(ref_vid.shape[2], test_vid.shape[2])
 
-            ssim = sum([ssim_module(ref_vid[:,:,i,...], test_vid[:,:,i,...]) for i in range(cur_frames)]) * 1.0/float(cur_frames)
-            print("    SSIM %0.4f " % (ssim), end='', flush=True)
+            if run_ssim:
+                ssim = sum([ssim_module(ref_vid[:,:,i,...], test_vid[:,:,i,...]) for i in range(cur_frames)]) * 1.0/float(cur_frames)
+                print("    SSIM %0.4f " % (ssim), end='', flush=True)
 
             loss, jod, diff_map = vdploss(display_model.get_luminance_pytorch(test_vid[:,:,0:cur_frames,...]), ref_vid_luminance[:,:,0:cur_frames,...])
             print( "VDP: %0.4f (JOD % 0.4f)" % (loss.cpu().item(), jod.cpu().item()))
@@ -223,8 +226,9 @@ if __name__ == '__main__':
 
                 cur_vdploss = FovVideoVDP(H=H, W=W, display_model=display_model, frames_per_s=cur_fps, do_diff_map=do_diff, device=device)
 
-                ssim = sum([ssim_module(cur_ref_vid[:,:,i,...], cur_test_vid[:,:,i,...]) for i in range(cur_frames)]) * 1.0/float(cur_frames)
-                print("    SSIM %0.4f " % (ssim), end='', flush=True)
+                if run_ssim:
+                    ssim = sum([ssim_module(cur_ref_vid[:,:,i,...], cur_test_vid[:,:,i,...]) for i in range(cur_frames)]) * 1.0/float(cur_frames)
+                    print("    SSIM %0.4f " % (ssim), end='', flush=True)
 
                 loss, jod, diff_map = cur_vdploss(display_model.get_luminance_pytorch(cur_test_vid), display_model.get_luminance_pytorch(cur_ref_vid))
                 print( "VDP: %0.4f (JOD % 0.4f)" % (loss.cpu().item(), jod.cpu().item()))
