@@ -76,7 +76,7 @@ def load_video_as_tensor(vidfile, device, frames):
 
     return tensor, avg_fps
 
-def load_image_as_tensor(imgfile, device, frames=60):
+def load_image_as_tensor(imgfile, device, frames=1):
 
     # # load image as srgb and convert to tensor
     # srgb_tensor = torch.tensor(img2np(Image.open(imgfile).convert("RGB"))).to(device)
@@ -91,10 +91,10 @@ def load_image_as_tensor(imgfile, device, frames=60):
     raw_tensor = raw_tensor.permute(2, 0, 1).unsqueeze(dim=0).unsqueeze(dim=2)
 
     # repeat frames
-    video_tensor = raw_tensor.expand(1, raw_tensor.shape[1], frames, raw_tensor.shape[3], raw_tensor.shape[4])
-    #video_tensor = raw_tensor.expand(1, raw_tensor.shape[0], frames, raw_tensor.shape[1], raw_tensor.shape[2])
+    #video_tensor = raw_tensor.expand(1, raw_tensor.shape[1], frames, raw_tensor.shape[3], raw_tensor.shape[4])
 
-    return video_tensor, 60.0
+    #return video_tensor, 60.0
+    return raw_tensor, 0
 
 def np2vid(np_srgb, vidfile, fps, verbose=False):
 

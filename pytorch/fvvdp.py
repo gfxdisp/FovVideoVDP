@@ -420,15 +420,19 @@ class FovVideoVDP(torch.nn.Module):
         if len(self.fixation_point) == 0:
             self.fixation_point = [self.W//2, self.H//2]
 
-        if self.filter_len == -1:
-            self.filter_len = int(np.ceil( 250.0 / (1000.0/self.frames_per_s) ))
-
         if self.mask_s > 0.0:
             self.mask_p = self.mask_q + self.mask_s
 
-        self.F, self.omega = self.get_temporal_filters(self.frames_per_s)
-        if self.debug: self.tb.verify_against_matlab(self.F,     'F_pod', self.device)
-        if self.debug: self.tb.verify_against_matlab(self.omega, 'omega', self.device)
+        is_image = (frames_per_s==0)
+
+        if is_image:
+            self.omega = torch.tensor([0,5], device=self.device, requires_grad=False)
+        else:
+            if self.filter_len == -1:
+                self.filter_len = int(np.ceil( 250.0 / (1000.0/self.frames_per_s) ))
+            self.F, self.omega = self.get_temporal_filters(self.frames_per_s)
+            if self.debug: self.tb.verify_against_matlab(self.F,     'F_pod', self.device)
+            if self.debug: self.tb.verify_against_matlab(self.omega, 'omega', self.device)
 
         for oo in self.omega:
             self.preload_cache(oo, self.csf_sigma)
@@ -454,7 +458,12 @@ class FovVideoVDP(torch.nn.Module):
 
         N = R_vid.shape[2] # number of frames
 
-        temp_ch = 2
+        is_image = (N==1)  # Can run faster on images
+
+        if is_image:
+            temp_ch = 1  # How many temporal channels
+        else:
+            temp_ch = 2
 
         if self.do_diff_map:
             diff_map = torch.zeros_like(R_vid)
@@ -480,48 +489,54 @@ class FovVideoVDP(torch.nn.Module):
         # sw_buf[0] = torch.cat((prepad_t, T_vid_int), 2)
         # sw_buf[1] = torch.cat((prepad_r, R_vid_int), 2)
         for ff in range(N):
-            if self.debug: print("Frame %d:\n----" % ff)
 
+            if is_image:
+                R = torch.zeros((1, 2, 1, R_vid.shape[3], R_vid.shape[4]), device=self.device)
+                R[:,0, :, :, :] = self.raw_to_internal_frame(T_vid[:, :, 0, :, :])
+                R[:,1, :, :, :] = self.raw_to_internal_frame(R_vid[:, :, 0, :, :])
 
-            if ff == 0:
-                if self.frame_padding == "replicate":
-                    sw_buf[0] = self.raw_to_internal_frame(T_vid[:, :, 0:1, :, :]).expand([T_vid.shape[0], T_vid.shape[1], fl, T_vid.shape[3], T_vid.shape[4]])
-                    sw_buf[1] = self.raw_to_internal_frame(R_vid[:, :, 0:1, :, :]).expand([R_vid.shape[0], R_vid.shape[1], fl, R_vid.shape[3], R_vid.shape[4]])
-                elif self.frame_padding == "circular":
-                    sw_buf[0] = torch.zeros([T_vid.shape[0], T_vid.shape[1], fl, T_vid.shape[3], T_vid.shape[4]], device=self.device)
-                    sw_buf[1] = torch.zeros([R_vid.shape[0], R_vid.shape[1], fl, R_vid.shape[3], R_vid.shape[4]], device=self.device)
-                    for kk in range(fl):
-                        fidx = (N - 1 - fl + kk) % N
-                        sw_buf[0][:,:,kk,...] = self.raw_to_internal_frame(T_vid[:,:,fidx,...])
-                        sw_buf[1][:,:,kk,...] = self.raw_to_internal_frame(R_vid[:,:,fidx,...])
-                elif self.frame_padding == "pingpong":
-                    sw_buf[0] = torch.zeros([T_vid.shape[0], T_vid.shape[1], fl, T_vid.shape[3], T_vid.shape[4]], device=self.device)
-                    sw_buf[1] = torch.zeros([R_vid.shape[0], R_vid.shape[1], fl, R_vid.shape[3], R_vid.shape[4]], device=self.device)
+            else: # This is video
+                if self.debug: print("Frame %d:\n----" % ff)
 
-                    pingpong = list(range(0,N)) + list(range(N-2,0,-1))
-                    indices = []
-                    while(len(indices) < (fl-1)):
-                        indices = indices + pingpong
-                    indices = indices[-(fl-1):] + [0]
+                if ff == 0: # First frame
+                    if self.frame_padding == "replicate":
+                        sw_buf[0] = self.raw_to_internal_frame(T_vid[:, :, 0:1, :, :]).expand([T_vid.shape[0], T_vid.shape[1], fl, T_vid.shape[3], T_vid.shape[4]])
+                        sw_buf[1] = self.raw_to_internal_frame(R_vid[:, :, 0:1, :, :]).expand([R_vid.shape[0], R_vid.shape[1], fl, R_vid.shape[3], R_vid.shape[4]])
+                    elif self.frame_padding == "circular":
+                        sw_buf[0] = torch.zeros([T_vid.shape[0], T_vid.shape[1], fl, T_vid.shape[3], T_vid.shape[4]], device=self.device)
+                        sw_buf[1] = torch.zeros([R_vid.shape[0], R_vid.shape[1], fl, R_vid.shape[3], R_vid.shape[4]], device=self.device)
+                        for kk in range(fl):
+                            fidx = (N - 1 - fl + kk) % N
+                            sw_buf[0][:,:,kk,...] = self.raw_to_internal_frame(T_vid[:,:,fidx,...])
+                            sw_buf[1][:,:,kk,...] = self.raw_to_internal_frame(R_vid[:,:,fidx,...])
+                    elif self.frame_padding == "pingpong":
+                        sw_buf[0] = torch.zeros([T_vid.shape[0], T_vid.shape[1], fl, T_vid.shape[3], T_vid.shape[4]], device=self.device)
+                        sw_buf[1] = torch.zeros([R_vid.shape[0], R_vid.shape[1], fl, R_vid.shape[3], R_vid.shape[4]], device=self.device)
 
-                    for kk in range(fl):
-                        fidx = indices[kk]
-                        sw_buf[0][:,:,kk,...] = self.raw_to_internal_frame(T_vid[:,:,fidx,...])
-                        sw_buf[1][:,:,kk,...] = self.raw_to_internal_frame(R_vid[:,:,fidx,...])
-            else:
-                cur_tframe = self.raw_to_internal_frame(T_vid[:, :, ff:(ff+1), :, :])
-                cur_rframe = self.raw_to_internal_frame(R_vid[:, :, ff:(ff+1), :, :])
+                        pingpong = list(range(0,N)) + list(range(N-2,0,-1))
+                        indices = []
+                        while(len(indices) < (fl-1)):
+                            indices = indices + pingpong
+                        indices = indices[-(fl-1):] + [0]
 
-                sw_buf[0] = torch.cat((sw_buf[0][:, :, 1:, :, :], cur_tframe), 2)
-                sw_buf[1] = torch.cat((sw_buf[1][:, :, 1:, :, :], cur_rframe), 2)
+                        for kk in range(fl):
+                            fidx = indices[kk]
+                            sw_buf[0][:,:,kk,...] = self.raw_to_internal_frame(T_vid[:,:,fidx,...])
+                            sw_buf[1][:,:,kk,...] = self.raw_to_internal_frame(R_vid[:,:,fidx,...])
+                else:
+                    cur_tframe = self.raw_to_internal_frame(T_vid[:, :, ff:(ff+1), :, :])
+                    cur_rframe = self.raw_to_internal_frame(R_vid[:, :, ff:(ff+1), :, :])
 
-            # Order: test-sustained, ref-sustained, test-transient, ref-transient
-            R = torch.zeros((1, 4, 1, R_vid.shape[3], R_vid.shape[4]), device=self.device)
+                    sw_buf[0] = torch.cat((sw_buf[0][:, :, 1:, :, :], cur_tframe), 2)
+                    sw_buf[1] = torch.cat((sw_buf[1][:, :, 1:, :, :], cur_rframe), 2)
 
-            for cc in range(temp_ch):
-                corr_filter = self.F[cc].flip(0).view([1,1,1,1,self.F[cc].shape[0]]) # pytorch convolutions default to "correlation" instead
-                R[:,cc*2+0, :, :, :] = Func.conv1d(sw_buf[0].permute(0,1,3,4,2), corr_filter, padding=0).permute(0,1,4,2,3)
-                R[:,cc*2+1, :, :, :] = Func.conv1d(sw_buf[1].permute(0,1,3,4,2), corr_filter, padding=0).permute(0,1,4,2,3)
+                # Order: test-sustained, ref-sustained, test-transient, ref-transient
+                R = torch.zeros((1, 4, 1, R_vid.shape[3], R_vid.shape[4]), device=self.device)
+
+                for cc in range(temp_ch):
+                    corr_filter = self.F[cc].flip(0).view([1,1,1,1,self.F[cc].shape[0]]) # pytorch convolutions default to "correlation" instead
+                    R[:,cc*2+0, :, :, :] = Func.conv1d(sw_buf[0].permute(0,1,3,4,2), corr_filter, padding=0).permute(0,1,4,2,3)
+                    R[:,cc*2+1, :, :, :] = Func.conv1d(sw_buf[1].permute(0,1,3,4,2), corr_filter, padding=0).permute(0,1,4,2,3)
 
             if self.debug: self.tb.verify_against_matlab(R.permute(0,2,3,4,1), 'Rdata', self.device, file='R_%d' % (ff+1), tolerance = 0.01)
 

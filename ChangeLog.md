@@ -9,6 +9,7 @@
 - [Matlab] fvvdp is now more verbose about its photometric and geometric settings
 - [Matlab] added an option to list available displays
 - [Matlab] extended the documentation and fixed a few typos
+- [Python] added the same "image" mode as Matlab version for much faster processing
 - [Python] added "foveated" parameter. Non-foveated is the default (used to be the opposite)
 - [Python] improved error reporting
 - [Python] added ambient light reflection to the display model (to sync with Matlab)

@@ -8,6 +8,9 @@ I_ref = imread( 'wavy_facade.png' );
 I_test_noise = imnoise( I_ref, 'gaussian', 0, 0.003 );
 I_test_blur = imgaussfilt( I_ref, 2 );
 
+% imwrite( I_test_noise, 'wavy_facade_noise.png' );
+% imwrite( I_test_blur, 'wavy_facade_blur.png' );
+
 [Q_JOD_noise, diff_map_noise] = fvvdp( I_test_noise, I_ref, 'display_name', 'sdr_4k_30', 'heatmap', 'threshold' );
 [Q_JOD_blur, diff_map_blur] = fvvdp( I_test_blur, I_ref, 'display_name', 'sdr_4k_30', 'heatmap', 'threshold' );
 
