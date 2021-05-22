@@ -22,7 +22,18 @@ If you use the metric in your research, please cite the paper above.
 
 FovVideoVDP reports image/video quality in the JOD (Just-Objectionable-Difference) units. The highest quality (no difference) is reported as 10 and lower values are reported for distorted content. In case of very strong distortion, or when comparing two unrelated images, the quality value can drop below 0. 
 
-The main advantage of JODs is that they (a) should be linearly related to the perceived amount of distortion and (b) the difference of JODs can be interpreted as the preference prediction across the population. For example, if method A produces a video with the quality score of 8 JOD and method B with the quality score of 9 JOD, it means that 75% of the population will choose method B over A. Please refer to Section 3.9 and Fig. 9 in the main paper for the detailed explanation.
+The main advantage of JODs is that they (a) should be linearly related to the perceived amount of distortion and (b) the difference of JODs can be interpreted as the preference prediction across the population. For example, if method A produces a video with the quality score of 8 JOD and method B with the quality score of 9 JOD, it means that 75% of the population will choose method B over A. The plots below show the mapping from the difference between two condition in JOD units to the probability of selecting the condition with the higher JOD score (black numbers on the left) and the percentage increase in preference (blue numbers on the right). For more explanation, please refer to Section 3.9 and Fig. 9 in the main paper.
+
+<table>
+  <tr>
+    <td>Fine JOD scale</td>
+    <td>Coarse JOD scale</td>
+  </tr>
+  <tr>
+    <td><img width="30em" src="https://github.com/gfxdisp/FovVideoVDP/blob/webpage/imgs/fine_jod_scale.png"></img></td>
+    <td><img width="30em" src="https://github.com/gfxdisp/FovVideoVDP/blob/webpage/imgs/coarse_jod_scale.png"></img></td>
+  </tr>
+</table>
 
 ## Usage
 
