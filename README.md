@@ -30,8 +30,8 @@ The main advantage of JODs is that they (a) should be linearly related to the pe
     <td>Coarse JOD scale</td>
   </tr>
   <tr>
-    <td><img width="30em" src="https://github.com/gfxdisp/FovVideoVDP/blob/webpage/imgs/fine_jod_scale.png"></img></td>
-    <td><img width="30em" src="https://github.com/gfxdisp/FovVideoVDP/blob/webpage/imgs/coarse_jod_scale.png"></img></td>
+    <td><img width="512" src="https://github.com/gfxdisp/FovVideoVDP/blob/webpage/imgs/fine_jod_scale.png"></img></td>
+    <td><img width="512" src="https://github.com/gfxdisp/FovVideoVDP/blob/webpage/imgs/coarse_jod_scale.png"></img></td>
   </tr>
 </table>
 
