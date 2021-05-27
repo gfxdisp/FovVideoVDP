@@ -18,7 +18,7 @@ V_dynamic_noise = V_ref + uint16(randn(size(V_ref))*max_v*N_amplitude); % Dynami
 V_static_noise = V_ref + repmat( uint16(randn(size(V_ref,1),size(V_ref,2),size(V_ref,3))*max_v*N_amplitude), [1 1 1 size(V_ref,4)] ); % Static Gaussian noise
 
 options = {};
-display_name = 'sdr_4k_30';
+display_name = 'standard_4k';
 tic
 [Q_JOD_static_noise, diff_map_static_noise] = fvvdp( V_static_noise, V_ref, 'frames_per_second', fps, 'display_name', display_name, 'heatmap', 'threshold', 'options', options );
 toc

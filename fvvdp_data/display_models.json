@@ -10,6 +10,16 @@
     "E_ambient": 250,
     "source": "none" },
 
+  "standard_hdr": {
+      "name": "30-inch 4K HDR, monitor, peak luminance 1500 cd/m^2, viewed under low light levels (10 lux), seen from 2 x display height", 
+      "resolution": [3840, 2160], 
+      "viewing_distance_meters":  0.7472,  
+      "diagonal_size_inches": 30,   
+      "max_luminance": 1500,   
+      "contrast": 1000000,
+      "E_ambient": 10,
+      "source": "none" },
+  
   "standard_fhd": {
       "name": "24-inch FullHD monitor, peak luminance 200 cd/m^2, viewed under office light levels (250 lux), seen from 2 x display height", 
       "resolution": [1920, 1080], 
@@ -19,7 +29,27 @@
       "contrast": 1000,
       "E_ambient": 250,
       "source": "none" },
-  
+
+  "standard_hmd": {
+      "name": "A head-mounted VR headset, 110 deg FOV, 1440x1600 per-eye resolution", 
+      "resolution": [1440, 1600], 
+      "fov_diagonal": 110.0,
+      "viewing_distance_meters": 3,
+      "max_luminance": 100, 
+      "min_luminance": 0.1,    
+      "source": "none" },
+
+  "standard_phone": {
+      "name": "A mobile phone display, ", 
+      "resolution": [2400, 1080], 
+      "viewing_distance_meters":  0.4,  
+      "diagonal_size_inches": 6,  
+      "max_luminance": 500,   
+      "min_luminance": 0.05, 
+      "E_ambient": 250, 
+      "source": "none"
+    },              
+
   "sdr_4k_30": {
     "name": "30-inch 4K SDR Monitor, viewed under office light levels (250 lux)", 
     "resolution": [3840, 2160], 

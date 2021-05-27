@@ -83,6 +83,10 @@ classdef fvvdp_display_photo_gog < fvvdp_display_photometry
             
         end
         
+        function Y_peak = get_peak_luminance( dm )
+            Y_peak = dm.Y_peak;
+        end
+        
         function Y_black = get_black_level( dm )
             Y_refl = dm.E_ambient/pi*dm.k_refl; % Reflected ambient light            
             Y_black = Y_refl + dm.Y_peak/dm.contrast;

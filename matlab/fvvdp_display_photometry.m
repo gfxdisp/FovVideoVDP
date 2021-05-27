@@ -9,7 +9,14 @@ classdef fvvdp_display_photometry
         % 0-1, into absolute linear colorimetric values emitted from
         % the display.
         L = forward( dm, V );
-                    
+        
+        % The the peak luminance of the display in cd/m^2
+        Y_peak = get_peak_luminance( dm );
+        
+        % The effective black level of the display (with the screen
+        % reflections) in cd/m^2
+        Y_black = get_black_level( dm );
+        
         % Display information about the simulated display. 
         print( dm );
         

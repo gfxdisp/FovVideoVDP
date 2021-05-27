@@ -16,6 +16,20 @@ Project page: https://github.com/gfxdisp/FovVideoVDP
 
 If you use the metric in your research, please cite the paper above. 
 
+## Display specification
+
+Unlike most image quality metrics, FovVideoVDP needs physical specification of the display (e.g. its size, resolution, peak brightness) and viewing conditions (viewing distance, ambient light) to compute accurate predictions. The specifications of the displays are stored in `fvvdp_data/display_models.json`. You can add the exact specification of your display to this file, however, it is unknown to you, you are encouraged to use one of the standard display specifications listed on the top of that file, for example `standard_4k`, or `standard_fhd`. If you use one of the standard displays, there is a better chance that your results will be comparable with other studies. 
+
+You specify the display by passing `--display` argument to the PyTorch code, or `display_name` parameter to the Matlab code. 
+
+Note the the specification in `display_models.json` is for the display and not the image. If you select to use `standard_hdr` with the resolution of 3840x2160 for your display and pass a 1920x1080 image, the metric will assume that the image occupies one quarter of that display. 
+
+## Reporting metric results
+
+When reporting the results of the metric, please include the string returned by the metric, such as:
+`"FovVideoVDP v1.0, 75.4 [pix/deg], Lpeak=200, Lblack=0.5979 [cd/m^2], non-foveated, (standard_4k)"`
+This is to ensure that you provide enough details to reproduce your results. 
+
 ## Predicted quality scores
 
 FovVideoVDP reports image/video quality in the JOD (Just-Objectionable-Difference) units. The highest quality (no difference) is reported as 10 and lower values are reported for distorted content. In case of very strong distortion, or when comparing two unrelated images, the quality value can drop below 0. 
@@ -169,22 +183,18 @@ The best starting point is the examples, which can be found in `matlab/examples`
 I_ref = imread( 'wavy_facade.png' );
 I_test_noise = imnoise( I_ref, 'gaussian', 0, 0.001 );
 
-[Q_JOD_noise, diff_map_noise] = fvvdp( I_test_noise, I_ref, 'display_name', 'iphone_12_pro', 'heatmap', 'threshold' );
+[Q_JOD_noise, diff_map_noise] = fvvdp( I_test_noise, I_ref, 'display_name', 'standard_phone', 'heatmap', 'threshold' );
 
 clf
 imshow( diff_map_noise );
 
 ```
 
-FovVideoVDP will run the best (fastest) when CUDA is available on your system. When no CUDA is detected, the metric will automatically switch to a much slower CPU execution. 
+By default, FovVideoVDP will run the code on a GPU using `gpuArray`s, which require functioning CUDA on your computer. If you do not have GPU with CUDA support (e.g. you are on Mac), the code will automatically fallback to the CPU, which will be much slower. 
 
-### Display specification
+### Custom display specification
 
-When running the metric, you should specify the display on which the images are viewed by passing the `display_name` parameter as shown in the example above. The list of display specifications can be found in the JSON file `display_models/display_models.json`. Refer to the JSON file for examples of display specifications. 
-
-Note the the specification in `display_models.json` is for the display and not the image. If you select to use `sdr_4k_30` with the resolution of 3840x2160 for your display and pass a 1920x1080 image, the metric will assume that the image occupies one quarter of that display. 
-
-If you need more flexibility in specifying display geometry (size, fov, viewing distance) and its colorimetry, you can instead pass objects of the classes `fvvdp_display_geometry`, `fvvdp_display_photo_gog` for most SDR displays, and `fvvdp_display_photo_absolute` for HDR displays. You can also create your own subclasses of those classes for custom display specification. 
+The display photometry and geometry is typically specified by passing `display_name` parameter to the metric. Alternatively, ff you need more flexibility in specifying display geometry (size, fov, viewing distance) and its colorimetry, you can instead pass objects of the classes `fvvdp_display_geometry`, `fvvdp_display_photo_gog` for most SDR displays, and `fvvdp_display_photo_absolute` for HDR displays. You can also create your own subclasses of those classes for custom display specification. 
  
 ### Low-level interface
 
@@ -193,9 +203,9 @@ If you need more flexibility in specifying display geometry (size, fov, viewing 
 ## Differences between Matlab and Pytorch versions
 
 * Both versions are implementation of the same metric, but due to the differences in video loaders, you can expect to see small differences in their predictions, typically up to 0.05 JOD.
-* Currently, Pytorch version processes images are 30 frames video, while the Matlab version has a dedicated "image" mode. Pytorch version will be updated to make it identical to Matlab. 
-* Pytorch version loads the entire video into a GPU memory and therefore, cannot process very large sequences and may require more memory. Matlab version loads a frame at the time and requires less GPU memory.
-* Pytorch version reports also the SSIM score. 
+* Matlab version currently has reacher interface and can be supplied with images or video in any format. 
+* Both versions give more or less the same processing time when run on a GPU. 
+* PyTorch version loads the entire video into a GPU memory and therefore, cannot process very large sequences and may require more memory. Matlab version loads a frame at the time and requires less GPU memory.
 
 ## Checking and reporting the version
 

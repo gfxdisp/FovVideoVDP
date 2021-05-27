@@ -198,7 +198,7 @@ if ~p.Results.quiet
     else
         standard_str = '';
     end
-    fprintf( 1, '"FovVideoVDP v%.01f, %.4g [pix/deg], Lpeak=%.5g, Lblack=%.4g [cd/m^2], %s%s"\n', metric_par.version, display_geom.get_ppd(), display_ph_model.Y_peak, display_ph_model.get_black_level(), fv_mode, standard_str );
+    fprintf( 1, '"FovVideoVDP v%.01f, %.4g [pix/deg], Lpeak=%.5g, Lblack=%.4g [cd/m^2], %s%s"\n', metric_par.version, display_geom.get_ppd(), display_ph_model.get_peak_luminance(), display_ph_model.get_black_level(), fv_mode, standard_str );
     
 end
 options = p.Results.options;
