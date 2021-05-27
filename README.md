@@ -10,9 +10,7 @@ FovVideoVDP currently has both a Pytorch and MATLAB implementation. The usage is
 
 The details of the metric can be found in:
 
-Mantiuk, Rafał K., Gyorgy Denes, Alexandre Chapiro, Anton Kaplanyan, Gizem Rufo, Romain Bachy, Trisha Lian, and Anjul Patney. 
-“FovVideoVDP : A Visible Difference Predictor for Wide Field-of-View Video.” 
-ACM Transaction on Graphics, 2021.
+Mantiuk, Rafał K., Gyorgy Denes, Alexandre Chapiro, Anton Kaplanyan, Gizem Rufo, Romain Bachy, Trisha Lian, and Anjul Patney. “FovVideoVDP : A Visible Difference Predictor for Wide Field-of-View Video.” ACM Transaction on Graphics 40, no. 4 (2021): 49. https://doi.org/10.1145/3450626.3459831.
 
 Project page: https://github.com/gfxdisp/FovVideoVDP
 
