@@ -37,7 +37,7 @@ function [Q_JOD, diff_map, Q] = fvvdp(test_video, reference_video, varargin)
 % 'display_name' specifies one of the displays listed in
 % display_models/display_models.json. The entries from the JSON file
 % specify both display geometry and its phtometry. The default is
-% 'sdr_4k_30', which is a 30-inch 4K SDR display, seen from 60 cm. 
+% 'standard_4k', which is a 30-inch 4K SDR display, seen from 60 cm. 
 % Pass '?' to list available displays. Pass '--list' to get the detailed
 % list with all the parameters. 
 %
@@ -51,7 +51,7 @@ function [Q_JOD, diff_map, Q] = fvvdp(test_video, reference_video, varargin)
 %
 % If only 'display_photometry' or 'display_geometry' is specified, the
 % other part of display specification is taken from the default display
-% specification ('sdr_4k_30');
+% specification ('standard_4k');
 %
 % 'color_space' specifies the color space in which color data is stored. The
 % available color spaces are listed in display_models/color_spaces.json.
@@ -104,7 +104,7 @@ valid_input = @(in) isnumeric(in) || ischar(in);
 p.addRequired('test_video',valid_input);
 p.addRequired('reference_video',valid_input);
 p.addParameter('frames_per_second', 0, @(x)validateattributes(x,{'numeric'},{'nonempty','nonnegative'}) );
-p.addParameter('display_name', 'sdr_4k_30', @ischar);
+p.addParameter('display_name', 'standard_4k', @ischar);
 p.addParameter('display_photometry', []);
 p.addParameter('display_geometry', [], @(x) isa(x,'fvvdp_display_geometry') );
 p.addParameter('foveated', false, @islogical );
@@ -137,7 +137,7 @@ if ~(~isempty( p.Results.display_photometry ) && ~isempty( p.Results.display_geo
     end
     
     if ~isfield( disp_list, p.Results.display_name )
-        error( 'Unknown display model "%s". Check display_models/display_models.json for available display models.', p.Results.display_name );
+        error( 'Unknown display model "%s". Check fvvdp_data/display_models.json for available display models.', p.Results.display_name );
     end
     dm_struct = disp_list.(p.Results.display_name);
 end
@@ -183,9 +183,23 @@ if ~p.Results.quiet
     end
     if p.Results.foveated
         fprintf( 1, 'Foveated mode.\n' )
+        fv_mode = 'foveated';
     else
         fprintf( 1, 'Non-foveated mode (default).\n' )
+        fv_mode = 'non-foveated';
     end
+    
+    metric_par = fvvdp_load_parameters_from_json();
+    fprintf( 1, 'When reporting metric results, please include the following information:\n' );
+    
+    if startsWith(p.Results.display_name, 'standard_') && isempty( p.Results.display_photometry ) && isempty( p.Results.display_geometry )
+        % append this if are using one of the standard displays
+        standard_str = strcat( ', (', p.Results.display_name, ')' );
+    else
+        standard_str = '';
+    end
+    fprintf( 1, '"FovVideoVDP v%.01f, %.4g [pix/deg], Lpeak=%.5g, Lblack=%.4g [cd/m^2], %s%s"\n', metric_par.version, display_geom.get_ppd(), display_ph_model.Y_peak, display_ph_model.get_black_level(), fv_mode, standard_str );
+    
 end
 options = p.Results.options;
 

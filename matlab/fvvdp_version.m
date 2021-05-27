@@ -1,3 +1,4 @@
 function ver = fvvdp_version( )
-ver = 1.0;
+metric_par = fvvdp_load_parameters_from_json();
+ver = metric_par.version;
 end

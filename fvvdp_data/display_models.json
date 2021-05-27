@@ -1,10 +1,30 @@
 
 {
+  "standard_4k": {
+    "name": "30-inch 4K monitor, peak luminance 200 cd/m^2, viewed under office light levels (250 lux), seen from 2 x display height", 
+    "resolution": [3840, 2160], 
+    "viewing_distance_meters":  0.7472,  
+    "diagonal_size_inches": 30,   
+    "max_luminance": 200,   
+    "contrast": 1000,
+    "E_ambient": 250,
+    "source": "none" },
+
+  "standard_fhd": {
+      "name": "24-inch FullHD monitor, peak luminance 200 cd/m^2, viewed under office light levels (250 lux), seen from 2 x display height", 
+      "resolution": [1920, 1080], 
+      "viewing_distance_meters":  0.6,  
+      "diagonal_size_inches": 24,   
+      "max_luminance": 200,   
+      "contrast": 1000,
+      "E_ambient": 250,
+      "source": "none" },
+  
   "sdr_4k_30": {
     "name": "30-inch 4K SDR Monitor, viewed under office light levels (250 lux)", 
     "resolution": [3840, 2160], 
     "viewing_distance_meters":  0.6,  
-    "diagonal_size_inches": 27,   
+    "diagonal_size_inches": 30,   
     "max_luminance": 100,   
     "contrast": 1000,
     "E_ambient": 250,

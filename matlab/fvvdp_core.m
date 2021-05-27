@@ -31,7 +31,7 @@ end
 
 % Calibration parameters are read from JSON file to make sure they are
 % consistent between Matlab and Python versions of the metric.
-metric_par = load_parameters_from_json();
+metric_par = fvvdp_load_parameters_from_json();
 
 % The calibration parameters (normally loaded from the JSON file)
 % metric_par.mask_p = 2.4;  % The exponent of the exitation signal of the
@@ -540,20 +540,6 @@ D = min( D, 1e4 ); % This prevents Infs when beta is pooling is high
                 
         R = G.^p ./ ( 1 + (G_mask).^q ) ;
     end
-
-end
-
-function metric_pars = load_parameters_from_json()
-        
-param_file_fname = fullfile( fvvdp_data_dir(), 'fvvdp_parameters.json' );
-if ~isfile( param_file_fname )
-    error( 'JSON file with the metric parameters not found. Missing file: "%s"', param_file_fname );
-end
-fid = fopen(param_file_fname);
-raw = fread(fid,inf);
-str = char(raw');
-fclose(fid);
-metric_pars = jsondecode(str);
 
 end
 
