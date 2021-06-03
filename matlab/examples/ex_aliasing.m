@@ -5,7 +5,7 @@ if ~exist( 'fovvdp', 'file' )
     addpath( fullfile( pwd, '..') );
 end
 
-display_name = 'sdr_fhd_24';
+display_name = 'standard_4k';
 
 ref_file = '../../pytorch_examples/aliasing/ferris-ref.mp4';
 TST_FILEs = dir( '../../pytorch_examples/aliasing/ferris-*-*.mp4' );

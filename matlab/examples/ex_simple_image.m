@@ -4,7 +4,8 @@ if ~exist( 'fovvdp', 'file' )
     addpath( fullfile( pwd, '..') );
 end
 
-I_ref = imread( 'wavy_facade.png' );
+%I_ref = imread( 'wavy_facade.png' );
+%I_ref = imread( 'tree.jpg' );
 I_test_noise = imnoise( I_ref, 'gaussian', 0, 0.003 );
 I_test_blur = imgaussfilt( I_ref, 2 );
 

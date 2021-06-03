@@ -22,7 +22,7 @@ classdef fvvdp_video_source_sdr_file < fvvdp_video_source
             vs.test_reader = VideoReader( test_video );
             vs.reference_reader = VideoReader( reference_video );
             
-            if vs.reference_reader.FrameRate ~= vs.test_reader.FrameRate
+            if abs(vs.reference_reader.FrameRate-vs.test_reader.FrameRate)<1e-3
                 error( 'Test and reference video must have the same frame rate. Found %g and %g fps.', vs.test_reader.FrameRate, vs.reference_reader.FrameRate );
             end
             
