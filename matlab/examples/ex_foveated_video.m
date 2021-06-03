@@ -2,7 +2,7 @@
 % viewing.
 %
 % This example simulates viewing in a VR headset. Therefore, the noise is
-% much less visible on a monitor that it is in a VR headset, with much
+% much less visible on a monitor that it is in a VR headset, which has much
 % smaller effective resolution (in terms of pixels per degree).
 
 if ~exist( 'fovvdp', 'file' )
@@ -42,7 +42,10 @@ fprintf( 1, '=== Dynamic noise Q_JOD = %g\n', Q_JOD_dynamic_noise );
 % Prepare visualization
 
 % Videos are large so better to store them as uint8. 
-V_all = cat( 1, cat( 2, uint8(V_dynamic_noise/256), uint8(diff_map_dynamic_noise*256) ) );
+% Add fixation points
+V_dynamic_noise_fp = fvvdp_add_fixation_cross( uint8(V_dynamic_noise/256), gaze_pos );
+V_diff_map_fp = fvvdp_add_fixation_cross( uint8(diff_map_dynamic_noise*256), gaze_pos );
+V_all = cat( 1, cat( 2, V_dynamic_noise_fp, V_diff_map_fp ) );
 
 implay( V_all, fps )
 

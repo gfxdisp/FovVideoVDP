@@ -8,8 +8,8 @@ classdef fvvdp_display_geometry
     % and visual degrees. Check 'display_size_m' and 'display_size_deg' class
     % properties for that.
     %
-    % R = hdrvdp_display_resolution( ppd );
-    % R = hdrvdp_display_resolution( resolution, options );
+    % R = fvvdp_display_geometry( ppd );
+    % R = fvvdp_display_geometry( resolution, options );
     %
     % resolution is the 1x2 vector with the pixel resolution of the
     % display: [width, height]

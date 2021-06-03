@@ -65,9 +65,9 @@ metric_par.frame_padding = 'replicate'; % How to pad frame at the beginning of t
 metric_par.use_gpu = true; % Set to false to disable processing on a GPU (eg. when CUDA is not supported)
 metric_par.do_diff_map = false; % Produce a map of the differences between test and reference images
 metric_par.debug = false;       % [internal]: Enable debugging
-metric_par.fixation_point = []; % in pixel coordinates (x,y)
+metric_par.fixation_point = []; % in pixel coordinates (x,y), where x=0..width-1 and y=0..height-1
                                 % fixation_point can be also an [N 2] matrix
-                                % where N is the number of frames
+                                % where N is the number of frames. 
 metric_par.band_callback = [];  % [internal] Used to analyze the masking model
 metric_par.video_name = 'channels'; % Where to store "debug" video
 metric_par.do_temporal_channels = true;  % [internal] Set to false to disable temporal channels and treat each frame as a image (for an ablation study)
@@ -310,9 +310,9 @@ for ff=1:N % for each frame
                 
                 if metric_par.do_foveated % Fixation, parafoveal sensitivity
                     if size(metric_par.fixation_point,1)>1 % moving fixation point
-                        fix_point = metric_par.fixation_point(ff,:);
+                        fix_point = metric_par.fixation_point(ff,:)+1;
                     else
-                        fix_point = metric_par.fixation_point;
+                        fix_point = metric_par.fixation_point+1;
                     end
                     
                     if isempty( metric_par.content_mapping )
