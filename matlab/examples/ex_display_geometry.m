@@ -24,7 +24,7 @@ end
 clf
 plot( distances, Q_JOD, '-o' );
 grid on;
-xlabel( 'Viewing distance' );
+xlabel( 'Viewing distance [m]' );
 ylabel( 'Quality [JOD]' );
 
 

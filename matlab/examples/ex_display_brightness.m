@@ -32,7 +32,7 @@ clf
 plot( disp_peaks, Q_JOD, '-o' );
 grid on;
 set( gca, 'XScale', 'log' );
-xlabel( 'Display peak luminance' );
+xlabel( 'Display peak luminance [cd/m^2]' );
 ylabel( 'Quality [JOD]' );
 
 
