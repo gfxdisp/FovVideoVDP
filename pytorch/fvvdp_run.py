@@ -211,8 +211,6 @@ if __name__ == '__main__':
     vdploss = FovVideoVDP.load(H=H, W=W, display_model=display_model, frames_per_s=ref_avg_fps, do_diff_map=do_diff,
                           do_foveated=args.foveated, device=device)
 
-    vdploss.print_version_info( display_model )
-
     for testfile in args.test:
         print(testfile + "... ", flush=True)
 

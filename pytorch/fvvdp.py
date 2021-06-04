@@ -403,7 +403,7 @@ class FovVideoVDP(torch.nn.Module):
         self.lpyr = hdrvdp_lpyr_dec(self.W, self.H, self.pix_per_deg, self.device)
         self.imgaussfilt = ImGaussFilt(0.5 * self.pix_per_deg, self.device)
 
-    def print_version_info( self, display_model ):
+    def print_version_info( self, parameters, display_model ):
         # Print the specification line, identical to Matlab's version
 
         print("When reporting metric results, please include the following information:")
@@ -417,7 +417,7 @@ class FovVideoVDP(torch.nn.Module):
         else:
             display_str=""
 
-        print("FovVideoVDP v1.0, {ppd:.1f} [pix/deg], Lpeak={lpeak}, Lblack={lblack:.4f} [cd/m^2], {fovstr}{disp_str}".format(ppd=self.pix_per_deg, lpeak=display_model.max_luminance, lblack=display_model.min_luminance, fovstr=foveated_str, disp_str=display_str) )
+        print("FovVideoVDP v{vnum:.1f}, {ppd:.1f} [pix/deg], Lpeak={lpeak}, Lblack={lblack:.4f} [cd/m^2], {fovstr}{disp_str}".format(vnum=parameters['version'], ppd=self.pix_per_deg, lpeak=display_model.max_luminance, lblack=display_model.min_luminance, fovstr=foveated_str, disp_str=display_str) )
 
 
     @classmethod
@@ -477,6 +477,8 @@ class FovVideoVDP(torch.nn.Module):
             mask_s, mask_p, mask_c, pu_dilate, debug, fixation_point, w_transient, beta, beta_t, beta_tch, beta_sch,
             filter_len, sustained_sigma, sustained_beta, csf_sigma, do_foveated, sensitivity_correction, masking_model, band_callback,
             local_adapt, contrast, jod_a, log_jod_exp, use_gpu, do_temporal_channels, mask_q_sust, mask_q_trans, k_cm, frame_padding)
+
+        obj.print_version_info(parameters, display_model)
 
         return obj
 
