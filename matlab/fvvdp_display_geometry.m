@@ -86,6 +86,10 @@ classdef fvvdp_display_geometry
                     dr.display_size_m = [ar*height_mm height_mm]/1000;
                 end
                 
+                if (~isempty( p.Results.distance_m ) + ~isempty( p.Results.distance_display_heights ) + ~isempty( p.Results.pix_per_deg ))>1
+                    error( 'You can pass only one of: ''distance_m'', ''distance_display_heights'', ''pix_per_deg''.' );
+                end
+                
                 if ~isempty( p.Results.distance_m )
                     dr.distance_m = p.Results.distance_m;
                 elseif ~isempty( p.Results.distance_display_heights )
@@ -109,8 +113,7 @@ classdef fvvdp_display_geometry
                 if (~isempty( p.Results.fov_horizontal ) + ~isempty( p.Results.fov_vertical ) + ~isempty( p.Results.fov_diagonal )) >1
                     error( 'You can pass only one of ''fov_horizontal'', ''fov_vertical'', ''fov_diagonal''. The other dimensions are inferred from the resolution assuming that the pixels are square.' );                    
                 end
-                
-                
+                                
                 if ~isempty( p.Results.fov_horizontal )
                     width_m = 2*tand( p.Results.fov_horizontal/2 )*dr.distance_m;
                     dr.display_size_m = [width_m width_m/ar];
