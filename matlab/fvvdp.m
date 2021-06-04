@@ -67,7 +67,7 @@ function [Q_JOD, diff_map, Q] = fvvdp(test_video, reference_video, varargin)
 % visualization of the difference map. The possible values are 
 %   'threshold' - use blue-green-yellow-red color map to denote values from
 %                 0 to 1 JOD
-%   'supre-threshold' - use cyan-yellow map to denote JND values from 0 to
+%   'supra-threshold' - use cyan-yellow map to denote JND values from 0 to
 %                 3 JOD.
 %   The images with the labelled color scale can be found in 'color_scales' 
 %   folder.

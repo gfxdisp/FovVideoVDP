@@ -1,3 +1,4 @@
+from numpy.lib.shape_base import expand_dims
 import torch
 import torch.nn.functional as Func
 import numpy as np 
@@ -73,6 +74,7 @@ class DisplayModel():
         colorspaces_file = os.path.join(os.path.dirname(__file__), "../fvvdp_data/color_spaces.json")
 
         obj = cls.__new__(cls)
+        obj.display_name = model_name
 
         models = json2dict(models_file)
         colorspaces = json2dict(colorspaces_file)
@@ -145,7 +147,7 @@ class DisplayModel():
 
                 return obj
 
-        print("Error: Display Model %s not found in display_models.json" % model_name)
+        print("Error: Display model '%s' not found in display_models.json" % model_name)
         return None
 
 
@@ -364,14 +366,14 @@ class FovVideoVDP(torch.nn.Module):
         if self.debug:
             self.tb = FovVideoVDP_Testbench()
 
-        print("VDP Params:")
-        kidx = 0
-        for k, v in sorted(vars(self).items()):
-            if not k.startswith("_"):
-                print("%-30s" % (k + ": " + str(v)), end = '')
-                if kidx%2==1: print()
-                kidx+=1
-        print()
+        # print("VDP Params:")
+        # kidx = 0
+        # for k, v in sorted(vars(self).items()):
+        #     if not k.startswith("_"):
+        #         print("%-30s" % (k + ": " + str(v)), end = '')
+        #         if kidx%2==1: print()
+        #         kidx+=1
+        # print()
 
         self.pix_per_deg = self.display_model.get_ppd(0.0)
 
@@ -400,6 +402,23 @@ class FovVideoVDP(torch.nn.Module):
 
         self.lpyr = hdrvdp_lpyr_dec(self.W, self.H, self.pix_per_deg, self.device)
         self.imgaussfilt = ImGaussFilt(0.5 * self.pix_per_deg, self.device)
+
+    def print_version_info( self, display_model ):
+        # Print the specification line, identical to Matlab's version
+
+        print("When reporting metric results, please include the following information:")
+        if self.do_foveated:
+            foveated_str = 'foveated'
+        else:
+            foveated_str = 'non-foveated'  
+
+        if hasattr(display_model, 'display_name') and display_model.display_name.startswith('standard'):
+            display_str=", ({disp_name})".format(disp_name=display_model.display_name)
+        else:
+            display_str=""
+
+        print("FovVideoVDP v1.0, {ppd:.1f} [pix/deg], Lpeak={lpeak}, Lblack={lblack:.4f} [cd/m^2], {fovstr}{disp_str}".format(ppd=self.pix_per_deg, lpeak=display_model.max_luminance, lblack=display_model.min_luminance, fovstr=foveated_str, disp_str=display_str) )
+
 
     @classmethod
     def load(cls, H, W, display_model, frames_per_s, do_diff_map,

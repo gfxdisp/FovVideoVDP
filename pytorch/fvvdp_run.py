@@ -119,6 +119,20 @@ def np2vid(np_srgb, vidfile, fps, verbose=False):
     process.stdin.close()
     process.wait()
 
+# Save a numpy arry as an image
+def np2img(np_srgb, imgfile):
+
+    N, H, W, C = np_srgb.shape
+    if C == 1:
+        np_srgb = np.concatenate([np_srgb]*3, -1)
+
+    if N>1:
+        sys.exit("Expecting an image, found video")
+
+    img = Image.fromarray( (np.clip(np_srgb,0.0,1.0)[0,...]*255.0).astype(np.uint8) )
+    img.save(imgfile)
+
+
 
 # -----------------------------------
 # Command-line Arguments
@@ -128,7 +142,7 @@ def parse_args():
     parser.add_argument ("--ref", type=str, required = True, help="ref image or video")
     parser.add_argument ("--test", type=str, nargs='+', required = True, help="list of test images/videos")
     parser.add_argument("--gpu", type=int,  default=-1, help="select which GPU to use (e.g. 0), default is CPU")
-    parser.add_argument("--diff", type=str, default=None, help="type of difference map (None, subthreshold, suprathreshold)")
+    parser.add_argument("--heatmap", type=str, default=None, help="type of difference map (None, threshold, supra-threshold)")
     parser.add_argument("--verbose", action='store_true', default=False, help="Verbose mode")
     parser.add_argument("--foveated", action='store_true', default=False, help="Run in a foveated mode (non-foveated is the default)")
     parser.add_argument("--display", type=str, default="24-inch SDR Monitor", help="display name, e.g. HTC Vive")
@@ -144,14 +158,17 @@ if __name__ == '__main__':
     else:
         device = torch.device('cpu')
 
-    print("Running on " + str(device))
+    print("Running on device: " + str(device))
 
-    diff_types = {
-        "subthreshold"   : {"scale" : 1.000, "colormap_type": "trichromatic"},
-        "suprathreshold" : {"scale" : 0.333, "colormap_type": "dichromatic"},
+    heatmap_types = {
+        "threshold"   : {"scale" : 1.000, "colormap_type": "trichromatic"},
+        "supra-threshold" : {"scale" : 0.333, "colormap_type": "dichromatic"},
     }
 
-    if args.diff in diff_types:
+    if args.heatmap:
+        if not args.heatmap in heatmap_types:
+            sys.exit( 'The recognized heatmap types are "threshold" and "supra-threshold"' )
+
         do_diff = True
     else:
         do_diff = False
@@ -164,15 +181,17 @@ if __name__ == '__main__':
 
     if os.path.splitext(args.ref)[1] in image_extensions:
         loader = load_image_as_tensor
+        do_video = False
         print("Mode: Image")
     else:
         loader = load_video_as_tensor
+        do_video = True
         print("Mode: Video")
 
-    if args.foveated:
-        print('Foveated mode.')
-    else:
-        print('Non-foveated mode (default)')
+    # if args.foveated:
+    #     print('Foveated mode.')
+    # else:
+    #     print('Non-foveated mode (default)')
 
     run_ssim = False # not running SSIM by default, change here if you want to run it
 
@@ -190,7 +209,9 @@ if __name__ == '__main__':
 
     #vdploss = FovVideoVDP(H=H, W=W, display_model=display_model, frames_per_s=ref_avg_fps, do_diff_map=do_diff, do_foveated=args.diff, device=device)
     vdploss = FovVideoVDP.load(H=H, W=W, display_model=display_model, frames_per_s=ref_avg_fps, do_diff_map=do_diff,
-                          do_foveated=args.diff, device=device)
+                          do_foveated=args.foveated, device=device)
+
+    vdploss.print_version_info( display_model )
 
     for testfile in args.test:
         print(testfile + "... ", flush=True)
@@ -206,8 +227,9 @@ if __name__ == '__main__':
                 print("    SSIM %0.4f " % (ssim), end='', flush=True)
 
             loss, jod, diff_map = vdploss(display_model.get_luminance_pytorch(test_vid[:,:,0:cur_frames,...]), ref_vid_luminance[:,:,0:cur_frames,...])
-            print( "VDP: %0.4f (JOD % 0.4f)" % (loss.cpu().item(), jod.cpu().item()))
+            print( "Q_JOD={Q_jod:0.4f}".format(Q_jod=jod) )
         else:
+            # Below is an experiemental part that may require more testing
             if ref_avg_fps.is_integer() and test_avg_fps.is_integer():
                 cur_fps = np.lcm(int(ref_avg_fps), int(test_avg_fps))                
                 print("    Upsampling ref (%0.2f) and test (%0.2f) to %d fps" % (ref_avg_fps, test_avg_fps, cur_fps))
@@ -239,15 +261,20 @@ if __name__ == '__main__':
                 continue
 
         if do_diff:
-            diff_type = diff_types[args.diff]
-            print("    Writing diff map...")
+            diff_type = heatmap_types[args.heatmap]
+            print("    Writing heat maps...")
             diff_map = diff_map * diff_type["scale"]
             diff_map_viz = visualize_diff_map(diff_map, context_image=ref_vid, colormap_type=diff_type["colormap_type"])
-            out_dir = os.path.join(os.path.dirname(testfile), "diff_maps")
+            out_dir = os.path.join(os.path.dirname(testfile), "heat_maps")
             os.makedirs(out_dir, exist_ok=True)
             base, ext = os.path.splitext(os.path.basename(testfile))
-            np2vid((linear2srgb_torch(diff_map[0])).permute((1,2,3,0)).cpu().numpy(), os.path.join(out_dir, base + "_diff_map.mp4"), cur_fps, args.verbose)
-            np2vid((diff_map_viz[0]).permute((1,2,3,0)).cpu().numpy(), os.path.join(out_dir, base + "_diff_map_viz.mp4"), cur_fps, args.verbose)
+            if do_video:
+                np2vid((linear2srgb_torch(diff_map[0])).permute((1,2,3,0)).cpu().numpy(), os.path.join(out_dir, base + "_diff_map.mp4"), cur_fps, args.verbose)
+                np2vid((diff_map_viz[0]).permute((1,2,3,0)).cpu().numpy(), os.path.join(out_dir, base + "_diff_map_viz.mp4"), cur_fps, args.verbose)
+            else:
+                np2img((linear2srgb_torch(diff_map[0])).permute((1,2,3,0)).cpu().numpy(), os.path.join(out_dir, base + "_diff_map.png" ))
+                np2img((diff_map_viz[0]).permute((1,2,3,0)).cpu().numpy(), os.path.join(out_dir, base + "_diff_map_viz.png" ))
+                
 
             del diff_map
             del diff_map_viz
