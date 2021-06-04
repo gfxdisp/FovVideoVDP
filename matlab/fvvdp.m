@@ -179,7 +179,7 @@ if ~p.Results.quiet
     end
     fprintf( 1, '%s resolution: [%d %d] pix\n', content_type, vid_sz(2), vid_sz(1) );    
     if vid_sz(1)<display_geom.resolution(2) || vid_sz(2)<display_geom.resolution(1)
-        fprintf( 1, '  Content is smaller the the display resolution. The metric assumes that the image is shown in the native resolution in the central portion of the screen.\n' );
+        fprintf( 1, '  Content is smaller then the display resolution. The metric assumes that the image is shown at the native display resolution in the central portion of the screen.\n' );
     end
     if p.Results.foveated
         fprintf( 1, 'Foveated mode.\n' )

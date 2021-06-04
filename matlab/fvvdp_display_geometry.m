@@ -29,6 +29,8 @@ classdef fvvdp_display_geometry
     %
     % Examples:
     % % HTC Pro
+    % % Note that the viewing distance must be specified even though the resolution 
+    % % and 'fov_diagonal' are enough to find pix_per_deg.
     % R = fvvdp_display_geometry( [1440 1600], 'distance_m', 3, 'fov_diagonal', 110 );
     % R.get_ppd( [0 10 20 30 40] ); % pix per deg at the given eccentricities
     %
@@ -93,10 +95,21 @@ classdef fvvdp_display_geometry
                     dr.distance_m = p.Results.distance_display_heights * dr.display_size_m(2);
                 elseif ~isempty( p.Results.pix_per_deg )
                     % Find the viewing distance given display size and ppd
+                    if isempty(dr.display_size_m)
+                        error( 'When ''pix_per_deg'' is passed, you also need to specify ''diagonal_size_inches''. ''pix_per_deg'' works only with flat panel displays.'  );
+                    end
                     dr.distance_m = dr.display_size_m(1)/dr.resolution(1) / tand( 1/p.Results.pix_per_deg );
+                elseif ~isempty( p.Results.fov_horizontal ) || ~isempty( p.Results.fov_vertical ) || ~isempty( p.Results.fov_diagonal )
+                    % Default viewing distance for VR headsets
+                    dr.distance_m = 3;
                 else
                     error( 'Viewing distance must be specified as ''distance_m'' or ''distance_display_heights'' or ''pix_per_deg'' must be provided.' );
                 end
+                
+                if (~isempty( p.Results.fov_horizontal ) + ~isempty( p.Results.fov_vertical ) + ~isempty( p.Results.fov_diagonal )) >1
+                    error( 'You can pass only one of ''fov_horizontal'', ''fov_vertical'', ''fov_diagonal''. The other dimensions are inferred from the resolution assuming that the pixels are square.' );                    
+                end
+                
                 
                 if ~isempty( p.Results.fov_horizontal )
                     width_m = 2*tand( p.Results.fov_horizontal/2 )*dr.distance_m;
