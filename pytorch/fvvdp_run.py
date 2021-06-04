@@ -188,7 +188,9 @@ if __name__ == '__main__':
 
     H, W = ref_vid.shape[-2], ref_vid.shape[-1]
 
-    vdploss = FovVideoVDP(H=H, W=W, display_model=display_model, frames_per_s=ref_avg_fps, do_diff_map=do_diff, do_foveated=args.diff, device=device)
+    #vdploss = FovVideoVDP(H=H, W=W, display_model=display_model, frames_per_s=ref_avg_fps, do_diff_map=do_diff, do_foveated=args.diff, device=device)
+    vdploss = FovVideoVDP.load(H=H, W=W, display_model=display_model, frames_per_s=ref_avg_fps, do_diff_map=do_diff,
+                          do_foveated=args.diff, device=device)
 
     for testfile in args.test:
         print(testfile + "... ", flush=True)

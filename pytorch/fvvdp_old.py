@@ -296,19 +296,64 @@ class TestLoss(torch.nn.Module):
 
 
 class FovVideoVDP(torch.nn.Module):
-    def __init__(self,
-                 H, W, display_model, frames_per_s, do_diff_map, device,
-                 mask_s, mask_p, mask_c, pu_dilate, debug, fixation_point, w_transient, beta, beta_t, beta_tch, beta_sch,
-                 filter_len, sustained_sigma, sustained_beta, csf_sigma, do_foveated, sensitivity_correction, masking_model, band_callback,
-                 local_adapt, contrast, jod_a, log_jod_exp, use_gpu, do_temporal_channels, mask_q_sust, mask_q_trans, k_cm, frame_padding
-    ):
+    def __init__(self, 
+            H, W, # TODO: current assumption: display model W,H is same as input W,H. For our dataset it is not true for H (1440 vs 1400)
+            display_model,
+            frames_per_s,
+            do_diff_map, # Produce a map of the differences between test and reference images
+            device                  = torch.device('cpu'),
+            k_mask_self             = 1, #1, # optimized value - old: 0.5, !!
+            mask_p                  = 2.4, #2.4, # optimized value - old:  2.2, !!
+            mask_q                  = 2.0, #2.0,
+            mask_s                  = -1, #2.0,
+            mask_c                  = -0.544583, # content masking adjustment !!
+            pu_dilate               = 0, # !!
+            debug                   = False,
+            fixation_point          = [], # in pixel coordinates (x,y)
+            w_transient             = 0.25, #0.016792, # The weight of the transient temporal channel !!
+            beta                    = 0.95753, #2, # The exponent of the spatial summation (p-norm) !!
+            beta_t                  = 1, # The exponent of the summation over time (p-norm) !!
+            beta_tch                = 0.684842, # The exponent of the summation over temporal channels (p-norm) !!
+            beta_sch                = 1, # The exponent of the summation over spatial channels (p-norm) !!
+            filter_len              = -1, # !!
+            video_name              = 'channels',
+            sustained_sigma         = 0.5, # !!
+            sustained_beta          = 0.06, # !!
+            csf_sigma               = -1.5, # !!
+            do_foveated             = True,
+            sensitivity_correction  = 10, #0, # Correct CSF values in dB. Negative values make the metric less sensitive. !!
+            masking_model           = 'min_mutual_masking_perc_norm2', # 'joint_mutual_masking_perc_norm',
+            band_callback           = [],
+            local_adapt             = 'gpyr',  # Local adaptation: 'simple' or or 'gpyr'
+            contrast                = 'weber',  # Either 'weber' or 'log'
+            jod_a                   = -0.249449, # -1.6922; # After updated JOD-mapping function, was 2.1441; !!
+            log_jod_exp             = np.log10(0.372455), #-0.161369, !!
+            use_gpu                 = False, # Set to False to disable processing on a GPU (eg. when CUDA is not supported)
+            do_temporal_channels    = True,  # Set to False to disable temporal channels and treat each frame as a image (for an ablation study)
+
+            # Parameters that are specific to a given masking model
+            te_slope                = 1,   # Slope of the threshold elevation function of Daly's model !!
+            mask_q_sust             = 3.23726, # !!
+            mask_q_trans            = 3.02625, # !!
+
+            mask_s_sust             = 0.4,
+            mask_s_trans            = 0.2,
+
+            k_cm                    = 0.405835, # new parameter controlling cortical magnification !!
+
+
+            frame_padding           = "replicate"
+        ):
 
         super(FovVideoVDP, self).__init__()
 
         self.display_model          = display_model
         self.device                 = device
 
+        self.k_mask_self            = k_mask_self
         self.mask_p                 = mask_p
+        self.mask_q                 = mask_q
+        self.mask_s                 = mask_s
         self.mask_c                 = mask_c
         self.pu_dilate              = pu_dilate
         self.debug                  = debug
@@ -319,7 +364,7 @@ class FovVideoVDP(torch.nn.Module):
         self.beta_tch               = beta_tch
         self.beta_sch               = beta_sch
         self.filter_len             = filter_len
-
+        self.video_name             = video_name
         self.sustained_sigma        = sustained_sigma
         self.sustained_beta         = sustained_beta
         self.csf_sigma              = csf_sigma
@@ -335,8 +380,11 @@ class FovVideoVDP(torch.nn.Module):
         self.use_gpu                = use_gpu
         self.do_temporal_channels   = do_temporal_channels
 
+        self.te_slope                = te_slope
         self.mask_q_sust             = mask_q_sust
         self.mask_q_trans            = mask_q_trans
+        self.mask_s_sust             = mask_s_sust
+        self.mask_s_trans            = mask_s_trans
 
         self.k_cm = k_cm
 
@@ -351,15 +399,6 @@ class FovVideoVDP(torch.nn.Module):
 
         self.W = W
         self.H = H
-
-        self.mask_s                 = mask_s
-
-        #self.video_name             = video_name
-        #self.te_slope                = te_slope
-        #self.mask_s_sust             = mask_s_sust
-        #self.mask_s_trans            = mask_s_trans
-        #self.k_mask_self            = k_mask_self
-        #self.mask_q                 = mask_q
 
         if self.debug:
             self.tb = FovVideoVDP_Testbench()
@@ -400,66 +439,6 @@ class FovVideoVDP(torch.nn.Module):
 
         self.lpyr = hdrvdp_lpyr_dec(self.W, self.H, self.pix_per_deg, self.device)
         self.imgaussfilt = ImGaussFilt(0.5 * self.pix_per_deg, self.device)
-
-    @classmethod
-    def load(cls, H, W, display_model, frames_per_s, do_diff_map,
-             do_foveated=False, # changed default foveation to False to match Matlab implementation
-             device=torch.device('cpu') ):
-
-        parameters_file = os.path.join(os.path.dirname(__file__), "../fvvdp_data/fvvdp_parameters.json")
-
-        obj = cls.__new__(cls)
-
-        parameters = json2dict(parameters_file)
-
-        #all common parameters between Matlab and Pytorch, loaded from the .json file
-        mask_p = parameters['mask_p']
-        mask_c = parameters['mask_c'] # content masking adjustment
-        pu_dilate = parameters['pu_dilate']
-        w_transient = parameters['w_transient'] # The weight of the transient temporal channel
-        beta = parameters['beta'] # The exponent of the spatial summation (p-norm)
-        beta_t = parameters['beta_t'] # The exponent of the summation over time (p-norm)
-        beta_tch = parameters['beta_tch'] # The exponent of the summation over temporal channels (p-norm)
-        beta_sch = parameters['beta_sch'] # The exponent of the summation over spatial channels (p-norm)
-        sustained_sigma = parameters['sustained_sigma']
-        sustained_beta = parameters['sustained_beta']
-        csf_sigma = parameters['csf_sigma']
-        sensitivity_correction = parameters['sensitivity_correction'] # Correct CSF values in dB. Negative values make the metric less sensitive.
-        masking_model = parameters['masking_model']
-        local_adapt = parameters['local_adapt'] # Local adaptation: 'simple' or or 'gpyr'
-        contrast = parameters['contrast']  # Either 'weber' or 'log'
-        jod_a = parameters['jod_a']
-        log_jod_exp = parameters['log_jod_exp']
-        mask_q_sust = parameters['mask_q_sust']
-        mask_q_trans = parameters['mask_q_trans']
-        k_cm = parameters['k_cm']  # new parameter controlling cortical magnification
-        filter_len = parameters['filter_len']
-
-        # other parameters
-        debug = False
-        fixation_point = []  # in pixel coordinates (x,y)
-        band_callback = []
-        use_gpu = False # Set to False to disable processing on a GPU (eg. when CUDA is not supported)
-        do_temporal_channels = True  # Set to False to disable temporal channels and treat each frame as a image (for an ablation study)
-        frame_padding = "replicate"
-        mask_s = -1  # 2.0, # don't know what this parameter does!! (Alex)
-        #do_foveated = False,
-        #device = torch.device('cpu')
-
-        # usage of these parameters not found (probably historic debris)
-
-        # video_name = 'channels',
-        # Parameters that are specific to a given masking model
-        # te_slope = 1,  # Slope of the threshold elevation function of Daly's model !!
-        # mask_s_sust = 0.4,
-        # mask_s_trans = 0.2,
-
-        obj.__init__(H, W, display_model, frames_per_s, do_diff_map, device,
-            mask_s, mask_p, mask_c, pu_dilate, debug, fixation_point, w_transient, beta, beta_t, beta_tch, beta_sch,
-            filter_len, sustained_sigma, sustained_beta, csf_sigma, do_foveated, sensitivity_correction, masking_model, band_callback,
-            local_adapt, contrast, jod_a, log_jod_exp, use_gpu, do_temporal_channels, mask_q_sust, mask_q_trans, k_cm, frame_padding)
-
-        return obj
 
     def forward(self, output, target):
         return self.compute_metric(output, target)
@@ -762,8 +741,8 @@ class FovVideoVDP(torch.nn.Module):
         # Masking on perceptually normalized quantities (as in Daly's VDP)
         
         p = self.mask_p
-        #q = self.mask_q
-        #k = self.k_mask_self
+        q = self.mask_q
+        k = self.k_mask_self
         
         R = torch.div(torch.pow(G,p), torch.sqrt( 1. + torch.pow(k * G_mask, 2*q)))
 
