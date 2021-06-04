@@ -1,12 +1,21 @@
-function save_as_video( vid, fname, fps )
+function save_as_video( vid, fname, fps, profile )
 
 if ~exist( 'fps', 'var' )
     fps = 30;
 end
 
-v = VideoWriter( fname, 'MPEG-4' );
+% doc writeVideo for the full list of profiles
+if ~exist( 'profile', 'var' )
+    profile = 'MPEG-4';
+end
+
+
+v = VideoWriter( fname, profile );
 v.FrameRate = fps;
-v.Quality = 95;
+if strcmp( profile, 'MPEG-4' )
+    % Supported only by selected profiles
+    v.Quality = 95;
+end
 open(v);
 
 if length(size(vid))==4 && size(vid,3)==3 % Colour video

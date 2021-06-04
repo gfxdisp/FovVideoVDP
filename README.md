@@ -67,7 +67,11 @@ optional arguments:
   --ref REF             ref image or video
   --test TEST [TEST ...]
                         list of test images/videos
-  --gpu GPU             select which GPU to use (e.g. 0), default is CPU
+  --gpu GPU             select which GPU to use (e.g. 0 for the first GPU), 
+                        default is CPU (no option specified)
+  --foveated            pass this option to run the metric in foveated mode
+                        the default is non-foveated. The gaze point is fixed
+                        to the center of the frame.
   --heatmap hm_type     type of difference heatmap (None, threshold,
                         supra-threshold). The images/video with the heatmaps
                         will be saved in the subfolder "heat_maps" of the folder

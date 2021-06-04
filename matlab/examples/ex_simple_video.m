@@ -17,6 +17,12 @@ N_amplitude = 0.07; % Amplitude of the noise (in gamma encoded values, scale 0-1
 V_dynamic_noise = V_ref + uint16(randn(size(V_ref))*max_v*N_amplitude); % Dynamic Gaussian noise
 V_static_noise = V_ref + repmat( uint16(randn(size(V_ref,1),size(V_ref,2),size(V_ref,3))*max_v*N_amplitude), [1 1 1 size(V_ref,4)] ); % Static Gaussian noise
 
+% Used to compare Python and Matlab versions
+% profile='Uncompressed AVI';
+% save_as_video( uint8(V_ref/255), 'wavy_facade_vid_ref.avi', 30, profile );
+% save_as_video( uint8(V_dynamic_noise/255), 'wavy_facade_vid_dynamic_noise.avi', 30, profile );
+% save_as_video( uint8(V_static_noise/255), 'wavy_facade_vid_static_noise.avi', 30, profile );
+
 options = {};
 display_name = 'standard_4k';
 tic
