@@ -1,6 +1,7 @@
 import os, sys
 import os.path
 import argparse
+import logging
 from natsort import natsorted
 import glob
 import ffmpeg
@@ -38,9 +39,9 @@ def load_video_as_tensor(vidfile, device, frames):
         probe = ffmpeg.probe(vidfile)
     except:
         if not os.path.isfile(vidfile):
-            print("input file does not exist: \"" + vidfile + "\"")    
+            logging.error("input file does not exist: \"" + vidfile + "\"")    
         else:
-            print("ffmpeg failed to open file \"" + vidfile + "\"")
+            logging.error("ffmpeg failed to open file \"" + vidfile + "\"")
         raise
 
     # select the first video stream
@@ -52,7 +53,7 @@ def load_video_as_tensor(vidfile, device, frames):
     avg_fps_num, avg_fps_denom = [float(x) for x in video_stream['r_frame_rate'].split("/")]
     avg_fps = avg_fps_num/avg_fps_denom
     if num_frames < frames:
-        print( 'Expecting {needed_frames} frames but only {available_frames} available in the file \"{file}\"'.format( needed_frames=frames, available_frames=num_frames, file=vidfile) )
+        logging.error( 'Expecting {needed_frames} frames but only {available_frames} available in the file \"{file}\"'.format( needed_frames=frames, available_frames=num_frames, file=vidfile) )
         raise RuntimeError( 'Missing frames' )
 
     video = ffmpeg.input(vidfile)
@@ -145,20 +146,28 @@ def parse_args():
     parser.add_argument("--heatmap", type=str, default=None, help="type of difference map (None, threshold, supra-threshold)")
     parser.add_argument("--verbose", action='store_true', default=False, help="Verbose mode")
     parser.add_argument("--foveated", action='store_true', default=False, help="Run in a foveated mode (non-foveated is the default)")
-    parser.add_argument("--display", type=str, default="24-inch SDR Monitor", help="display name, e.g. HTC Vive")
+    parser.add_argument("--display", type=str, default="standard_4k", help="display name, e.g. HTC Vive")
     parser.add_argument("--nframes", type=int, default=60, help="# of frames from video you want to load")
+    parser.add_argument("--quiet", action='store_const', const=True, default=False, help="Do not print any information but the final JOD value.")
     args = parser.parse_args()
     return args
 
 if __name__ == '__main__':
     args = parse_args()
 
+    if args.quiet:
+        log_level = logging.WARNING
+    else:
+        log_level = logging.INFO
+        
+    logging.basicConfig(format='[%(levelname)s] %(message)s', level=log_level)
+
     if args.gpu >= 0 and torch.cuda.is_available():
         device = torch.device('cuda:' + str(args.gpu))
     else:
         device = torch.device('cpu')
 
-    print("Running on device: " + str(device))
+    logging.info("Running on device: " + str(device))
 
     heatmap_types = {
         "threshold"   : {"scale" : 1.000, "colormap_type": "trichromatic"},
@@ -182,11 +191,11 @@ if __name__ == '__main__':
     if os.path.splitext(args.ref)[1] in image_extensions:
         loader = load_image_as_tensor
         do_video = False
-        print("Mode: Image")
+        logging.info("Mode: Image")
     else:
         loader = load_video_as_tensor
         do_video = True
-        print("Mode: Video")
+        logging.info("Mode: Video")
 
     # if args.foveated:
     #     print('Foveated mode.')
@@ -212,7 +221,7 @@ if __name__ == '__main__':
                           do_foveated=args.foveated, device=device)
 
     for testfile in args.test:
-        print(testfile + "... ", flush=True)
+        logging.info("Predicting the quality for " + testfile + "...")
 
         test_vid, test_avg_fps = loader(testfile, device=device, frames=frames)
 
@@ -225,7 +234,11 @@ if __name__ == '__main__':
                 print("    SSIM %0.4f " % (ssim), end='', flush=True)
 
             loss, jod, diff_map = vdploss(display_model.get_luminance_pytorch(test_vid[:,:,0:cur_frames,...]), ref_vid_luminance[:,:,0:cur_frames,...])
-            print( "Q_JOD={Q_jod:0.4f}".format(Q_jod=jod) )
+            if args.quiet:                
+                print( "{Q_jod:0.4f}".format(Q_jod=jod) )
+            else:
+                print( "Q_JOD={Q_jod:0.4f}".format(Q_jod=jod) )
+                
         else:
             # Below is an experiemental part that may require more testing
             if ref_avg_fps.is_integer() and test_avg_fps.is_integer():
@@ -244,13 +257,13 @@ if __name__ == '__main__':
                 cur_test_vid = cur_test_vid[:,:,0:cur_frames,...]
 
                 if cur_frames == 120:
-                    print("Limiting to 120 frames")
+                    logging.info("Limiting to 120 frames")
 
                 cur_vdploss = FovVideoVDP(H=H, W=W, display_model=display_model, frames_per_s=cur_fps, do_diff_map=do_diff, device=device)
 
                 if run_ssim:
                     ssim = sum([ssim_module(cur_ref_vid[:,:,i,...], cur_test_vid[:,:,i,...]) for i in range(cur_frames)]) * 1.0/float(cur_frames)
-                    print("    SSIM %0.4f " % (ssim), end='', flush=True)
+                    print("SSIM=%0.4f" % (ssim), end='', flush=True)
 
                 loss, jod, diff_map = cur_vdploss(display_model.get_luminance_pytorch(cur_test_vid), display_model.get_luminance_pytorch(cur_ref_vid))
                 print( "VDP: %0.4f (JOD % 0.4f)" % (loss.cpu().item(), jod.cpu().item()))
@@ -260,7 +273,7 @@ if __name__ == '__main__':
 
         if do_diff:
             diff_type = heatmap_types[args.heatmap]
-            print("    Writing heat maps...")
+            logging.info("Writing heat maps...")
             diff_map = diff_map * diff_type["scale"]
             diff_map_viz = visualize_diff_map(diff_map, context_image=ref_vid, colormap_type=diff_type["colormap_type"])
             out_dir = os.path.join(os.path.dirname(testfile), "heat_maps")

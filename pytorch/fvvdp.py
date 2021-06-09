@@ -8,6 +8,7 @@ import argparse
 import time
 import math
 import torch.utils.benchmark as torchbench
+import logging
 
 # For debugging only
 # from pfs import pfs
@@ -55,7 +56,7 @@ class DisplayModel():
             self.apply_gamma_correction = lambda x: torch.pow(x, float(gamma_func))
             self.apply_gamma            = lambda x: torch.pow(x, 1.0/float(gamma_func))
         else:
-            print("Error: Gamma function '%s' not recognized!" % gamma_func)
+            logging.error("Error: Gamma function '%s' not recognized!" % gamma_func)
 
         self.rgb2X = rgb2X
         self.rgb2Y = rgb2Y
@@ -82,7 +83,7 @@ class DisplayModel():
         if color_space_name is None or color_space_name not in colorspaces:
             color_space_name = "sRGB"
 
-        print("Using color space %s" % color_space_name)
+        logging.info("Using color space %s" % color_space_name)
 
         color_space = colorspaces[color_space_name]
 
@@ -147,7 +148,7 @@ class DisplayModel():
 
                 return obj
 
-        print("Error: Display model '%s' not found in display_models.json" % model_name)
+        logging.error("Error: Display model '%s' not found in display_models.json" % model_name)
         return None
 
 
@@ -271,10 +272,10 @@ class TestLoss(torch.nn.Module):
 
 
         if mode is None:
-            print("Error: Need mode")
+            logging.error("Error: Need mode")
             sys.exit(1)
 
-        print("Test loss mode: %s" % mode)
+        logging.info("Test loss mode: %s" % mode)
 
     def forward(self, output, target):
         N,C,D,H,W = target.shape
@@ -406,7 +407,7 @@ class FovVideoVDP(torch.nn.Module):
     def print_version_info( self, parameters, display_model ):
         # Print the specification line, identical to Matlab's version
 
-        print("When reporting metric results, please include the following information:")
+        logging.info("When reporting metric results, please include the following information:")
         if self.do_foveated:
             foveated_str = 'foveated'
         else:
@@ -417,7 +418,7 @@ class FovVideoVDP(torch.nn.Module):
         else:
             display_str=""
 
-        print("FovVideoVDP v{vnum:.1f}, {ppd:.1f} [pix/deg], Lpeak={lpeak}, Lblack={lblack:.4f} [cd/m^2], {fovstr}{disp_str}".format(vnum=parameters['version'], ppd=self.pix_per_deg, lpeak=display_model.max_luminance, lblack=display_model.min_luminance, fovstr=foveated_str, disp_str=display_str) )
+        logging.info("FovVideoVDP v{vnum:.1f}, {ppd:.1f} [pix/deg], Lpeak={lpeak}, Lblack={lblack:.4f} [cd/m^2], {fovstr}{disp_str}".format(vnum=parameters['version'], ppd=self.pix_per_deg, lpeak=display_model.max_luminance, lblack=display_model.min_luminance, fovstr=foveated_str, disp_str=display_str) )
 
 
     @classmethod
