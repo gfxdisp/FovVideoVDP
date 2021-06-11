@@ -275,7 +275,7 @@ if __name__ == '__main__':
             diff_type = heatmap_types[args.heatmap]
             logging.info("Writing heat maps...")
             diff_map = diff_map * diff_type["scale"]
-            diff_map_viz = visualize_diff_map(diff_map, context_image=ref_vid, colormap_type=diff_type["colormap_type"])
+            diff_map_viz = visualize_diff_map(diff_map, context_image=ref_vid_luminance, colormap_type=diff_type["colormap_type"])
             out_dir = os.path.join(os.path.dirname(testfile), "heat_maps")
             os.makedirs(out_dir, exist_ok=True)
             base, ext = os.path.splitext(os.path.basename(testfile))
