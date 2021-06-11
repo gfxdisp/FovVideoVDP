@@ -78,6 +78,7 @@ optional arguments:
                         from which --ref and --test were loaded.
   --verbose             Verbose mode
   --display DISPLAY     display name, e.g. HTC Vive
+  --quiet               suppress all output and show only the final JOD value(s)
 ```
 ### Examples
 ##### Downsampling/Upsampling Artifacts
