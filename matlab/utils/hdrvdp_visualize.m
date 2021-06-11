@@ -242,12 +242,18 @@ l = log(Y);
 
 end
 
-function tmo_img = vis_tonemap( b, dr )
-   
+function tmo_img = vis_tonemap( b, dr )   
+    % b is an image given as log(luminance)
+    
     t = 3;
     
     b_min = min(b(:));
     b_max = max(b(:));
+    
+    if b_max-b_min < dr % No tone-mapping needed
+        tmo_img = (b/(b_max-b_min+1e03)-b_min)*dr + (1-dr)/2;
+        return;
+    end
     
     b_scale = linspace( b_min, b_max, 1024 );
     b_p = hist( b(:), b_scale );
