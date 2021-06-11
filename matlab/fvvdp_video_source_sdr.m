@@ -1,6 +1,8 @@
 classdef fvvdp_video_source_sdr < fvvdp_video_source
 % A video source that takes loaded video frames as (height x width x 3 x
-% frames) matrices. 
+% frames) matrices. This class is for display-encoded (gamma-encoded)
+% content that must be processed by a display model to produce linear
+% absolute luminance emitted from a display.
     
     properties
         fps;
