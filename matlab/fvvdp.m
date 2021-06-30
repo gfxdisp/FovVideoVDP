@@ -176,9 +176,9 @@ if ~p.Results.quiet
     else
         content_type = 'Video';
         fprintf( 1, 'Frames per second: %g\n', vs.get_frames_per_second() );
-    end
+    end    
     fprintf( 1, '%s resolution: [%d %d] pix\n', content_type, vid_sz(2), vid_sz(1) );    
-    if vid_sz(1)<display_geom.resolution(2) || vid_sz(2)<display_geom.resolution(1)
+    if isempty(display_geom.fixed_ppd) && (vid_sz(1)<display_geom.resolution(2) || vid_sz(2)<display_geom.resolution(1))
         fprintf( 1, '  Content is smaller then the display resolution. The metric assumes that the image is shown at the native display resolution in the central portion of the screen.\n' );
     end
     if p.Results.foveated

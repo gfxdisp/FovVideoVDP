@@ -11,12 +11,13 @@ classdef fvvdp_display_geometry
     % R = fvvdp_display_geometry( ppd );
     % R = fvvdp_display_geometry( resolution, options );
     %
-    % resolution is the 1x2 vector with the pixel resolution of the
-    % display: [width, height]
-    % options are name, value pairs. The available options are:
-    %
     % ppd - the fixed value of pixels per degree (if it is already
     % provided)
+    %
+    % resolution is the 1x2 vector with the pixel resolution of the
+    % display: [horizontal_resolutution, vertical_resolutution]
+    % The options are name, value pairs. The available options are:
+    %
     % distance_m - viewing distance in meters
     % distance_display_heights - viewing distance in the heights of a display
     % fov_horizontal - horizontal field of view of the display in degrees
@@ -195,11 +196,15 @@ classdef fvvdp_display_geometry
         
         function print(dr)
             fprintf( 1, 'Geometric display model:\n' );
-            fprintf( 1, '  Resolution: %d x %d pixels\n', dr.resolution(1), dr.resolution(2) );
-            fprintf( 1, '  Display size: %g x %g cm\n', dr.display_size_m(1)*100, dr.display_size_m(2)*100  );
-            fprintf( 1, '  Display size: %g x %g deg\n', dr.display_size_deg(1), dr.display_size_deg(2)  );
-            fprintf( 1, '  Viewing distance: %g m\n', dr.distance_m );
-            fprintf( 1, '  Pixels-per-degree (center): %g\n', dr.get_ppd() );            
+            if ~isempty( dr.fixed_ppd )
+                fprintf( 1, '  Fixed pixels-per-degree: %g\n', dr.fixed_ppd );
+            else
+                fprintf( 1, '  Resolution: %d x %d pixels\n', dr.resolution(1), dr.resolution(2) );
+                fprintf( 1, '  Display size: %g x %g cm\n', dr.display_size_m(1)*100, dr.display_size_m(2)*100  );
+                fprintf( 1, '  Display size: %g x %g deg\n', dr.display_size_deg(1), dr.display_size_deg(2)  );
+                fprintf( 1, '  Viewing distance: %g m\n', dr.distance_m );
+                fprintf( 1, '  Pixels-per-degree (center): %g\n', dr.get_ppd() );
+            end
         end
         
     end
