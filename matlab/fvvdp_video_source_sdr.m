@@ -76,6 +76,9 @@ classdef fvvdp_video_source_sdr < fvvdp_video_source
                 sz = [size(vs.reference_video,1) size(vs.reference_video,2) size(vs.reference_video,4)];
             else
                 sz = size(vs.reference_video);
+                if length(sz)==2
+                    sz = [ sz 1 ];
+                end
             end
         end
         
