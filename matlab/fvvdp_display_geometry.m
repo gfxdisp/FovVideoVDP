@@ -121,11 +121,14 @@ classdef fvvdp_display_geometry
                 elseif ~isempty( p.Results.fov_vertical )
                     height_m = 2*tand( p.Results.fov_vertical/2 )*dr.distance_m;
                     dr.display_size_m = [height_m*ar height_m];
-                elseif ~isempty( p.Results.fov_diagonal )
+                elseif ~isempty( p.Results.fov_diagonal )                    
+                    % Note that we cannot use Pythagorean theorem on degs -
+                    % we must operate on a distance measure
+                    % This is incorrect: height_deg = p.Results.fov_diagonal / sqrt( 1+ar^2 );
+                    
                     distance_px = sqrt(sum(dr.resolution.^2)) / (2.0 * tand(p.Results.fov_diagonal * 0.5));
                     height_deg = atand( dr.resolution(2)/2 / distance_px )*2;
                     
-                    %height_deg = p.Results.fov_diagonal / sqrt( 1+ar^2 );
                     height_m = 2*tand( height_deg/2 )*dr.distance_m;
                     dr.display_size_m = [height_m*ar height_m];
                 end
