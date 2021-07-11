@@ -496,8 +496,16 @@ class FovVideoVDP(torch.nn.Module):
             return torch.clamp(raw_fr, min=1e-6)
 
     def compute_metric(self, T_vid, R_vid):
+        # T_vid and R_vid are the tensors of the size (1,1,N,H,W)
+        # where:
+        # N - the number of frames
+        # H - height in pixels
+        # W - width in pixels
+        # Both images must contain linear absolute luminance values in cd/m^2
+        # 
         # We assume the pytorch default NCDHW layout
         assert self.W == R_vid.shape[-1] and self.H == R_vid.shape[-2]
+        assert len(R_vid.shape)==5
 
         N = R_vid.shape[2] # number of frames
 
