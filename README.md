@@ -215,7 +215,3 @@ The display photometry and geometry is typically specified by passing `display_n
 * Matlab version currently has reacher interface and can be supplied with images or video in any format. 
 * Both versions give more or less the same processing time when run on a GPU. 
 * PyTorch version loads the entire video into a GPU memory and therefore, cannot process very large sequences and may require more memory. Matlab version loads a frame at the time and requires less GPU memory.
-
-## License
-
-This code is distributed under a CC-BY-NC license. Full license text coming *soon*.
