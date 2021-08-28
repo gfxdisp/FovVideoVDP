@@ -3,11 +3,7 @@ function ex_paper_teaser()
     % add paths for matlab code
     addpath(genpath('../'));
     % load up the SIGGRAPH logo worldcloud image
-    img = im2double( imread( 'wordcloud3.png' ) );
-    % resizing and making sure pixels are not out of bounds
-    img = min(max(imresize( img, 0.25 ), 0), 1);
-%     img = min(max(imresize( img, 1 ), 0), 1);
-    I_ref = img;
+    I_ref = im2double( imread( 'SIGGRAPH_wordcloud.png' ) );
 
     % set the center point of the image
     mid = round([size(I_ref,1) size(I_ref,2)]/2);
@@ -17,7 +13,7 @@ function ex_paper_teaser()
     I_noise = imnoise( I_ref, 'gaussian', 0, 0.01 );
     % using a .jpg image to generated a compressed test
     fname = strcat( tempname(), '.jpg' );
-    imwrite( img, fname, 'Quality', 10 );
+    imwrite( I_ref, fname, 'Quality', 10 );
     I_jpeg = im2double( imread( fname ) );
     delete( fname );
 
@@ -50,8 +46,8 @@ function ex_paper_teaser()
             % we generate the luminance images using a simple gamma model
             gamma = 2.2;
             L_max = 100;
-            L_ref = L_max*get_luminance(I_ref).^gamma;
-            L_test = L_max*get_luminance(I_test).^gamma;
+            L_ref = L_max*get_luminance_image(I_ref).^gamma;
+            L_test = L_max*get_luminance_image(I_test).^gamma;
 
             % add flicker for the flicker test
             if 1
@@ -96,7 +92,7 @@ function ex_paper_teaser()
         cat( 2, res{ee,3}.diff_map((mid+1):end,1:mid(2),end), res{ee,4}.diff_map((mid(1)+1):end,(mid(2)+1):end,end) ) );
 
 
-        I_vis = cat( 2, I_vis, hdrvdp_visualize( 'pmap', df_new, { 'context_image', get_luminance(I_ref) } ) );
+        I_vis = cat( 2, I_vis, hdrvdp_visualize( 'pmap', df_new, { 'context_image', get_luminance_image(I_ref) } ) );
 
         fprintf( 1, '=== ecc = %g\n', ECCs(ee) );
         for dd=1:4
@@ -123,3 +119,6 @@ function ex_paper_teaser()
 
 end
 
+function Y = get_luminance_image(img)
+    Y = img(:,:,1) * 0.212656 + img(:,:,2) * 0.715158 + img(:,:,3) * 0.072186;
+end
