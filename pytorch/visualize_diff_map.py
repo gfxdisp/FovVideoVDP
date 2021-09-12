@@ -1,6 +1,9 @@
 import torch
 from interp import interp1
 
+# For debugging only
+# from gfxdisp.pfs.pfs_torch import *
+
 def luminance_NCHW(x):
     if x.shape[1] == 3: # NC***
         y = (
@@ -98,6 +101,6 @@ def visualize_diff_map(diff_map, context_image=None, type="pmap" , colormap_type
     cmap[:,1:2,...] = interp1(color_map_in, color_map_ch[:,1], diff_map)
     cmap[:,2:3,...] = interp1(color_map_in, color_map_ch[:,2], diff_map)
 
-    cmap = cmap * torch.cat([tmo_img]*3, dim=1)
+    cmap = (cmap * torch.cat([tmo_img]*3, dim=1)).clip(0.,1.)
 
     return cmap
