@@ -259,7 +259,7 @@ if __name__ == '__main__':
                 if cur_frames == 120:
                     logging.info("Limiting to 120 frames")
 
-                cur_vdploss = FovVideoVDP(H=H, W=W, display_model=display_model, frames_per_s=cur_fps, do_diff_map=do_diff, device=device)
+                cur_vdploss = FovVideoVDP.load(H=H, W=W, display_model=display_model, frames_per_s=cur_fps, do_diff_map=do_diff, device=device)
 
                 if run_ssim:
                     ssim = sum([ssim_module(cur_ref_vid[:,:,i,...], cur_test_vid[:,:,i,...]) for i in range(cur_frames)]) * 1.0/float(cur_frames)
