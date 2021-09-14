@@ -724,7 +724,7 @@ class FovVideoVDP(torch.nn.Module):
 
             df = base_shape[-1]/band_shape[-1] # ratio of width
 
-            ecc = torch.sqrt((xx-self.fixation_point[0]/df) ** 2 + (yy-self.fixation_point[1]/df) ** 2 ) / self.pix_per_deg
+            ecc = torch.sqrt((xx-self.fixation_point[0]/df) ** 2 + (yy-self.fixation_point[1]/df) ** 2 )*(df/self.pix_per_deg)
             # np2img((ecc * 0.05).squeeze().unsqueeze(-1).expand(ecc.shape[0], ecc.shape[1], 3).cpu().numpy()).show()
             res_mag = self.display_model.get_resolution_magnification(ecc)
         else:
