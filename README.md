@@ -211,7 +211,7 @@ The display photometry and geometry is typically specified by passing `display_n
 
 ## Differences between Matlab and Pytorch versions
 
-* Both versions are implementation of the same metric, but due to the differences in video loaders, you can expect to see small differences in their predictions, typically up to 0.05 JOD.
-* Matlab version currently has reacher interface and can be supplied with images or video in any format. 
-* Both versions give more or less the same processing time when run on a GPU. 
-* PyTorch version loads the entire video into a GPU memory and therefore, cannot process very large sequences and may require more memory. Matlab version loads a frame at the time and requires less GPU memory.
+* Both versions are implementation of the same metric, but due to differences in the video loaders, you can expect to see small differences in their predictions - typically up to 0.05 JOD.
+* The Matlab version currently has a richer interface and can be supplied with images or videos in any format. 
+* Both versions have approximately the same processing time when run on a GPU. 
+* The PyTorch version loads the entire video into GPU memory and therefore cannot process very large sequences and may require more memory. The Matlab version loads one frame at the time and requires less GPU memory.
