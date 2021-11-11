@@ -71,7 +71,7 @@ metric_par.fixation_point = []; % in pixel coordinates (x,y), where x=0..width-1
 metric_par.band_callback = [];  % [internal] Used to analyze the masking model
 metric_par.video_name = 'channels'; % Where to store "debug" video
 metric_par.do_temporal_channels = true;  % [internal] Set to false to disable temporal channels and treat each frame as a image (for an ablation study)
-
+metric_par.ignore_boundary_pixels = false; % Exclude the pixels that are on the edge of the image - those pixes may be inaccurare when the 'symmetric' padding is invalid
 
 
 metric_par.content_mapping = [];
@@ -359,6 +359,19 @@ for ff=1:N % for each frame
             end
             
             D = masking_model( metric_par, T_f, R_f, N_nCSF{bb,cc}, cc );
+            
+            
+            if metric_par.ignore_boundary_pixels 
+                % Ignore the boundary pixels at each level
+                % This is because the pixels at the edge cannot be correctly
+                % downsampled (to compute the pyramid levels) without the knowledge if what is outside the
+                % image.
+                cpix = min( 3, size(D) ); % crop 3 pixels or less
+                D(:,1:cpix(2)) = 0;
+                D(1:cpix(1),:) = 0;
+                D(:,(end-cpix(2)+1):end) = 0;
+                D((end-cpix(1)+1):end,:) = 0;
+            end
             
             if ~isempty( metric_par.content_mapping ) % Relevant only for 360 videos
                 % To make sure that we cannot see anything behind our head                

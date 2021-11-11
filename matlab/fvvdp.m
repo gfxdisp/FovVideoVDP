@@ -89,6 +89,13 @@ function [Q_JOD, diff_map, Q] = fvvdp(test_video, reference_video, varargin)
 %          'circular' - tile the video in the front, so that the last frame 
 %                       is used for frame 0.
 %
+%   'ignore_boundary_pixels', true/[false] - ignore pixels at the edge of the image.
+%          'symmetric' padding is used to filter frames at the edge. If
+%          this padding is unsuitable, the boundary pixels may contain
+%          spurious differences. Setting this option to true will ignore
+%          the boundary pixels. Default is false. 
+%
+%
 %    'use_gpu', true/false - set to false if you do not have CUDA-capable
 %          graphics card. The etric will be much slower. 
 %
