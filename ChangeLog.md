@@ -1,3 +1,6 @@
+# v1.01 - 11/11/2021
+- [Python] Optimized code for the Laplacian pyramid decomposition - faster predictions. There is a small (<0.02) difference in the predicted JODs.
+
 # v1.0 - 21/04/2021
 
 - Version 1.0 is explained in the SIGGRAPH Asia 2021 paper (see README.md).

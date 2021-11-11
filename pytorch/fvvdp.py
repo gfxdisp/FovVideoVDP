@@ -418,7 +418,7 @@ class FovVideoVDP(torch.nn.Module):
         else:
             display_str=""
 
-        logging.info("FovVideoVDP v{vnum:.1f}, {ppd:.1f} [pix/deg], Lpeak={lpeak}, Lblack={lblack:.4f} [cd/m^2], {fovstr}{disp_str}".format(vnum=parameters['version'], ppd=self.pix_per_deg, lpeak=display_model.max_luminance, lblack=display_model.min_luminance, fovstr=foveated_str, disp_str=display_str) )
+        logging.info("FovVideoVDP v{vnum:.2f}, {ppd:.1f} [pix/deg], Lpeak={lpeak}, Lblack={lblack:.4f} [cd/m^2], {fovstr}{disp_str}".format(vnum=parameters['version'], ppd=self.pix_per_deg, lpeak=display_model.max_luminance, lblack=display_model.min_luminance, fovstr=foveated_str, disp_str=display_str) )
 
 
     @classmethod

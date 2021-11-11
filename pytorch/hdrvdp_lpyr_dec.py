@@ -1,11 +1,13 @@
-
 import torch
 import torch.nn.functional as Func
 import numpy as np 
 import scipy.io as spio
 import os
 import sys
-import torch.autograd.profiler as profiler
+#import torch.autograd.profiler as profiler
+
+def ceildiv(a, b):
+    return -(-a // b)
 
 class hdrvdp_lpyr_dec():
 
@@ -33,9 +35,17 @@ class hdrvdp_lpyr_dec():
 
         # max_band+1 below converts index into count
         self.height = np.clip(max_band+1, 0, max_levels) # int(np.clip(max(np.ceil(np.log2(ppd)), 1.0)))
-        self.band_freqs = np.array([1.0] + [0.3228 * 2.0 **(-f) for f in range(self.height-1)]) * self.ppd/2.0
+        self.band_freqs = np.array([1.0] + [0.3228 * 2.0 **(-f) for f in range(self.height)]) * self.ppd/2.0
 
+        self.pyr_shape = self.height * [None] # shape (W,H) of each level of the pyramid
+        self.pyr_ind = self.height * [None]   # index to the elements at each level
 
+        cH = H
+        cW = W
+        for ll in range(self.height):
+            self.pyr_shape[ll] = (cH, cW)
+            cH = ceildiv(H,2)
+            cW = ceildiv(W,2)
 
     def get_freqs(self):
         return self.band_freqs
@@ -112,12 +122,23 @@ class hdrvdp_lpyr_dec():
 
         return lpyr, gpyr
 
-    def interleave_zeros(self, x, dim):
-        z = torch.zeros_like(x, device=self.device)
-        if dim==2:
-            return torch.cat([x,z],dim=3).view(x.shape[0], x.shape[1], 2*x.shape[2],x.shape[3])
-        elif dim==3:
-            return torch.cat([x.permute(0,1,3,2),z.permute(0,1,3,2)],dim=3).view(x.shape[0], x.shape[1], 2*x.shape[3],x.shape[2]).permute(0,1,3,2)
+    def interleave_zeros_and_pad(self, x, exp_size, dim):
+        new_shape = [*x.shape]
+        new_shape[dim] = exp_size[dim]+4
+        z = torch.zeros( new_shape, dtype=x.dtype, device=x.device)
+        odd_no = (exp_size[dim]%2)
+        if dim==-2:
+            z[:,:,2:-2:2,:] = x
+            z[:,:,0,:] = x[:,:,0,:]
+            z[:,:,-2+odd_no,:] = x[:,:,-1,:]
+        elif dim==-1:
+            z[:,:,:,2:-2:2] = x
+            z[:,:,:,0] = x[:,:,:,0]
+            z[:,:,:,-2+odd_no] = x[:,:,:,-1]
+        else:
+            assert False, "Wrong dimension"
+
+        return z
 
     def gaussian_pyramid_dec(self, image, levels = -1, kernel_a = 0.4):
 
@@ -135,10 +156,6 @@ class hdrvdp_lpyr_dec():
 
         return res
 
-    def get_guass_red_kernel_nchw(self, kernel_a):
-        K1d = torch.tensor([0.25 - kernel_a/2.0, 0.25, kernel_a, 0.25, 0.25 - kernel_a/2.0], device=self.device)
-        K = torch.reshape(K1d, (1, 1, K1d.shape[0], 1))
-        return K
 
     def sympad(self, x, padding, axis):
         if padding == 0:
@@ -149,15 +166,42 @@ class hdrvdp_lpyr_dec():
 
             return torch.cat((beg, x, end), axis)
 
-    def gausspyr_reduce(self, x, kernel_a = 0.4):
-        K  = self.get_guass_red_kernel_nchw(kernel_a)
-        Kt = K.permute(0, 1, 3, 2)
+    def get_kernels( self, im, kernel_a = 0.4 ):
 
-        y_a = Func.conv2d(self.sympad(  x, padding=2, axis=-2), K)
-        y_a = y_a[:, :, ::2, :]
-        y   = Func.conv2d(self.sympad(y_a, padding=2, axis=-1), Kt)
+        ch_dim = len(im.shape)-2
+        if hasattr(self, "K_horiz") and ch_dim==self.K_ch_dim:
+            return self.K_vert, self.K_horiz
+
+        K = torch.tensor([0.25 - kernel_a/2.0, 0.25, kernel_a, 0.25, 0.25 - kernel_a/2.0], device=im.device, dtype=im.dtype)
+        self.K_vert = torch.reshape(K, (1,)*ch_dim + (K.shape[0], 1))
+        self.K_horiz = torch.reshape(K, (1,)*ch_dim + (1, K.shape[0]))
+        self.K_ch_dim = ch_dim
+        return self.K_vert, self.K_horiz
         
-        y = y[:, :, :, ::2]
+
+    def gausspyr_reduce(self, x, kernel_a = 0.4):
+
+        K_vert, K_horiz = self.get_kernels( x, kernel_a )
+
+        B, C, H, W = x.shape
+        y_a = Func.conv2d(x.view(-1,1,H,W), K_vert, stride=(2,1), padding=(2,0)).view(B,C,-1,W)
+
+        # Symmetric padding 
+        y_a[:,:,0,:] += x[:,:,0,:]*K_vert[0,0,1,0] + x[:,:,1,:]*K_vert[0,0,0,0]
+        if (x.shape[-2] % 2)==1: # odd number of rows
+            y_a[:,:,-1,:] += x[:,:,-1,:]*K_vert[0,0,3,0] + x[:,:,-2,:]*K_vert[0,0,4,0]
+        else: # even number of rows
+            y_a[:,:,-1,:] += x[:,:,-1,:]*K_vert[0,0,4,0]
+
+        H = y_a.shape[-2]
+        y = Func.conv2d(y_a.view(-1,1,H,W), K_horiz, stride=(1,2), padding=(0,2)).view(B,C,H,-1)
+
+        # Symmetric padding 
+        y[:,:,:,0] += y_a[:,:,:,0]*K_horiz[0,0,0,1] + y_a[:,:,:,1]*K_horiz[0,0,0,0]
+        if (x.shape[-2] % 2)==1: # odd number of columns
+            y[:,:,:,-1] += y_a[:,:,:,-1]*K_horiz[0,0,0,3] + y_a[:,:,:,-2]*K_horiz[0,0,0,4]
+        else: # even number of columns
+            y[:,:,:,-1] += y_a[:,:,:,-1]*K_horiz[0,0,0,4] 
 
         return y
 
@@ -170,51 +214,108 @@ class hdrvdp_lpyr_dec():
 
             return torch.cat((beg, x, end), axis)
 
+    # This function is (a bit) faster
     def gausspyr_expand(self, x, sz = None, kernel_a = 0.4):
         if sz is None:
             sz = [x.shape[-2]*2, x.shape[-1]*2]
 
-        K  = 2.0 * self.get_guass_red_kernel_nchw(kernel_a)
-        Kt = K.permute(0, 1, 3, 2)
-        y_a = self.interleave_zeros(x, dim=2)[...,0:sz[0],:]
-        y_a = self.gausspyr_expand_pad(y_a, padding=2, axis=-2)
-        y_a = Func.conv2d(y_a, K)
+        K_vert, K_horiz = self.get_kernels( x, kernel_a )
 
-        y   = self.interleave_zeros(y_a, dim=3)[...,:,0:sz[1]]
-        y   = self.gausspyr_expand_pad(  y,   padding=2, axis=-1)
-        y   = Func.conv2d(y, Kt)
+        y_a = self.interleave_zeros_and_pad(x, dim=-2, exp_size=sz)
+
+        B, C, H, W = y_a.shape
+        y_a = Func.conv2d(y_a.view(-1,1,H,W), K_vert*2).view(B,C,-1,W)
+
+        y   = self.interleave_zeros_and_pad(y_a, dim=-1, exp_size=sz)
+        B, C, H, W = y.shape
+
+        y   = Func.conv2d(y.view(-1,1,H,W), K_horiz*2).view(B,C,H,-1)
 
         return y
 
+    def interleave_zeros(self, x, dim):
+        z = torch.zeros_like(x, device=self.device)
+        if dim==2:
+            return torch.cat([x,z],dim=3).view(x.shape[0], x.shape[1], 2*x.shape[2],x.shape[3])
+        elif dim==3:
+            return torch.cat([x.permute(0,1,3,2),z.permute(0,1,3,2)],dim=3).view(x.shape[0], x.shape[1], 2*x.shape[3],x.shape[2]).permute(0,1,3,2)
 
-if __name__ == '__main__':
+    # def gausspyr_expand(self, x, sz = None, kernel_a = 0.4):
+    #     if sz is None:
+    #         sz = [x.shape[-2]*2, x.shape[-1]*2]
 
-    device = torch.device('cpu')
+    #     K_vert, K_horiz = self.get_kernels( x, kernel_a )
 
-    torch.set_printoptions(precision=2, sci_mode=False, linewidth=300)
+    #     y_a = self.interleave_zeros(x, dim=2)[...,0:sz[0],:]
+    #     y_a = self.gausspyr_expand_pad(y_a, padding=2, axis=-2)
+    #     y_a = Func.conv2d(y_a, K_vert*2)
 
-    image = torch.tensor([
-        [ 1,  2,  3,  4,  5,  6,  7,  8],
-        [11, 12, 13, 14, 15, 16, 17, 18],
-        [21, 22, 23, 24, 25, 26, 27, 28],
-        [31, 32, 33, 34, 35, 36, 37, 38],
-        [41, 42, 43, 44, 45, 46, 47, 48],
-        [51, 52, 53, 54, 55, 56, 57, 58],
-        [61, 62, 63, 64, 65, 66, 67, 68],
-        [71, 72, 73, 74, 75, 76, 77, 78],
-        ], dtype=torch.float32)
+    #     y   = self.interleave_zeros(y_a, dim=3)[...,:,0:sz[1]]
+    #     y   = self.gausspyr_expand_pad(  y,   padding=2, axis=-1)
+    #     y   = Func.conv2d(y, K_horiz*2)
 
-    image = torch.cat((image, image, image), axis = -1)
-    image = torch.cat((image, image, image), axis = -2)
+    #     return y
 
 
-    lp = hdrvdp_lpyr_dec(image, 4.0, device)
 
-    print("----Gaussian----")
-    for gi in range(lp.get_gband_count()):
-        print(lp.get_gband(gi))
+# if __name__ == '__main__':
 
-    print("----Laplacian----")
-    for li in range(lp.get_band_count()):
-        print(lp.get_band(li))
+#     device = torch.device('cuda:0')
+
+#     torch.set_printoptions(precision=2, sci_mode=False, linewidth=300)
+
+#     image = torch.tensor([
+#         [ 1,  2,  3,  4,  5,  6,  7,  8],
+#         [11, 12, 13, 14, 15, 16, 17, 18],
+#         [21, 22, 23, 24, 25, 26, 27, 28],
+#         [31, 32, 33, 34, 35, 36, 37, 38],
+#         [41, 42, 43, 44, 45, 46, 47, 48],
+#         [51, 52, 53, 54, 55, 56, 57, 58],
+#         [61, 62, 63, 64, 65, 66, 67, 68],
+#         [71, 72, 73, 74, 75, 76, 77, 78],
+#         ], dtype=torch.float32, device=device)
+
+#     image = image.repeat((16, 16))
+#     # image = torch.cat((image, image, image), axis = -1)
+#     # image = torch.cat((image, image, image), axis = -2)
+
+#     ppd = 50
+
+#     im_tensor = image.view(1, 1, image.shape[-2], image.shape[-1])
+
+#     lp = hdrvdp_lpyr_dec_fast(im_tensor.shape[-2], im_tensor.shape[-1], ppd, device)
+#     lp_old = hdrvdp_lpyr_dec(im_tensor.shape[-2], im_tensor.shape[-1], ppd, device)
+
+#     lpyr, gpyr = lp.decompose( im_tensor )
+#     lpyr_2, gpyr_2 = lp_old.decompose( im_tensor )
+
+#     for li in range(lp.get_band_count()):
+#         E = Func.mse_loss(lp.get_band(lpyr, li), lp_old.get_band(lpyr_2, li))
+#         print( "Level {}, MSE={}".format(li, E))
+
+#     import torch.utils.benchmark as benchmark
+
+#     t0 = benchmark.Timer(
+#         stmt='lp.decompose( im_tensor )',
+#         setup='',
+#         globals={'im_tensor': im_tensor, 'lp': lp})
+
+#     t1 = benchmark.Timer(
+#         stmt='lp_old.decompose( im_tensor )',
+#         setup='',
+#         globals={'im_tensor': im_tensor, 'lp_old': lp_old})
+
+#     print("New pyramid")
+#     print(t0.timeit(30))
+
+#     print("Old pyramid")
+#     print(t1.timeit(30))
+
+#     # print("----Gaussian----")
+#     # for gi in range(lp.get_band_count()):
+#     #     print(lp.get_gband(gpyr, gi))
+
+#     # print("----Laplacian----")
+#     # for li in range(lp.get_band_count()):
+#     #     print(lp.get_band(lpyr, li))
 

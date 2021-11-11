@@ -1,5 +1,5 @@
 {
-    "version": 1.0,
+    "version": 1.01,
     "__comment": "Calibration parameters of FovVideoVDP. See the source of fvvdp_core.m for their description.",
 
     "calibration_date": "18/04/2021",

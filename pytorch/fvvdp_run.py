@@ -266,7 +266,10 @@ if __name__ == '__main__':
                     print("SSIM=%0.4f" % (ssim), end='', flush=True)
 
                 loss, jod, diff_map = cur_vdploss(display_model.get_luminance_pytorch(cur_test_vid), display_model.get_luminance_pytorch(cur_ref_vid))
-                print( "VDP: %0.4f (JOD % 0.4f)" % (loss.cpu().item(), jod.cpu().item()))
+                if args.quiet:                
+                    print( "{Q_jod:0.4f}".format(Q_jod=jod) )
+                else:
+                    print( "Q_JOD={Q_jod:0.4f}".format(Q_jod=jod) )
             else:
                 print("    Error: Ref (%0.2f) and test (%0.2f) videos have different fps, and not integers" % (ref_avg_fps, test_avg_fps))
                 continue
