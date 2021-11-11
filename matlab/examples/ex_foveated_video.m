@@ -5,7 +5,7 @@
 % much less visible on a monitor that it is in a VR headset, which has much
 % smaller effective resolution (in terms of pixels per degree).
 
-if ~exist( 'fovvdp', 'file' )
+if ~exist( 'fvvdp', 'file' )
     addpath( fullfile( pwd, '..') );
 end
 

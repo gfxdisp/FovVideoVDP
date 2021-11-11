@@ -3,7 +3,7 @@
 % quality assessed on displays of different brightness. It demonstrates that 
 % image distortions become less visible as the display becomes darker. 
 
-if ~exist( 'fovvdp', 'file' )
+if ~exist( 'fvvdp', 'file' )
     addpath( fullfile( pwd, '..') );
 end
 

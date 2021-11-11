@@ -25,12 +25,12 @@ classdef fvvdp_display_geometry
     % fov_diagonal - diagonal field of view of the display in degrees
     % diagonal_size_inches - display diagonal resolution in inches
     % pix_per_deg - pixel per degree assuming that the resolution and
-    %               display size is provided. The classwill work out 
+    %               display size is provided. The classwill work out
     %               the viewing distance.
     %
     % Examples:
     % % HTC Pro
-    % % Note that the viewing distance must be specified even though the resolution 
+    % % Note that the viewing distance must be specified even though the resolution
     % % and 'fov_diagonal' are enough to find pix_per_deg.
     % R = fvvdp_display_geometry( [1440 1600], 'distance_m', 3, 'fov_diagonal', 110 );
     % R.get_ppd( [0 10 20 30 40] ); % pix per deg at the given eccentricities
@@ -75,10 +75,10 @@ classdef fvvdp_display_geometry
             p.parse( resolution,varargin{:});
             
             if length(resolution) == 1
-                dr.fixed_ppd = resolution;                                               
+                dr.fixed_ppd = resolution;
             else
                 
-                dr.resolution = resolution;
+                dr.resolution = reshape( resolution, [1 2] );
                 
                 ar = resolution(1)/resolution(2); % width/height
                 
@@ -112,16 +112,16 @@ classdef fvvdp_display_geometry
                 end
                 
                 if (~isempty( p.Results.fov_horizontal ) + ~isempty( p.Results.fov_vertical ) + ~isempty( p.Results.fov_diagonal )) >1
-                    error( 'You can pass only one of ''fov_horizontal'', ''fov_vertical'', ''fov_diagonal''. The other dimensions are inferred from the resolution assuming that the pixels are square.' );                    
+                    error( 'You can pass only one of ''fov_horizontal'', ''fov_vertical'', ''fov_diagonal''. The other dimensions are inferred from the resolution assuming that the pixels are square.' );
                 end
-                                
+                
                 if ~isempty( p.Results.fov_horizontal )
                     width_m = 2*tand( p.Results.fov_horizontal/2 )*dr.distance_m;
                     dr.display_size_m = [width_m width_m/ar];
                 elseif ~isempty( p.Results.fov_vertical )
                     height_m = 2*tand( p.Results.fov_vertical/2 )*dr.distance_m;
                     dr.display_size_m = [height_m*ar height_m];
-                elseif ~isempty( p.Results.fov_diagonal )                    
+                elseif ~isempty( p.Results.fov_diagonal )
                     % Note that we cannot use Pythagorean theorem on degs -
                     % we must operate on a distance measure
                     % This is incorrect: height_deg = p.Results.fov_diagonal / sqrt( 1+ar^2 );
@@ -172,6 +172,37 @@ classdef fvvdp_display_geometry
             
         end
         
+        function ecc = pix2eccentricity( dr, resolution_pix, x_pix, y_pix, gaze_pix )
+            % Convert pixel positions into eccentricities for the given
+            % display
+            %
+            % resolution_pix - image resolution as [width height] in pix
+            % x_pix, y_pix - pixel coordinates generated with meshgrid,
+            %   pixels indexed from 0
+            % gaze_pix - [x y] of the gaze position, in pixels
+            
+            assert( all(size(dr.resolution)==[1 2]) );
+            assert( all(size(gaze_pix)==[1 2]) );
+            
+            if ~isempty( dr.fixed_ppd )
+                % We have only ppd, use the approximate formula
+                ecc = sqrt( (x_pix-gaze_pix(1)).^2 + (y_pix-gaze_pix(2)).^2 )/dr.fixed_ppd;
+            else
+                % Position the image in the centre
+                shift_to_centre = -resolution_pix/2;
+                x_pix_rel = x_pix+shift_to_centre(1);
+                y_pix_rel = y_pix+shift_to_centre(2);
+                
+                x_m = x_pix_rel * dr.display_size_m(1) / dr.resolution(1);
+                y_m = y_pix_rel * dr.display_size_m(2) / dr.resolution(2);
+                
+                gaze_m = (gaze_pix + shift_to_centre) .* dr.display_size_m ./ dr.resolution;
+                gaze_deg = atand( gaze_m/dr.distance_m );
+                
+                ecc = sqrt( (atand(x_m/dr.distance_m)-gaze_deg(1)).^2 + (atand(y_m/dr.distance_m)-gaze_deg(2)).^2 );
+            end
+        end
+        
         function M = get_resolution_magnification(dr, eccentricity)
             % Get the relative magnification of the resolution due to
             % eccentricity.
@@ -184,7 +215,7 @@ classdef fvvdp_display_geometry
                 M = ones(size(eccentricity), 'like', eccentricity );
                 return;
             end
-
+            
             eccentricity = min( eccentricity, 89.9 ); % To avoid singulatities
             
             % pixel size in the centre of the display
@@ -224,7 +255,7 @@ classdef fvvdp_display_geometry
                 error( 'Display model entry must specify viewing distance' );
             end
             
-            if isfield( dm_struct, 'diagonal_size_inches' )            
+            if isfield( dm_struct, 'diagonal_size_inches' )
                 dg = fvvdp_display_geometry( dm_struct.resolution, 'diagonal_size_inches', dm_struct.diagonal_size_inches, 'distance_m', viewing_distance_meters );
             elseif isfield( dm_struct, 'fov_diagonal' )
                 dg = fvvdp_display_geometry( dm_struct.resolution, 'fov_diagonal', dm_struct.fov_diagonal, 'distance_m', viewing_distance_meters );

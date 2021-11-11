@@ -1,7 +1,7 @@
 % This example shows how to run FovVideoVD on video and then and visualize its results. 
 % In this example, we modulate the amount of blur over time. 
 
-if ~exist( 'fovvdp', 'file' )
+if ~exist( 'fvvdp', 'file' )
     addpath( fullfile( pwd, '..') );
 end
 

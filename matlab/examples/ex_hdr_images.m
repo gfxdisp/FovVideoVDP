@@ -1,6 +1,6 @@
 % This example shows how to run FovVideoVDP on HDR images.
 
-if ~exist( 'fovvdp', 'file' )
+if ~exist( 'fvvdp', 'file' )
     addpath( fullfile( pwd, '..') );
 end
 

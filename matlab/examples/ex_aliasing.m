@@ -1,7 +1,7 @@
 % This example shows how to run FovVideoVD on the downsampling/upsampling
 % example from README.md
 
-if ~exist( 'fovvdp', 'file' )
+if ~exist( 'fvvdp', 'file' )
     addpath( fullfile( pwd, '..') );
 end
 

@@ -3,7 +3,7 @@
 % several viewing distances. It demonstrates that image distortions become
 % less visible as the viewing distance is increased. 
 
-if ~exist( 'fovvdp', 'file' )
+if ~exist( 'fvvdp', 'file' )
     addpath( fullfile( pwd, '..') );
 end
 

@@ -310,23 +310,22 @@ for ff=1:N % for each frame
                 
                 if metric_par.do_foveated % Fixation, parafoveal sensitivity
                     if size(metric_par.fixation_point,1)>1 % moving fixation point
-                        fix_point = metric_par.fixation_point(ff,:)+1;
+                        fix_point = metric_par.fixation_point(ff,:);
                     else
-                        fix_point = metric_par.fixation_point+1;
+                        fix_point = metric_par.fixation_point;
                     end
                     
                     if isempty( metric_par.content_mapping )
-
-                        xv = single(0:(size(T_f,2)-1));
-                        yv = single(0:(size(T_f,1)-1));
+                        % Calculate the eccentricity for a flat-panel display                                                
+                        xv = linspace( 0.5, video_sz(2)-0.5, size(T_f,2) );
+                        yv = linspace( 0.5, video_sz(1)-0.5, size(T_f,1) );
                         if metric_par.use_gpu
-                            xv = gpuArray( xv );
-                            yv = gpuArray( yv );
-                        end
-                        [xx, yy] = meshgrid( xv, yv );
-                        df = video_sz(2)/size(T_f,2); % Downscale factor
-                    
-                        ecc = sqrt( (xx-fix_point(1)/df).^2 + (yy-fix_point(2)/df).^2 )*(df/pix_per_deg);
+                            xv = gpuArray( single(xv) );
+                            yv = gpuArray( single(yv) );
+                        end                        
+                        [xx, yy] = meshgrid( xv, yv );                        
+                        ecc = display_geometry.pix2eccentricity( video_sz([2 1]), xx, yy, fix_point+0.5 );                        
+                        
                     else
                         df = video_sz(2)/size(T_f,2); % Downscale factor
                         ecc = metric_par.content_mapping.get_eccentricity_map( [size(T_f,1) size(T_f,2)], fix_point/df );
