@@ -29,8 +29,8 @@ I_test_blur = imgaussfilt( I_ref, 2 );
 clf
 subplot( 1, 2, 1 );
 imshow( diff_map_noise );
-title( sprintf('Quality: %g JOD\n', Q_JOD_noise ) );
+title( sprintf('Noise - Quality: %g JOD\n', Q_JOD_noise ) );
 
 subplot( 1, 2, 2 );
 imshow( diff_map_blur );
-title( sprintf('Quality: %g JOD\n', Q_JOD_blur ) );
+title( sprintf('Blur - Quality: %g JOD\n', Q_JOD_blur ) );
