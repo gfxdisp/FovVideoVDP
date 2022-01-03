@@ -9,7 +9,7 @@ classdef CSF_st_fov
         ecc_max = 120;  % The maximum eccentricity
         
         csf_cache_dir = fullfile( tempdir, 'csf_cache' );
-        use_file_cache = true;
+        use_file_cache = false;
         semkey=1234;
     end            
     
@@ -151,6 +151,20 @@ classdef CSF_st_fov
                 sigma = -sigma./rho;
             end
 
+            csf = CSF_temp_channels_pm_ratio();
+            
+            csf_pars = struct();
+            csf_pars.s_frequency = rho;
+            csf_pars.t_frequency = omega;
+            csf_pars.luminance = L_bkg;
+            csf_pars.eccentricity = ecc;
+            csf_pars.ge_sigma = sigma;
+
+            S = csf.sensitivity( csf_pars );
+
+
+            % The original fvvdp CSF
+            if 0
             M_rel = (cortical_magnification_dougherty(ecc)/cortical_magnification_dougherty(0)).^k_cm;
 
             %M_rel = k_cm * cortical_magnification_dougherty(0)./cortical_magnification_dougherty(ecc);
@@ -170,6 +184,7 @@ classdef CSF_st_fov
             S_sp = sccsf.sensitivity_coldir( rho_cm, L_bkg(:) * LMS_d65, 1, A_cm );
             
             S = reshape( S_sp .* S_st, size(L_bkg) );
+            end
             
         end
         
