@@ -12,11 +12,11 @@ function [Q_JOD, diff_map, Q] = fvvdp(test_video, reference_video, varargin)
 % [...] = fvvdp(..., 'display_name', '?' )
 % [...] = fvvdp(..., 'display_photometry', disp_photo )
 % [...] = fvvdp(..., 'display_geometry', disp_geo )
-% [...] = fvvdp(..., 'color_space', 'rec2020' )
+% [...] = fvvdp(..., 'color_space', 'rec709'|'rec2020' )
 % [...] = fvvdp(..., 'foveated', true|[false] )
-% [Q_JOD, diff_map] = fvvdp(..., 'heatmap', 'threshold' )
-% [...] = fvvdp(..., 'options', { 'fixation_point', [100 100] } )
-% [...] = fvvdp(..., 'quiet', true )
+% [Q_JOD, diff_map] = fvvdp(..., 'heatmap', 'supra-threshold'|'threshold' )
+% [...] = fvvdp(..., 'options', { 'fixation_point', [x y], ... } )
+% [...] = fvvdp(..., 'quiet', true|[false] )
 %
 % test_image and reference_image must be either a path to a video file or 
 % a tensor of the size:
