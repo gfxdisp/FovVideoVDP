@@ -1,8 +1,6 @@
-classdef fvvdp_video_source_sdr < fvvdp_video_source
-% A video source that takes loaded video frames as (height x width x 3 x
-% frames) matrices. This class is for display-encoded (gamma-encoded)
-% content that must be processed by a display model to produce linear
-% absolute luminance emitted from a display.
+classdef fvvdp_video_source_dm_file < fvvdp_video_source
+% A video source that loads frames from video files using Matlab's
+% VideoReader. 
     
     properties
         fps;
@@ -12,24 +10,33 @@ classdef fvvdp_video_source_sdr < fvvdp_video_source
         is_color;                
         display_model;
         color_to_luminance;
+        
+        test_reader;
+        reference_reader;
     end    
     
     methods
         
-        function vs = fvvdp_video_source_sdr( test_video, reference_video, fps, display_model, color_space_name )
-            assert( all( size(test_video)==size(reference_video) ) );
-
-            if any( size(test_video)~=size(reference_video) )
-                error( 'Test and reference image/video tensors must be exactly the same size' );
+        % test_video, reference video - path to the video files (e.g. mp4).
+        %   Those will be read with Matlab's VideoReader
+        % fps - frames per second. Must be 0 for images
+        % display_model - object that implements fvvdp_display_photometry
+        %   class
+        % color_space_name - name of the colour space (see
+        %   fvvdp_data/color_spaces.json)
+        function vs = fvvdp_video_source_dm_file( test_video, reference_video, display_model, color_space_name )
+            
+            vs.test_reader = VideoReader( test_video );
+            vs.reference_reader = VideoReader( reference_video );
+            
+            if abs(vs.reference_reader.FrameRate-vs.test_reader.FrameRate)>1e-3
+                error( 'Test and reference video must have the same frame rate. Found %g and %g fps.', vs.test_reader.FrameRate, vs.reference_reader.FrameRate );
             end
             
-            if fps==0 && ( (ndims(test_video)==3 && size(test_video,3)>3) || (ndims(test_video)==4 && size(test_video,4)>1) )
-                error( 'When passing video sequences, you must set ''frames_per_second'' parameter' );
-            end
+            vs.fps = vs.reference_reader.FrameRate;
+            vs.is_video = true;            
+            vs.is_color = true; % Not sure how to handle BW videos (~vs.is_video && size(test_video,3)==3) || (vs.is_video && length(size(test_video))==4 && size(test_video,3)==3);
             
-            vs.fps = fps;
-            vs.is_video = (fps>0);            
-            vs.is_color = (~vs.is_video && size(test_video,3)==3) || (vs.is_video && length(size(test_video))==4 && size(test_video,3)==3);
             vs.test_video = test_video;
             vs.reference_video = reference_video;
             
@@ -72,14 +79,7 @@ classdef fvvdp_video_source_sdr < fvvdp_video_source
         % the number of frames in the video clip. [height width 1] is
         % returned for an image. 
         function sz = get_video_size(vs)
-            if vs.is_color
-                sz = [size(vs.reference_video,1) size(vs.reference_video,2) size(vs.reference_video,4)];
-            else
-                sz = size(vs.reference_video);
-                if length(sz)==2
-                    sz = [ sz 1 ];
-                end
-            end
+            sz = [vs.reference_reader.Height vs.reference_reader.Width vs.reference_reader.NumFrames];
         end
         
         % Get a test video frame as a single-precision luminance map
@@ -87,30 +87,28 @@ classdef fvvdp_video_source_sdr < fvvdp_video_source
         % starting from 1. If use_gpu==true, the function should return a
         % gpuArray.
         function L_test = get_test_frame( vs, frame, use_gpu )
-            L_test = vs.get_frame_(vs.test_video, frame, use_gpu);            
+            L_test = vs.get_frame_(vs.test_reader, frame, use_gpu);            
         end
         
         function L_ref = get_reference_frame( vs, frame, use_gpu )
-            L_ref = vs.get_frame_(vs.reference_video, frame, use_gpu);            
+            L_ref = vs.get_frame_(vs.reference_reader, frame, use_gpu);            
         end
         
-        function L = get_frame_( vs, from_video, frame, use_gpu )
+        function L = get_frame_( vs, vid_reader, frame, use_gpu )
            
+            frame = read(vid_reader,frame);
+            
             % Determine the maximum value of the data type storing the
             % image/video
-            if isa( from_video, 'uint8' ) || isa( from_video, 'uint16' )
-                peak_value = single(intmax( class(from_video) ));
-            elseif isa( from_video, 'logical' ) || isa( from_video, 'single' ) || isa( from_video, 'double' )
+            if isa( frame, 'uint8' ) || isa( frame, 'uint16' )
+                peak_value = single(intmax( class(frame) ));
+            elseif isa( frame, 'logical' ) || isa( frame, 'single' ) || isa( frame, 'double' )
                 peak_value = 1.0;
             else
                 error( 'unknown data type of the video/image' );
             end
             
-            if vs.is_color
-                L = single(from_video(:,:,:,frame));
-            else
-                L = single(from_video(:,:,frame));
-            end
+            L = single(frame);            
             
             if use_gpu
                 L = gpuArray(L);
