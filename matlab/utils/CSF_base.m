@@ -90,6 +90,11 @@ classdef CSF_base
             S = obj.sensitivity( csf_pars );
         end        
 
+        function S = sensitivity_stolmsv( obj, s_freq, t_freq, orientation, LMS_bkg, LMS_delta, area, eccentricity, vis_field )
+            csf_pars = struct( 's_frequency', s_freq, 't_frequency', t_freq, 'orientation', orientation, 'lms_bkg', LMS_bkg, 'lms_delta', LMS_delta, 'area', area, 'eccentricity', eccentricity, 'vis_field', vis_field );
+            S = obj.sensitivity( csf_pars );
+        end        
+        
         % Test whether all the parameters are correct size, that the
         % names are correct, set the default values for the missing
         % parameters. 
@@ -160,6 +165,15 @@ classdef CSF_base
                 end
             end
 
+            if ismember( 'area', requires )
+                if ~isfield( pars, 'area')
+                    if ~isfield( pars, 'ge_sigma')
+                        error( 'You need to pass either ge_sigma or area parameter.')
+                    end
+                    pars.area = pi*pars.ge_sigma.^2;
+                end
+            end
+            
             % Default parameter values
             def_pars = struct( 'eccentricity', 0, 'vis_field', 0, 'orientation', 0, 't_frequency', 0, 'lms_delta', [0.6855 0.2951 0.0194] );
             fn_dp = fieldnames( def_pars );
@@ -399,7 +413,7 @@ classdef CSF_base
                     v = ones(size(L)) * pars(1);
                 case 2
                     % Linear in log
-                    v = 10.^(pars(1)*log_lum + pars(2));
+                    v = 10.^(pars(1)*log_lum + log10(pars(2)));
                 case 3
                     % Log parabola
                     %        v = pars(1) * 10.^(exp( -(log_lum-pars(2)).^2/pars(3) ));

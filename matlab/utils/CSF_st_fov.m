@@ -151,7 +151,7 @@ classdef CSF_st_fov
                 sigma = -sigma./rho;
             end
 
-            csf = CSF_temp_channels_pm_ratio();
+            csf = CSF_temp_channels_ecdrop();
             
             csf_pars = struct();
             csf_pars.s_frequency = rho;
