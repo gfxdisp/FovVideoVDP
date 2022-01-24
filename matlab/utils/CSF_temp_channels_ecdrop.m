@@ -253,21 +253,21 @@ classdef CSF_temp_channels_ecdrop < CSF_base
 
             p = CSF_base.get_dataset_par();
 
-p.ach_sust.S_max = [ 70.6971 69.3143 0.194874 8.62931e-07 5.51856e+09 ];
-p.ach_sust.f_max = [ 1.34744 17.1244 0.267385 ];
-p.ach_sust.bw = 1.13052;
-p.ach_sust.a = 0.168033;
-p.ach_trans.S_max = [ 0.55487 323.446 ];
-p.ach_trans.f_max = 0.000727253;
-p.ach_trans.bw = 3.4903;
+% Fitted on 2022/01/24
+p.ach_sust.S_max = [ 67.3403 29.4202 0.196765 8.12573e-07 7.03859e+09 ];
+p.ach_sust.f_max = [ 1.47635 54.2739 0.246014 ];
+p.ach_sust.bw = 1.18863;
+p.ach_sust.a = 0.0828388;
+p.ach_trans.S_max = [ 0.538269 63.3312 ];
+p.ach_trans.f_max = 0.0156452;
+p.ach_trans.bw = 2.81858;
 p.ach_trans.a = 0.000273289;
-p.sigma_trans = 0.133938;
-p.sigma_sust = 16.147;
-p.ecc_drop = 0.0273429;
-p.ecc_drop_nasal = 0.0140014;
-p.ecc_drop_f = 0.0196948;
-p.ecc_drop_f_nasal = 0.0167184;
-
+p.sigma_trans = 0.133094;
+p.sigma_sust = 13.8756;
+p.ecc_drop = 0.0268966;
+p.ecc_drop_nasal = 0.0134587;
+p.ecc_drop_f = 0.0200277;
+p.ecc_drop_f_nasal = 0.0170489;
 
         end
         
