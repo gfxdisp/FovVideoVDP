@@ -977,11 +977,35 @@ class fvvdp_video_source_dm( fvvdp_video_source ):
     #   class
     # color_space_name - name of the colour space (see
     #   fvvdp_data/color_spaces.json)
-    def __init__( self, test_video, reference_video, fps, display_model, color_space_name ):
+    def __init__( self, test_video, reference_video, fps, dims='BFCHW', display_model='sdr_4k_30', color_space_name='sRGB' ):
         
+
         if test_video.shape != reference_video.shape:
-            raise RuntimeError( 'Test and reference image/video tensors must be exactly the same size' )
+            raise RuntimeError( 'Test and reference image/video tensors must be exactly the same shape' )
         
+        if len(dims) != len(test_video.shape):
+            raise RuntimeError( 'Inpur tensor much have exactly as many dimensions as there are characters in the "dims" parameter' )
+
+        # To finish
+        dims = dims.upper()
+        dims_order = { 'B': 0, 'F': 1, 'C': 2, 'H': 3, 'W': 4 }
+        perm = range(len(dims))
+        view_sz = [1] * 5
+        for kk in range(len(dims)):
+            if not dims[kk] in dims_order:
+                raise RuntimeError( 'dims should contain only the characters BFCHW' )
+                
+            perm[kk] = dims_order[dims[kk]]
+            view_sz[dims_order[dims[kk]]] = test_video.shape[kk]
+        
+
+        
+
+
+
+        
+
+
         if fps==0 and ((test_video.dim==3 and test_video.shape[0]>3) or (test_video.dim==4 and test_video.shape[1]>1)):
             raise RuntimeError( 'When passing video sequences, you must set ''frames_per_second'' parameter' )
         
@@ -990,47 +1014,35 @@ class fvvdp_video_source_dm( fvvdp_video_source ):
         #TODO: self.is_color = (~vs.is_video and size(test_video,3)==3) or (vs.is_video and length(size(test_video))==4 and size(test_video,3)==3);
         self.test_video = test_video
         self.reference_video = reference_video
-        
-    #     col_spaces = vs.load_json( 'color_spaces.json' );
-        
-    #     if ~exist( 'color_space', 'var' ) || isempty( color_space_name )
-    #         color_space_name = 'sRGB';
-    #     end
-        
-    #     if ~isfield( col_spaces, color_space_name )
-    #         error( 'Unknown color space "%s". Check display_models/color_spaces.json for available color spaces.', color_space_name );
-    #     end
-    #     cs = col_spaces.(color_space_name);
-    #     vs.color_to_luminance = cs.RGB2Y;                                                           
-        
-    #     if ~exist( 'display_model', 'var' ) || isempty( display_model )
-    #         display_model = 'sdr_4k_30';
-    #     end
-        
-    #     if ischar( display_model )
-    #         disp_models = vs.load_json( 'display_models.json' );
 
-    #         if ~isfield( disp_models, display_model )
-    #             error( 'Unknown display model "%s". Check display_models/display_models.json for available display models.', display_model );
-    #         end
-    #         dm = disp_models.(display_model);
-                        
-    #         vs.display_model = fvvdp_display_photometry.create_from_json( dm );
-    #     else
-    #         vs.display_model = display_model;
-    #     end
-        
-    # end
+        colorspaces_file = os.path.join(os.path.dirname(__file__), "../fvvdp_data/color_spaces.json")
+        colorspaces = json2dict(colorspaces_file)
 
-    # function fps = get_frames_per_second(vs)
-    #     fps = vs.fps;
-    # end
-    
-    # % Return a [height width frames] vector with the resolution and
-    # % the number of frames in the video clip. [height width 1] is
-    # % returned for an image. 
-    # function sz = get_video_size(vs)
-    #     if vs.is_color
+        if not color_space_name in colorspaces:
+            raise RuntimeError( "Unknown color space: \"" + color_space_name + "\"" )
+
+        self.color_to_luminance = colorspaces[color_space_name]['RGB2Y']
+
+        if display_model is str:
+            display_models_file = os.path.join(os.path.dirname(__file__), "../fvvdp_data/display_models.json")
+            display_models = json2dict(display_models_file)
+
+            self.dm_photometry = fvvdp_display_photometry.load(display_model)
+        elif isinstance( display_model, fvvdp_display_photometry ):
+            self.dm_photometry = display_model
+        else:
+            raise RuntimeError( "display_model must be a string or fvvdp_display_photometry subclass" )
+
+    def get_frames_per_second(self):
+        return self.fps
+            
+    # Return a [height width frames] vector with the resolution and
+    # the number of frames in the video clip. [height width 1] is
+    # returned for an image. 
+    def get_video_size(self):
+
+        if self.is_color:
+            pass
     #         sz = [size(vs.reference_video,1) size(vs.reference_video,2) size(vs.reference_video,4)];
     #     else
     #         sz = size(vs.reference_video);
@@ -1044,36 +1056,21 @@ class fvvdp_video_source_dm( fvvdp_video_source ):
     # % scaled in absolute inits of cd/m^2. 'frame' is the frame index,
     # % starting from 1. If use_gpu==true, the function should return a
     # % gpuArray.
-    # function L_test = get_test_frame( vs, frame, use_gpu )
-    #     L_test = vs.get_frame_(vs.test_video, frame, use_gpu);            
-    # end
-    
-    # function L_ref = get_reference_frame( vs, frame, use_gpu )
-    #     L_ref = vs.get_frame_(vs.reference_video, frame, use_gpu);            
-    # end
-    
-    # function L = get_frame_( vs, from_video, frame, use_gpu )
-        
-    #     % Determine the maximum value of the data type storing the
-    #     % image/video
-    #     if isa( from_video, 'uint8' ) || isa( from_video, 'uint16' )
-    #         peak_value = single(intmax( class(from_video) ));
-    #     elseif isa( from_video, 'logical' ) || isa( from_video, 'single' ) || isa( from_video, 'double' )
-    #         peak_value = 1.0;
-    #     else
-    #         error( 'unknown data type of the video/image' );
-    #     end
-        
-    #     if vs.is_color
-    #         L = single(from_video(:,:,:,frame));
-    #     else
-    #         L = single(from_video(:,:,frame));
-    #     end
-        
-    #     if use_gpu
-    #         L = gpuArray(L);
-    #     end
-    #     L = vs.display_model.forward( L/peak_value );
+
+    def get_test_frame( self, frame, device ):
+        return self._get_frame(self.test_video, frame, device )
+
+    def get_reference_frame( self, frame, device ):
+        return self._get_frame(self.reference_video, frame, device )
+
+    def _get_frame( self, from_array, frame, device ):        
+        # Determine the maximum value of the data type storing the
+        # image/video
+
+        if not from_array.dtype is torch.float32:
+            raise RuntimeError( "Only float32 is currently supported" )
+
+        L = self.dm_photometry.forward( from_array[frame,:,:,:] ).to(device)
         
     #     if vs.is_color
     #         % Convert to grayscale

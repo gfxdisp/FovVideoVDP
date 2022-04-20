@@ -38,44 +38,44 @@ class fvvdp_display_photometry:
 
         models = json2dict(models_file)
 
-        for mk in models:
-            if mk == display_name:
-                model = models[mk]
+        if not display_name in models:
+            raise RuntimeError( "Unknown display model: \"" + display_name + "\"" )
 
-                Y_peak = model["max_luminance"]
+        model = models[display_name]
 
-                if "min_luminance" in model:
-                    contrast = Y_peak/model["min_luminance"]
-                elif "contrast" in model:
-                    contrast = model["contrast"]
-                else:
-                    contrast = 500
+        Y_peak = model["max_luminance"]
 
-                # Ambient light
-                if "E_ambient" in model:
-                    E_ambient = model["E_ambient"]
-                else:
-                    E_ambient = 0
-                
-                # Reflectivity of the display panel
-                if "k_refl" in model: 
-                    k_refl = model["k_refl"]
-                else:
-                    k_refl = 0.005
+        if "min_luminance" in model:
+            contrast = Y_peak/model["min_luminance"]
+        elif "contrast" in model:
+            contrast = model["contrast"]
+        else:
+            contrast = 500
 
-                # Reflectivity of the display panel
-                if "gamma" in model: 
-                    gamma = model["gamma"]
-                else:
-                    gamma = 2.2
-  
-                obj = fvvdp_display_photo_gog( Y_peak, contrast, gamma, E_ambient, k_refl)
-                obj.full_name = model["name"]
-                obj.short_name = display_name
+        # Ambient light
+        if "E_ambient" in model:
+            E_ambient = model["E_ambient"]
+        else:
+            E_ambient = 0
+        
+        # Reflectivity of the display panel
+        if "k_refl" in model: 
+            k_refl = model["k_refl"]
+        else:
+            k_refl = 0.005
 
-                return obj
+        # Reflectivity of the display panel
+        if "gamma" in model: 
+            gamma = model["gamma"]
+        else:
+            gamma = 2.2
 
-        raise RuntimeError( 'Unknown display specification "{disp_name}"'.format(disp_name=display_name))
+        obj = fvvdp_display_photo_gog( Y_peak, contrast, gamma, E_ambient, k_refl)
+        obj.full_name = model["name"]
+        obj.short_name = display_name
+
+        return obj
+
 
 
 
