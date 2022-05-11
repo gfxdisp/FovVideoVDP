@@ -209,6 +209,8 @@ class fvvdp_display_geometry:
         
         ar = resolution[0]/resolution[1] # width/height
         
+        self.fixed_ppd = None
+
         if not diagonal_size_inches is None:
             height_mm = math.sqrt( (diagonal_size_inches*25.4)**2 / (1+ar**2) )
             self.display_size_m = (ar*height_mm/1000, height_mm/1000)
@@ -280,6 +282,61 @@ class fvvdp_display_geometry:
             
             ppd = base_ppd * (torch.tan(torch.deg2rad(eccentricity+delta))-tan_a)/tan_delta
             return ppd
+
+
+    # Convert pixel positions into eccentricities for the given
+    # display
+    #
+    # resolution_pix - image resolution as [width height] in pix
+    # x_pix, y_pix - pixel coordinates generated with meshgrid,
+    #   pixels indexed from 0
+    # gaze_pix - [x y] of the gaze position, in pixels
+    def pix2eccentricity( self, resolution_pix, x_pix, y_pix, gaze_pix ):
+                        
+        if not self.fixed_ppd is None:
+            ecc = torch.sqrt( (x_pix-gaze_pix[0])**2 + (y_pix-gaze_pix[1])**2 )/self.fixed_ppd
+        else:
+            # Position the image in the centre
+            shift_to_centre = -resolution_pix/2;
+            x_pix_rel = x_pix+shift_to_centre[0];
+            y_pix_rel = y_pix+shift_to_centre[1];
+            
+            x_m = x_pix_rel * self.display_size_m[0] / self.resolution[0];
+            y_m = y_pix_rel * self.display_size_m[1] / self.resolution[1];
+            
+            device = x_pix.device
+
+            gaze_m = (gaze_pix + shift_to_centre) * self.display_size_m / self.resolution;
+            gaze_deg = atand( gaze_m/dr.distance_m );
+            
+            # Unfinished
+            ecc = torch.sqrt( (torch.atand(x_m/self.distance_m)-gaze_deg[0])**2 + (torch.atand(y_m/self.distance_m)-gaze_deg[1])**2 )
+        
+        # function M = get_resolution_magnification(dr, eccentricity)
+        #     % Get the relative magnification of the resolution due to
+        #     % eccentricity.
+        #     %
+        #     % M = R.get_resolution_magnification(eccentricity)
+        #     %
+        #     % eccentricity is the viewing angle from the center in degrees.
+            
+        #     if ~isempty( dr.fixed_ppd )
+        #         M = ones(size(eccentricity), 'like', eccentricity );
+        #         return;
+        #     end
+            
+        #     eccentricity = min( eccentricity, 89.9 ); % To avoid singulatities
+            
+        #     % pixel size in the centre of the display
+        #     pix_deg = 2*atand( 0.5*dr.display_size_m(1)/dr.resolution(1)/dr.distance_m );
+            
+        #     delta = pix_deg/2;
+        #     tan_delta = tand(delta);
+        #     tan_a = tand( eccentricity );
+            
+        #     M = (tand(eccentricity+delta)-tan_a)/tan_delta;
+        # end
+
 
     def print(self):
         logging.info( 'Geometric display model:' )
