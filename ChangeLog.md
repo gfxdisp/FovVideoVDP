@@ -1,8 +1,13 @@
-# v1.01 - 15/11/2021
+# v1.01 - ?
 - [Python] Optimized code for the Laplacian pyramid decomposition - faster predictions. There is a small (<0.02) difference in the predicted JODs.
 - [Matlab] Improved computation of eccentricity for wide-field-of-view displays
 - [Matlab] Added new option 'ignore_boundary_pixels'
 - [Matlab] Fixed the cortical magnificatioon bug in the CSF
+
+# 19/05/2022
+
+- Updated examples in README.md
+- [Python] Fixed temporal convolution issue, which could cause problems on some versions of PyTorch. The code should be also a bit faster. 
 
 # v1.0 - 21/04/2021
 
