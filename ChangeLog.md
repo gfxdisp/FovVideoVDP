@@ -1,3 +1,8 @@
+# 19/05/2022
+
+- Updated examples in README.md
+- Fixed temporal convolution issue, which could cause problems on some versions of PyTorch. The code should be also a bit faster. 
+
 # v1.0 - 21/04/2021
 
 - Version 1.0 is explained in the SIGGRAPH Asia 2021 paper (see README.md).
