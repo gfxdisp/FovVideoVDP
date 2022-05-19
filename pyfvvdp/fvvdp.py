@@ -1103,7 +1103,7 @@ class fvvdp:
         else:
             self.display_photometry = display_photometry
         
-        self.do_diff_map = not self.heatmap is None
+        self.do_heatmap = not self.heatmap is None
 
         if display_geometry is None:
             self.display_geometry = fvvdp_display_geometry.load(display_name)
@@ -1123,7 +1123,7 @@ class fvvdp:
 
         self.load_config()
 
-        # TODO: Important -- to fix - new caches must be generates
+        # TODO: Important -- to fix - new caches must be generated
         self.k_cm = 0.405835
 
         # if self.mask_s > 0.0:
@@ -1216,8 +1216,8 @@ class fvvdp:
             # if self.debug: self.tb.verify_against_matlab(self.omega, 'omega', self.device)
 
 
-        if not self.heatmap is None:
-            diff_map = torch.zeros_like(R_vid) # TODO
+        if self.do_heatmap:
+            diff_map = torch.zeros([1,1,N_frames,height,width], dtype=torch.float, device=self.device) 
         else:
             diff_map = None
 
@@ -1293,8 +1293,8 @@ class fvvdp:
             # CSF
             N_nCSF = [[None, None] for i in range(self.lpyr.get_band_count()-1)]
 
-            if self.do_diff_map:
-                Dmap_pyr_bands, Dmap_pyr_gbands = self.lpyr.decompose( torch.zeros_like(R_vid[0,0:1,0:1,...]))
+            if self.do_heatmap:
+                Dmap_pyr_bands, Dmap_pyr_gbands = self.lpyr.decompose( torch.zeros([1,1,height,width], dtype=torch.float, device=self.device))
 
             # L_bkg_bb = [None for i in range(self.lpyr.get_band_count()-1)]
 
@@ -1353,7 +1353,7 @@ class fvvdp:
                     D = self.apply_masking_model(T_f, R_f, N_nCSF[bb][cc], cc)
                     if self.debug: self.tb.verify_against_matlab(D, 'D_data', self.device, file='D_%d_%d_%d' % (ff+1,bb+1,cc+1), tolerance = 0.1, relative = True, verbose=False)
 
-                    if self.do_diff_map:
+                    if self.do_heatmap:
                         if cc == 0: self.lpyr.set_band(Dmap_pyr_bands, bb, D)
                         else:       self.lpyr.set_band(Dmap_pyr_bands, bb, self.lpyr.get_band(Dmap_pyr_bands, bb) + w_temp_ch[cc] * D)
 
@@ -1364,7 +1364,7 @@ class fvvdp:
 
                     if self.debug: self.tb.verify_against_matlab(Q_per_ch[bb,cc,ff], 'Q_per_ch_data', self.device, file='Q_per_ch_%d_%d_%d' % (bb+1,cc+1,ff+1), tolerance = 0.1, relative=True, verbose=False)
             # break
-            if self.do_diff_map:
+            if self.do_heatmap:
                 diff_map[:,:,ff,...] = self.lpyr.reconstruct(Dmap_pyr_bands)
 
         Q_sc = self.lp_norm(Q_per_ch, self.beta_sch, 0, False)
@@ -1376,17 +1376,19 @@ class fvvdp:
         beta_jod = np.power(10.0, self.log_jod_exp)
         Q_jod = np.sign(self.jod_a) * torch.pow(torch.tensor(np.power(np.abs(self.jod_a),(1.0/beta_jod)), device=self.device)* Q, beta_jod) + 10.0 # This one can help with very large numbers
 
-        if self.do_diff_map:
-            diff_map = torch.pow(diff_map, beta_jod) * abs(self.jod_a)         
+        stats = {}
+
+        if self.do_heatmap:
+            stats['diff_map'] = torch.pow(diff_map, beta_jod) * abs(self.jod_a)         
 
         if self.debug: self.tb.verify_against_matlab(Q_per_ch, 'Q_per_ch_data', self.device, file='Q_per_ch', tolerance = 0.1, relative=True, verbose=True)
         if self.debug: self.tb.verify_against_matlab(Q_sc,     'Q_sc_data',     self.device, file='Q_sc',     tolerance = 0.1, relative=True, verbose=True)
         if self.debug: self.tb.verify_against_matlab(Q_tc,     'Q_tc_data',     self.device, file='Q_tc',     tolerance = 0.1, relative=True, verbose=True)
         if self.debug: self.tb.verify_against_matlab(Q,        'Q_data',        self.device, file='Q',        tolerance = 0.1, relative=True, verbose=True)
         if self.debug: self.tb.verify_against_matlab(Q_jod,    'Q_jod_data',    self.device, file='Q_jod',    tolerance = 0.1, relative=True, verbose=True)
-        if self.debug: self.tb.print_summary()
+        if self.debug: self.tb.print_summary()    
 
-        return (Q_jod.squeeze(), diff_map)
+        return (Q_jod.squeeze(), stats)
 
     def compute_local_contrast(self, R, T, next_gauss_band, L_adapt):
         if self.local_adapt=="simple":
