@@ -13,6 +13,8 @@ import math
 import torch.utils.benchmark as torchbench
 import logging
 
+from pyfvvdp.visualize_diff_map import visualize_diff_map
+
 # For debugging only
 # from pfs import pfs
 
@@ -1218,9 +1220,10 @@ class fvvdp:
 
 
         if self.do_heatmap:
-            diff_map = torch.zeros([1,1,N_frames,height,width], dtype=torch.float, device=self.device) 
+            dmap_channels = 1 if self.heatmap == "raw" else 3
+            heatmap = torch.zeros([1,dmap_channels,N_frames,height,width], dtype=torch.float, device=self.device) 
         else:
-            diff_map = None
+            heatmap = None
 
         N_nCSF = []
         sw_buf = [None, None]
@@ -1366,7 +1369,14 @@ class fvvdp:
                     if self.debug: self.tb.verify_against_matlab(Q_per_ch[bb,cc,ff], 'Q_per_ch_data', self.device, file='Q_per_ch_%d_%d_%d' % (bb+1,cc+1,ff+1), tolerance = 0.1, relative=True, verbose=False)
             # break
             if self.do_heatmap:
-                diff_map[:,:,ff,...] = self.lpyr.reconstruct(Dmap_pyr_bands)
+                beta_jod = np.power(10.0, self.log_jod_exp)
+                dmap = torch.pow(self.lpyr.reconstruct(Dmap_pyr_bands), beta_jod) * abs(self.jod_a)         
+                if self.heatmap == "raw":
+                    heatmap[:,:,ff,...] = dmap 
+                else:
+                    ref_frame = R[:,0, :, :, :]
+                    heatmap[:,:,ff,...] = visualize_diff_map(dmap, context_image=ref_frame, colormap_type=self.heatmap)
+
 
         Q_sc = self.lp_norm(Q_per_ch, self.beta_sch, 0, False)
         Q_tc = self.lp_norm(Q_sc,     self.beta_tch, 1, False)
@@ -1379,8 +1389,8 @@ class fvvdp:
 
         stats = {}
 
-        if self.do_heatmap:
-            stats['diff_map'] = torch.pow(diff_map, beta_jod) * abs(self.jod_a)         
+        if self.do_heatmap:            
+            stats['heatmap'] = heatmap
 
         if self.debug: self.tb.verify_against_matlab(Q_per_ch, 'Q_per_ch_data', self.device, file='Q_per_ch', tolerance = 0.1, relative=True, verbose=True)
         if self.debug: self.tb.verify_against_matlab(Q_sc,     'Q_sc_data',     self.device, file='Q_sc',     tolerance = 0.1, relative=True, verbose=True)

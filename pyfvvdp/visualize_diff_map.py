@@ -1,5 +1,5 @@
 import torch
-from interp import interp1
+from pyfvvdp.interp import interp1
 
 # For debugging only
 # from gfxdisp.pfs.pfs_torch import *
@@ -51,7 +51,7 @@ def vis_tonemap(b, dr):
 #   - pmap only
 #   - screen target only
 #   - trichromatic, dichromatic, monochromatic
-def visualize_diff_map(diff_map, context_image=None, type="pmap" , colormap_type="trichromatic"):
+def visualize_diff_map(diff_map, context_image=None, type="pmap" , colormap_type="supra-threshold"):
     diff_map = torch.clamp(diff_map, 0.0, 1.0)
 
     if context_image is None:
@@ -59,7 +59,7 @@ def visualize_diff_map(diff_map, context_image=None, type="pmap" , colormap_type
     else:
         tmo_img = vis_tonemap(log_luminance(context_image), 0.6)
 
-    if colormap_type == 'trichromatic':
+    if colormap_type == 'threshold':
 
         color_map = torch.tensor([
             [0.2, 0.2, 1.0],
@@ -70,7 +70,7 @@ def visualize_diff_map(diff_map, context_image=None, type="pmap" , colormap_type
         ], device=diff_map.device)
         color_map_in = torch.tensor([0.00, 0.25, 0.50, 0.75, 1.00], device=diff_map.device)
 
-    elif colormap_type == 'dichromatic':
+    elif colormap_type == 'supra-threshold':
 
         color_map = torch.tensor([
             [0.2, 1.0, 1.0],
