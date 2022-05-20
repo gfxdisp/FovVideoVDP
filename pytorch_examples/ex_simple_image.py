@@ -1,53 +1,53 @@
 import os
 import torch
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageFilter
 from pyfvvdp import fvvdp
 
 import matplotlib.pyplot as plt
 
-#from gfxdisp.pfs.pfs_torch import pfs_torch
+def load_image_as_array(imgfile):
+    img = np.array(Image.open(imgfile).convert("RGB"))
+    return img
 
-def img2np(img):
-    return np.array(img, dtype="float32") * 1.0/255.0
+I_ref = load_image_as_array( os.path.join( 'matlab', 'examples', 'wavy_facade.png' ) )
 
-
-def load_image_as_tensor(imgfile, device, frames=1):
-    raw_tensor = torch.tensor(img2np(Image.open(imgfile).convert("RGB"))).to(device)
-
-    # # add batch and frame dimensions
-    raw_tensor = raw_tensor.permute(2, 0, 1).unsqueeze(dim=0).unsqueeze(dim=2)
-    return raw_tensor
-
-if torch.cuda.is_available():
-    device = torch.device("cuda")
+noise_fname = os.path.join( 'matlab', 'examples', 'wavy_facade_noise.png' )
+if os.path.isfile(noise_fname):
+    I_test_noise = load_image_as_array( noise_fname )
 else:
-    device = torch.device("cpu")
+    # Create a test image as needed
+    I_test_noise = (I_ref.astype('int16') + (np.random.randn(I_ref.shape[0],I_ref.shape[1],I_ref.shape[2])*0.0548*255).astype('int16')).clip(0,255).astype('uint8')
 
-I_ref = load_image_as_tensor( os.path.join( 'matlab', 'examples', 'wavy_facade.png' ), device )
-I_test_noise = load_image_as_tensor( os.path.join( 'matlab', 'examples', 'wavy_facade_noise.png' ), device )
-I_test_blur = load_image_as_tensor( os.path.join( 'matlab', 'examples', 'wavy_facade_blur.png' ), device )
+blur_fname = os.path.join( 'matlab', 'examples', 'wavy_facade_blur.png' )
+if os.path.isfile(blur_fname):
+    I_test_blur = load_image_as_array( blur_fname )
+else:
+    I_test_blur = np.array(Image.fromarray(I_ref).filter( ImageFilter.GaussianBlur(2) ))
 
-#I_test_noise = I_ref.clone() + torch.randn_like(I_ref)*0.003
-
-# I_test_noise = imnoise( I_ref, 'gaussian', 0, 0.003 );
-# I_test_blur = imgaussfilt( I_ref, 2 );
 
 fv = fvvdp(display_name='standard_4k', heatmap='threshold')
 
-Q_JOD_noise, stats_noise = fv.predict( I_test_noise, I_ref )
+# predict() method can handle numpy ndarrays or PyTorch tensors. The data type should be float32 or uint8.
+# Channels can be in any order, but the order must be specified as a dim_order parameter. 
+# Here the dimensions are (Height,Width,Colour)
+Q_JOD_noise, stats_noise = fv.predict( I_test_noise, I_ref, dim_order="HWC" )
 noise_str = 'Noise; Quality: {:.3f} JOD'.format( Q_JOD_noise )
 print( noise_str )
 
-
-Q_JOD_blur, stats_blur = fv.predict( I_test_blur, I_ref )
+Q_JOD_blur, stats_blur = fv.predict( I_test_blur, I_ref, dim_order="HWC" )
 blur_str = 'Blur; Quality: {:.3f} JOD'.format( Q_JOD_blur )
 print( blur_str )
 
-
 f, axs = plt.subplots(2, 2)
-# axs[0][0].imshow( I_test_noise.cpu().numpy() )
-# axs[0][1].imshow( I_test_blur.cpu().numpy() )
+axs[0][0].imshow( I_test_noise )
+axs[0][0].set_title('Test image with noise')
+axs[0][0].set_xticks([])
+axs[0][0].set_yticks([])
+axs[0][1].imshow( I_test_blur )
+axs[0][1].set_title('Test image with blur')
+axs[0][1].set_xticks([])
+axs[0][1].set_yticks([])
 axs[1][0].imshow( stats_noise['heatmap'][0,:,0,:,:].permute([1,2,0]).cpu().numpy() )
 axs[1][0].set_xticks([])
 axs[1][0].set_yticks([])
@@ -59,9 +59,3 @@ axs[1][1].set_title(blur_str)
 
 f.show();
 plt.waitforbuttonpress()
-
-
-
-
-
-

@@ -978,9 +978,9 @@ def reshuffle_dims( T: Tensor, in_dims: str, out_dims: str ) -> Tensor:
             inter_dims += out_dims[kk]
 
     # First, permute into the right order
-    perm = [0] * len(in_dims)
-    for kk in range(len(in_dims)):
-        ind = inter_dims.find(in_dims[kk])
+    perm = [0] * len(inter_dims)
+    for kk in range(len(inter_dims)):
+        ind = in_dims.find(inter_dims[kk])
         if ind == -1:
             raise RuntimeError( 'Dimension "{}" missing in the target dimensions: "{}"'.format(in_dims[kk],out_dims) )
         perm[kk] = ind                    
@@ -1020,7 +1020,12 @@ class fvvdp_video_source_dm( fvvdp_video_source ):
         if len(dim_order) != len(test_video.shape):
             raise RuntimeError( 'Input tensor much have exactly as many dimensions as there are characters in the "dims" parameter' )
 
-        
+        # Convert numpy arrays to tensors. Note that we do not upload to device or change dtype at this point (to save GPU memory)
+        if isinstance( test_video, np.ndarray ):
+            test_video = torch.tensor(test_video)
+        if isinstance( reference_video, np.ndarray ):
+            reference_video = torch.tensor(reference_video)
+
         # Change the order of dimension to match BFCHW - batch, frame, colour, height, width
         test_video = reshuffle_dims( test_video, in_dims=dim_order, out_dims="BCFHW" )
         reference_video = reshuffle_dims( reference_video, in_dims=dim_order, out_dims="BCFHW" )
@@ -1083,10 +1088,14 @@ class fvvdp_video_source_dm( fvvdp_video_source ):
         # Determine the maximum value of the data type storing the
         # image/video
 
-        if not from_array.dtype is torch.float32:
-            raise RuntimeError( "Only float32 is currently supported" )
+        if from_array.dtype is torch.float32:
+            frame = from_array[:,:,frame:(frame+1),:,:].to(device)
+        elif from_array.dtype is torch.uint8:
+            frame = from_array[:,:,frame:(frame+1),:,:].to(device).to(torch.float32)/255
+        else:
+            raise RuntimeError( "Only uint8 and float32 is currently supported" )
 
-        L = self.dm_photometry.forward( from_array[:,:,frame:(frame+1),:,:] ).to(device)
+        L = self.dm_photometry.forward( frame )
         
         if self.is_color:
             # Convert to grayscale
