@@ -23,7 +23,7 @@ V_static_noise = V_ref + repmat( uint16(randn(size(V_ref,1),size(V_ref,2),size(V
 % save_as_video( uint8(V_dynamic_noise/255), 'wavy_facade_vid_dynamic_noise.avi', 30, profile );
 % save_as_video( uint8(V_static_noise/255), 'wavy_facade_vid_static_noise.avi', 30, profile );
 
-options = {};
+options = { };
 display_name = 'standard_4k';
 tic
 [Q_JOD_static_noise, diff_map_static_noise] = fvvdp( V_static_noise, V_ref, 'frames_per_second', fps, 'display_name', display_name, 'heatmap', 'threshold', 'options', options );

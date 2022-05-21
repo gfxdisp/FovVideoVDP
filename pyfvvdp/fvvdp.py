@@ -1135,9 +1135,6 @@ class fvvdp:
 
         self.load_config()
 
-        # TODO: Important -- to fix - new caches must be generated
-        self.k_cm = 0.405835
-
         # if self.mask_s > 0.0:
         #     self.mask_p = self.mask_q + self.mask_s
 
@@ -1467,7 +1464,7 @@ class fvvdp:
                 self.csf_cache[key] = {"lut" : lut}
                 break
         if key not in self.csf_cache:
-            print("Error: cache file for %s not found" % key)
+            raise RuntimeError("Error: cache file for %s not found" % key)
 
     def cached_sensitivity(self, rho, omega, L_bkg, ecc, sigma):
         key = self.get_cache_key(omega, sigma, self.k_cm)

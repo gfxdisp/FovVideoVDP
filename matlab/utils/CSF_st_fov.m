@@ -38,7 +38,7 @@ classdef CSF_st_fov
                                 
                 %fname_lock = strcat( fname, '.lock' );
                 
-                if obj.use_file_cache && exist( fname, 'file' )
+                if obj.use_file_cache && isfile( fname )
                     
                     
                     % Wait up to 1 sec for the lock to be released
