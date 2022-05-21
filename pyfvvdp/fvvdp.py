@@ -1183,6 +1183,26 @@ class fvvdp:
         # other parameters
         self.debug = False
 
+    '''
+    Predict image/video quality using FovVideoVDP.
+
+    test_cont and reference_cont can be either numpy arrays or PyTorch tensors with images or video frames. 
+        Depending on the display model (display_photometry), the pixel values should be either display encoded, or absolute linear.
+        The two supported datatypes are float16 and uint8.
+    dim_order - a string with the order of dimensions of test_cont and reference_cont. The individual characters denote
+        B - batch
+        C - colour channel
+        F - frame
+        H - height
+        W - width
+        Examples: "HW" - gray-scale image (column-major pixel order); "HWC" - colour image; "FCHW" - colour video
+        The default order is "BCFHW". The processing can be a bit faster if data is provided in that order. 
+    frame_padding - the metric requires at least 250ms of video for temporal processing. Because no previous frames exist in the
+        first 250ms of video, the metric must pad those first frames. This options specifies the type of padding to use:
+          'replicate' - replicate the first frame
+          'circular'  - tile the video in the front, so that the last frame is used for frame 0.
+          'pingpong'  - the video frames are mirrored so that frames -1, -2, ... correspond to frames 0, 1, ...
+    '''
     def predict(self, test_cont, reference_cont, dim_order="BCFHW", frames_per_second=0, fixation_point=None, frame_padding="replicate"):
 
         test_vs = fvvdp_video_source_dm( test_cont, reference_cont, frames_per_second, dim_order=dim_order, display_photometry=self.display_photometry, color_space_name=self.color_space )
@@ -1254,15 +1274,15 @@ class fvvdp:
                         sw_buf[0] = vid_source.get_test_frame(0, device=self.device).expand([1, 1, fl, height, width])
                         sw_buf[1] = vid_source.get_reference_frame(0, device=self.device).expand([1, 1, fl, height, width])
                     elif frame_padding == "circular":
-                        sw_buf[0] = torch.zeros([T_vid.shape[0], T_vid.shape[1], fl, T_vid.shape[3], T_vid.shape[4]], device=self.device)
-                        sw_buf[1] = torch.zeros([R_vid.shape[0], R_vid.shape[1], fl, R_vid.shape[3], R_vid.shape[4]], device=self.device)
+                        sw_buf[0] = torch.zeros([1, 1, fl, height, width], device=self.device)
+                        sw_buf[1] = torch.zeros([1, 1, fl, height, width], device=self.device)
                         for kk in range(fl):
                             fidx = (N_frames - 1 - fl + kk) % N_frames
-                            sw_buf[0][:,:,kk,...] = self.raw_to_internal_frame(T_vid[:,:,fidx,...])
-                            sw_buf[1][:,:,kk,...] = self.raw_to_internal_frame(R_vid[:,:,fidx,...])
+                            sw_buf[0][:,:,kk,...] = vid_source.get_test_frame(fidx, device=self.device)
+                            sw_buf[1][:,:,kk,...] = vid_source.get_reference_frame(fidx, device=self.device)
                     elif frame_padding == "pingpong":
-                        sw_buf[0] = torch.zeros([T_vid.shape[0], T_vid.shape[1], fl, T_vid.shape[3], T_vid.shape[4]], device=self.device)
-                        sw_buf[1] = torch.zeros([R_vid.shape[0], R_vid.shape[1], fl, R_vid.shape[3], R_vid.shape[4]], device=self.device)
+                        sw_buf[0] = torch.zeros([1, 1, fl, height, width], device=self.device)
+                        sw_buf[1] = torch.zeros([1, 1, fl, height, width], device=self.device)
 
                         pingpong = list(range(0,N_frames)) + list(range(N_frames-2,0,-1))
                         indices = []
@@ -1272,8 +1292,10 @@ class fvvdp:
 
                         for kk in range(fl):
                             fidx = indices[kk]
-                            sw_buf[0][:,:,kk,...] = self.raw_to_internal_frame(T_vid[:,:,fidx,...])
-                            sw_buf[1][:,:,kk,...] = self.raw_to_internal_frame(R_vid[:,:,fidx,...])
+                            sw_buf[0][:,:,kk,...] = vid_source.get_test_frame(fidx,device=self.device)
+                            sw_buf[1][:,:,kk,...] = vid_source.get_reference_frame(fidx,device=self.device)
+                    else:
+                        raise RuntimeError( 'Unknown padding method "{}"'.format(frame_padding) )
                 else:
                     cur_tframe = vid_source.get_test_frame(ff, device=self.device)
                     cur_rframe = vid_source.get_reference_frame(ff, device=self.device)

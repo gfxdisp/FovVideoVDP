@@ -81,7 +81,7 @@ function [Q_JOD, diff_map, Q] = fvvdp(test_video, reference_video, varargin)
 %          centre of the image. To simulate a moving gaze point, you can pass 
 %          a matrix of the size [N 2] where N is the number of frames. 
 %
-%    'frame_padding', type - the metric requires at least 250ms of video to
+%    'frame_padding', type - the metric requires at least 250ms of video 
 %          for temporal processing. Because no previous frames exist in the
 %          first 250ms of video, the metric must pad those first frames.
 %          This options specifies the type of padding to use.
