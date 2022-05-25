@@ -16,7 +16,7 @@ import logging
 from pyfvvdp.visualize_diff_map import visualize_diff_map
 
 # For debugging only
-# from pfs import pfs
+from gfxdisp.pfs.pfs_torch import pfs_torch
 
 from PIL import Image
 
@@ -28,7 +28,7 @@ from interp import interp1, interp3
 from utils import *
 from fvvdp_test import FovVideoVDP_Testbench
 
-from fvvdp_display_model import fvvdp_display_photometry, fvvdp_display_geometry
+from pyfvvdp.fvvdp_display_model import fvvdp_display_photometry, fvvdp_display_geometry
 
 class DisplayModel():
     def __init__(self, W, H, diagonal_fov_degrees, distance_m, diag_size_m, min_luminance, max_luminance, gamma_func, rgb2X, rgb2Y, rgb2Z):
@@ -953,7 +953,7 @@ class fvvdp_video_source:
     
     # Get a pair of test and reference video frames as a single-precision luminance map
     # scaled in absolute inits of cd/m^2. 'frame' is the frame index,
-    # starting from 1. 
+    # starting from 0. 
     @abstractmethod
     def get_test_frame( self, frame, device ) -> Tensor:
         pass
@@ -996,14 +996,34 @@ def reshuffle_dims( T: Tensor, in_dims: str, out_dims: str ) -> Tensor:
     return T_p.reshape( out_sh )
     
 
+class fvvdp_video_source_dm( fvvdp_video_source ):
 
-# A batch of videos stored as a tensor. Ideally, the tensor should have the dimensions BCFHW (batch, colour, frame, height, width).
-# If tensor is stored in another formay, you can pass the order of dimsions as "dims" parameter. If any dimension is missing, it will
+    def __init__( self,  display_photometry='sdr_4k_30', color_space_name='sRGB' ):
+        colorspaces_file = os.path.join(os.path.dirname(__file__), "../fvvdp_data/color_spaces.json")
+        colorspaces = json2dict(colorspaces_file)
+
+        if not color_space_name in colorspaces:
+            raise RuntimeError( "Unknown color space: \"" + color_space_name + "\"" )
+
+        self.color_to_luminance = colorspaces[color_space_name]['RGB2Y']
+
+        if isinstance( display_photometry, str ):
+            display_models_file = os.path.join(os.path.dirname(__file__), "../fvvdp_data/display_models.json")
+            display_models = json2dict(display_models_file)
+
+            self.dm_photometry = fvvdp_display_photometry.load(display_photometry)
+        elif isinstance( display_photometry, fvvdp_display_photometry ):
+            self.dm_photometry = display_photometry
+        else:
+            raise RuntimeError( "display_model must be a string or fvvdp_display_photometry subclass" )
+
+
+# A batch of videos stored as a tensor or numpy array. Ideally, the tensor should have the dimensions BCFHW (batch, colour, frame, height, width).
+# If tensor is stored in another formay, you can pass the order of dimsions as "dim_order" parameter. If any dimension is missing, it will
 # be added as a singleton dimension. 
 # This class is for display-encoded (gamma-encoded)
-# content that will be processed by a display model to produce linear
-# absolute luminance emitted from a display.
-class fvvdp_video_source_dm( fvvdp_video_source ):
+# content that will be processed by a display model to produce linear  absolute luminance emitted from a display.
+class fvvdp_video_source_array( fvvdp_video_source_dm ):
                
     # test_video, reference video - tensor with test and reference video frames. See the class description above for the explanation of dimensions of those tensors.
     # fps - frames per second. Must be 0 for images
@@ -1013,7 +1033,9 @@ class fvvdp_video_source_dm( fvvdp_video_source ):
     # color_space_name - name of the colour space (see
     #   fvvdp_data/color_spaces.json)
     def __init__( self, test_video, reference_video, fps, dim_order='BCFHW', display_photometry='sdr_4k_30', color_space_name='sRGB' ):
-        
+
+        super().__init__(display_photometry=display_photometry, color_space_name=color_space_name)        
+
         if test_video.shape != reference_video.shape:
             raise RuntimeError( 'Test and reference image/video tensors must be exactly the same shape' )
         
@@ -1044,23 +1066,6 @@ class fvvdp_video_source_dm( fvvdp_video_source ):
         self.test_video = test_video
         self.reference_video = reference_video
 
-        colorspaces_file = os.path.join(os.path.dirname(__file__), "../fvvdp_data/color_spaces.json")
-        colorspaces = json2dict(colorspaces_file)
-
-        if not color_space_name in colorspaces:
-            raise RuntimeError( "Unknown color space: \"" + color_space_name + "\"" )
-
-        self.color_to_luminance = colorspaces[color_space_name]['RGB2Y']
-
-        if isinstance( display_photometry, str ):
-            display_models_file = os.path.join(os.path.dirname(__file__), "../fvvdp_data/display_models.json")
-            display_models = json2dict(display_models_file)
-
-            self.dm_photometry = fvvdp_display_photometry.load(display_photometry)
-        elif isinstance( display_photometry, fvvdp_display_photometry ):
-            self.dm_photometry = display_photometry
-        else:
-            raise RuntimeError( "display_model must be a string or fvvdp_display_photometry subclass" )
 
     def get_frames_per_second(self):
         return self.fps
@@ -1075,7 +1080,7 @@ class fvvdp_video_source_dm( fvvdp_video_source ):
     
     # % Get a test video frame as a single-precision luminance map
     # % scaled in absolute inits of cd/m^2. 'frame' is the frame index,
-    # % starting from 1. If use_gpu==true, the function should return a
+    # % starting from 0. If use_gpu==true, the function should return a
     # % gpuArray.
 
     def get_test_frame( self, frame, device=torch.device('cpu') ):
@@ -1205,7 +1210,7 @@ class fvvdp:
     '''
     def predict(self, test_cont, reference_cont, dim_order="BCFHW", frames_per_second=0, fixation_point=None, frame_padding="replicate"):
 
-        test_vs = fvvdp_video_source_dm( test_cont, reference_cont, frames_per_second, dim_order=dim_order, display_photometry=self.display_photometry, color_space_name=self.color_space )
+        test_vs = fvvdp_video_source_array( test_cont, reference_cont, frames_per_second, dim_order=dim_order, display_photometry=self.display_photometry, color_space_name=self.color_space )
 
         return self.predict_video_source(test_vs, fixation_point=fixation_point, frame_padding=frame_padding)
 
