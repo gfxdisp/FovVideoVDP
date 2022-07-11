@@ -14,8 +14,10 @@ fps = 30; % Frames per second
 V_ref = repmat( I_ref, [1 1 1 N] ); % Reference video (in colour). Use [height x with x N] matrix for a grayscale video. 
 max_v = single(intmax( 'uint16' ));
 N_amplitude = 0.07; % Amplitude of the noise (in gamma encoded values, scale 0-1)
-V_dynamic_noise = V_ref + uint16(randn(size(V_ref))*max_v*N_amplitude); % Dynamic Gaussian noise
-V_static_noise = V_ref + repmat( uint16(randn(size(V_ref,1),size(V_ref,2),size(V_ref,3))*max_v*N_amplitude), [1 1 1 size(V_ref,4)] ); % Static Gaussian noise
+noise = repmat( randn(size(V_ref,1),size(V_ref,2),size(V_ref,3))*max_v*N_amplitude, [1 1 1 size(V_ref,4)] );
+V_static_noise = uint16( clamp( single(V_ref) + noise, 0, 2^16-1 ) ); % Static Gaussian noise
+noise = randn(size(V_ref))*max_v*N_amplitude;
+V_dynamic_noise = uint16( clamp( single(V_ref) + noise, 0, 2^16-1 ) ); % Dynamic Gaussian noise
 
 % Used to compare Python and Matlab versions
 % profile='Uncompressed AVI';

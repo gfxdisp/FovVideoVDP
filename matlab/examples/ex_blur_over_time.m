@@ -28,6 +28,8 @@ tic
 [Q_JOD_blur, diff_map_blur] = fvvdp( V_blur, V_ref, 'frames_per_second', fps, 'display_name', display_name, 'heatmap', 'threshold', 'options', options );
 toc
 
+fprintf( 1, '=== Blur-over-time Q_JOD = %g\n', Q_JOD_blur );
+
 % Prepare visualization
 
 % Videos are large so better to store them as uint8. 

@@ -22,7 +22,8 @@ fps = 30; % Frames per second
 V_ref = repmat( I_ref, [1 1 1 N] ); % Reference video (in colour). Use [height x with x N] matrix for a grayscale video. 
 max_v = single(intmax( 'uint16' ));
 noise_ampitude = 0.02;
-V_dynamic_noise = V_ref + uint16(randn(size(V_ref))*max_v*noise_ampitude); % Dynamic Gaussian noise
+noise = randn(size(V_ref))*max_v*N_amplitude;
+V_dynamic_noise = uint16( clamp( single(V_ref) + noise, 0, 2^16-1 ) ); % Dynamic Gaussian noise
 
 % The gaze will move from the top-left to the bottom-right corner
 % We are pasing [N 2] matrix with the fixation points as [x y], where x
