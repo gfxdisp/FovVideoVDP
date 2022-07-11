@@ -1,29 +1,34 @@
-import os
+import os, sys
 import torch
 import numpy as np
-from PIL import Image, ImageFilter
+import ex_utils as utils
+
+sys.path.append('..')
 from pyfvvdp import fvvdp
 
 import matplotlib.pyplot as plt
 
-def load_image_as_array(imgfile):
-    img = np.array(Image.open(imgfile).convert("RGB"))
-    return img
+debug = False
 
-I_ref = load_image_as_array( os.path.join( 'matlab', 'examples', 'wavy_facade.png' ) )
 
-noise_fname = os.path.join( 'matlab', 'examples', 'wavy_facade_noise.png' )
-if os.path.isfile(noise_fname):
-    I_test_noise = load_image_as_array( noise_fname )
+I_ref = utils.imread(os.path.join('..', 'matlab', 'examples', 'wavy_facade.png'))
+
+noise_fname = os.path.join('..', 'matlab', 'examples', 'wavy_facade_noise.png')
+if os.path.isfile(noise_fname) and debug:
+    I_test_noise = utils.imread( noise_fname )
 else:
-    # Create a test image as needed
-    I_test_noise = (I_ref.astype('int16') + (np.random.randn(I_ref.shape[0],I_ref.shape[1],I_ref.shape[2])*0.0548*255).astype('int16')).clip(0,255).astype('uint8')
+    std = np.sqrt(0.003)
+    I_test_noise = utils.imnoise(I_ref, std)
 
-blur_fname = os.path.join( 'matlab', 'examples', 'wavy_facade_blur.png' )
-if os.path.isfile(blur_fname):
-    I_test_blur = load_image_as_array( blur_fname )
+blur_fname = os.path.join( '..', 'matlab', 'examples', 'wavy_facade_blur.png' )
+if os.path.isfile(blur_fname) and debug:
+    I_test_blur = utils.imread( blur_fname )
 else:
-    I_test_blur = np.array(Image.fromarray(I_ref).filter( ImageFilter.GaussianBlur(2) ))
+    sigma = 2
+    I_test_blur = utils.imgaussblur(I_ref, sigma)
+
+# Torch does not support uint16
+I_ref, I_test_noise, I_test_blur = utils.uint16to8((I_ref, I_test_noise, I_test_blur))
 
 
 fv = fvvdp(display_name='standard_4k', heatmap='threshold')

@@ -1,13 +1,16 @@
 # This example shows how to use python interface to run FovVideoVDP directly on video files
+import sys
 import glob
 import time
+
+sys.path.append('..')
 from pyfvvdp import fvvdp
 from pyfvvdp.video_source_file import fvvdp_video_source_file
 
 display_name = 'sdr_fhd_24';
 
-ref_file = 'pytorch_examples/aliasing/ferris-ref.mp4';
-TST_FILEs = glob.glob( 'pytorch_examples/aliasing/ferris-*-*.mp4' );
+ref_file = 'aliasing/ferris-ref.mp4';
+TST_FILEs = glob.glob( 'aliasing/ferris-*-*.mp4' );
 
 fv = fvvdp(display_name=display_name, heatmap=None)
 
