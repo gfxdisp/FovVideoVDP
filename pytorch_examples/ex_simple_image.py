@@ -11,16 +11,16 @@ import matplotlib.pyplot as plt
 debug = False
 
 
-I_ref = utils.imread(os.path.join('..', 'matlab', 'examples', 'wavy_facade.png'))
+I_ref = utils.imread(os.path.join('..', 'example_media', 'wavy_facade.png'))
 
-noise_fname = os.path.join('..', 'matlab', 'examples', 'wavy_facade_noise.png')
+noise_fname = os.path.join('..', 'example_media', 'wavy_facade_noise.png')
 if os.path.isfile(noise_fname) and debug:
     I_test_noise = utils.imread( noise_fname )
 else:
     std = np.sqrt(0.003)
     I_test_noise = utils.imnoise(I_ref, std)
 
-blur_fname = os.path.join( '..', 'matlab', 'examples', 'wavy_facade_blur.png' )
+blur_fname = os.path.join( '..', 'example_media', 'wavy_facade_blur.png' )
 if os.path.isfile(blur_fname) and debug:
     I_test_blur = utils.imread( blur_fname )
 else:
@@ -28,7 +28,7 @@ else:
     I_test_blur = utils.imgaussblur(I_ref, sigma)
 
 # Torch does not support uint16
-I_ref, I_test_noise, I_test_blur = utils.uint16to8((I_ref, I_test_noise, I_test_blur))
+I_ref, I_test_noise, I_test_blur = utils.uint16tofp32((I_ref, I_test_noise, I_test_blur))
 
 
 fv = fvvdp(display_name='standard_4k', heatmap='threshold')

@@ -11,7 +11,7 @@ import time
 
 
 # The frame to use for the video
-I_ref = utils.imread(os.path.join('..', 'matlab', 'examples', 'wavy_facade.png'))
+I_ref = utils.imread(os.path.join('..', 'example_media', 'wavy_facade.png'))
 
 N = 60 # The number of frames
 fps = 30 # Frames per second
@@ -22,7 +22,7 @@ V_static_noise = utils.imnoise(V_ref, N_amplitude, static=True)
 V_dynamic_noise = utils.imnoise(V_ref, N_amplitude)
 
 # Torch does not support uint16
-V_ref, V_static_noise, V_dynamic_noise = utils.uint16to8((V_ref, V_static_noise, V_dynamic_noise))
+V_ref, V_static_noise, V_dynamic_noise = utils.uint16tofp32((V_ref, V_static_noise, V_dynamic_noise))
 
 
 fv = fvvdp(display_name='standard_4k', heatmap=None)

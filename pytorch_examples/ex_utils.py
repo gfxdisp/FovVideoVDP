@@ -15,14 +15,12 @@ def imread(filename, bits=8):
 
 
 # Add 0 mean Gaussian noise
+# std: Standard deviation in normalized units
+# static: Set to True if same noise should be added to all frames
 def imnoise(clean, std, static=False):
     dtype = clean.dtype
-    if dtype == np.uint8:
-        peak = 2**8-1
-    elif dtype == np.uint16:
-        peak = 2**16-1
-    elif dtype == np.float32:
-        peak = 1
+
+    peak = 1 if isinstance(dtype, float) else np.iinfo(dtype).max
     assert peak >= clean.max()
 
     if static:
@@ -54,5 +52,6 @@ def imgaussblur(clean, sigmas):
     return blur.squeeze()
 
 
-# Convert array of uint16 images to uint8
+# Convert array of images to different datatypes
 uint16to8 = lambda imgs: (np.floor(im/256).astype(np.uint8) for im in imgs)
+uint16tofp32 = lambda imgs: (im.astype(np.float32)/(2**16 - 1) for im in imgs)

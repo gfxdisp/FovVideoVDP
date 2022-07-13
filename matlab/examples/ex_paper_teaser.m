@@ -3,7 +3,7 @@ function ex_paper_teaser()
     % add paths for matlab code
     addpath(genpath('../'));
     % load up the SIGGRAPH logo worldcloud image
-    I_ref = im2double( imread( 'SIGGRAPH_wordcloud.png' ) );
+    I_ref = im2double( imread( '../../example_media/SIGGRAPH_wordcloud.png' ) );
 
     % set the center point of the image
     mid = round([size(I_ref,1) size(I_ref,2)]/2);

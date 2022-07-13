@@ -11,7 +11,7 @@ import time
 
 
 # The frame to use for the video
-I_ref = utils.imread(os.path.join('..', 'matlab', 'examples', 'tree.jpg'))
+I_ref = utils.imread(os.path.join('..', 'example_media', 'tree.jpg'))
 
 N = 60*4 # The number of frames
 fps = 30 # Frames per second

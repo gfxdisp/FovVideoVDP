@@ -6,13 +6,12 @@ if ~exist( 'fvvdp', 'file' )
 end
 
 % The frame to use for the video. Note that this is a uint16 image
-I_ref = imread( 'tree.jpg' );
+I_ref = imread( '../../example_media/tree.jpg' );
 
 N = 60*4; % The number of frames
 fps = 30; % Frames per second
 
 V_ref = repmat( I_ref, [1 1 1 N] ); % Reference video (in colour). Use [height x with x N] matrix for a grayscale video. 
-max_v = single(intmax( 'uint16' ));
 
 V_blur = zeros(size(V_ref), 'like', V_ref);
 sigma_max = 2;

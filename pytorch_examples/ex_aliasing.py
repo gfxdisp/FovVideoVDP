@@ -9,8 +9,8 @@ from pyfvvdp.video_source_file import fvvdp_video_source_file
 
 display_name = 'sdr_fhd_24';
 
-ref_file = 'aliasing/ferris-ref.mp4';
-TST_FILEs = glob.glob( 'aliasing/ferris-*-*.mp4' );
+ref_file = '../example_media/aliasing/ferris-ref.mp4';
+TST_FILEs = glob.glob( '../example_media/aliasing/ferris-*-*.mp4' );
 
 fv = fvvdp(display_name=display_name, heatmap=None)
 

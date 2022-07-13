@@ -8,12 +8,12 @@ from pyfvvdp import fvvdp, fvvdp_display_photo_gog
 import matplotlib.pyplot as plt
 
 
-I_ref = utils.imread(os.path.join('..', 'matlab', 'examples', 'wavy_facade.png'))
+I_ref = utils.imread(os.path.join('..', 'example_media', 'wavy_facade.png'))
 std = np.sqrt(0.001)
 I_test_noise = utils.imnoise(I_ref, std)
 
 # Torch does not support uint16
-I_ref, I_test_noise = utils.uint16to8((I_ref, I_test_noise))
+I_ref, I_test_noise = utils.uint16tofp32((I_ref, I_test_noise))
 
 # Measure quality on displays of different brightness
 disp_peaks = np.logspace(np.log10(1), np.log10(1000), 5)

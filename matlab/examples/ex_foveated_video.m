@@ -10,7 +10,7 @@ if ~exist( 'fvvdp', 'file' )
 end
 
 % The frame to use for the video. Note that this is uint16 image
-I_ref = imread( 'wavy_facade.png' );
+I_ref = imread( '../../example_media/wavy_facade.png' );
 ar = 1440/1600; % the aspect ratio of HTC Vive Pro (width/height)
 crop_pix = floor((size(I_ref,2) - size(I_ref,1)*ar)/2);
 I_ref = I_ref(:,crop_pix:(end-crop_pix),:); % Crop to the aspect ratio of HTC Vive Pro
@@ -22,8 +22,8 @@ fps = 30; % Frames per second
 V_ref = repmat( I_ref, [1 1 1 N] ); % Reference video (in colour). Use [height x with x N] matrix for a grayscale video. 
 max_v = single(intmax( 'uint16' ));
 noise_ampitude = 0.02;
-noise = randn(size(V_ref))*max_v*N_amplitude;
-V_dynamic_noise = uint16( clamp( single(V_ref) + noise, 0, 2^16-1 ) ); % Dynamic Gaussian noise
+noise = randn( size(V_ref), 'single' )*max_v*N_amplitude;
+V_dynamic_noise = uint16( single(V_ref) + noise ); % Dynamic Gaussian noise
 
 % The gaze will move from the top-left to the bottom-right corner
 % We are pasing [N 2] matrix with the fixation points as [x y], where x
