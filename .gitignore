@@ -1,5 +1,6 @@
 *.pyc
 .DS_Store
+*.egg-info/
 
 # Dynamically generated examples
 example_media/wavy_facade_noise.png
