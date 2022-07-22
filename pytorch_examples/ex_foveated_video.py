@@ -1,21 +1,23 @@
-import os, sys
+import os
+import time
 import numpy as np
 import ex_utils as utils
 from PIL import Image
 
-sys.path.append('..')
-from pyfvvdp import fvvdp, fvvdp_display_photo_gog
-import time
+from pyfvvdp.fvvdp import fvvdp
+from pyfvvdp.video_source_file import load_image_as_array
+from pyfvvdp.fvvdp_display_model import fvvdp_display_photo_gog
 
 
-I_ref = utils.imread(os.path.join('..', 'example_media', 'wavy_facade.png'))
+I_ref = load_image_as_array(os.path.join('example_media', 'wavy_facade.png'))
 ar = 1440/1600; # the aspect ratio of HTC Vive Pro (width/height)
 h, w, _ = I_ref.shape
 crop_pix = int(np.floor((w - h*ar)/2))
 I_ref = I_ref[:,crop_pix-1:-crop_pix] # Crop to the aspect ratio of HTC Vive Pro
 
 # Torch does not support uint16
-I_ref = next(utils.uint16tofp32(I_ref[np.newaxis]))
+# I_ref = next(utils.uint16tofp32(I_ref[np.newaxis]))
+I_ref = next(utils.uint16to8(I_ref[np.newaxis]))
 
 # The below line needs to be replaced. PIL forces uint8 which is
 # inconsistent with Matlab

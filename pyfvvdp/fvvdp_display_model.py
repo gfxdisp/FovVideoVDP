@@ -162,6 +162,45 @@ class fvvdp_display_photo_gog(fvvdp_display_photometry):
         logging.info( '  Display reflectivity: {}%'.format( self.k_refl*100 ) )
     
 
+class fvvdp_display_photo_absolute(fvvdp_display_photometry):
+    # Use this photometric model when passing absolute colorimetric of
+    # photometric values, scaled in cd/m^2
+    # Object variables:
+    #  L_max - display peak luminance in cd/m^2
+    #  L_min - display black level
+    def __init__(self, L_max=10000, L_min=0.005):
+
+        self.L_max = L_max
+        self.L_min = L_min
+
+
+    def forward( self, V ):
+
+        # Clamp the values that are outside the (L_min, L_max) range.
+        L = V.clamp(self.L_min, self.L_max)
+
+        if V.max() >= 1:
+            logging.warning('Pixel values are very low. Perhaps images are' \
+                            ' not scaled in the absolute units of cd/m^2.')
+
+        return L
+
+
+    def  get_peak_luminance( self ):
+        return self.L_max
+
+
+    def get_black_level( self ):
+        return self.L_min
+
+    # Print the display specification
+    def print( self ):
+        Y_black = self.get_black_level()
+
+        logging.info('Photometric display model:')
+        logging.info('  Absolute photometric/colorimetric values')
+
+
 # Use this class to compute the effective resolution of a display in pixels
 # per degree (ppd). The class accounts for the change in the projection
 # when looking at large FOV displays (e.g. VR headsets) at certain

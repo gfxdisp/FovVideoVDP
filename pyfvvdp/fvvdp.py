@@ -16,9 +16,7 @@ import logging
 from pyfvvdp.visualize_diff_map import visualize_diff_map
 
 # For debugging only
-from gfxdisp.pfs.pfs_torch import pfs_torch
-
-from PIL import Image
+# from gfxdisp.pfs.pfs_torch import pfs_torch
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 

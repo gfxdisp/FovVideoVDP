@@ -1,14 +1,14 @@
-import os, sys
+import os
 import numpy as np
+import matplotlib.pyplot as plt
 import ex_utils as utils
 
-sys.path.append('..')
-from pyfvvdp import fvvdp, fvvdp_display_photo_gog
+from pyfvvdp.fvvdp import fvvdp
+from pyfvvdp.fvvdp_display_model import fvvdp_display_photo_gog
+from pyfvvdp.video_source_file import load_image_as_array
 
-import matplotlib.pyplot as plt
 
-
-I_ref = utils.imread(os.path.join('..', 'example_media', 'wavy_facade.png'))
+I_ref = load_image_as_array(os.path.join('example_media', 'wavy_facade.png'))
 std = np.sqrt(0.001)
 I_test_noise = utils.imnoise(I_ref, std)
 

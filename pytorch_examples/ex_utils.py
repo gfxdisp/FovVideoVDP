@@ -1,27 +1,16 @@
-import png
-from PIL import Image
 import numpy as np
 from scipy.ndimage import gaussian_filter
-
-# Wrapper for reading images
-def imread(filename, bits=8):
-    assert bits in (8, 16, 32), 'Unsupported bit-depth'
-    if filename.endswith('.png'):
-        pngdata = png.Reader(filename).read_flat()
-        img = np.array(pngdata[2]).reshape((pngdata[1], pngdata[0], -1))
-    else:
-        img = np.array(Image.open(filename).convert("RGB"))
-    return img
 
 
 # Add 0 mean Gaussian noise
 # std: Standard deviation in normalized units
 # static: Set to True if same noise should be added to all frames
-def imnoise(clean, std, static=False):
+# peak: Intensity of brightest pixel
+def imnoise(clean, std, static=False, peak=None):
     dtype = clean.dtype
 
-    peak = 1 if isinstance(dtype, float) else np.iinfo(dtype).max
-    assert peak >= clean.max()
+    if peak is None:
+        peak = 1 if dtype.kind == 'f' else np.iinfo(dtype).max
 
     if static:
         # Constant noise for all frames
