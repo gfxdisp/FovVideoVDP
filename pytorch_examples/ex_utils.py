@@ -43,4 +43,5 @@ def imgaussblur(clean, sigmas):
 
 # Convert array of images to different datatypes
 uint16to8 = lambda imgs: (np.floor(im/256).astype(np.uint8) for im in imgs)
+uint16toint16 = lambda imgs: (im.astype(np.int16) for im in imgs)
 uint16tofp32 = lambda imgs: (im.astype(np.float32)/(2**16 - 1) for im in imgs)

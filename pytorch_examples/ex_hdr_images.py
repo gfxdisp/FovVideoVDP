@@ -32,7 +32,8 @@ I_test_blur = utils.imgaussblur(I_ref, 2)
 disp_photo = fvvdp_display_photo_absolute(L_peak)
 fv = fvvdp(display_name='standard_hdr', display_photometry=disp_photo, heatmap='threshold')
 
-# predict() method can handle numpy ndarrays or PyTorch tensors. The data type should be float32 or uint8.
+# predict() method can handle numpy ndarrays or PyTorch tensors. The data
+# type should be float32, int16 or uint8.
 # Channels can be in any order, but the order must be specified as a dim_order parameter. 
 # Here the dimensions are (Height,Width,Colour)
 Q_JOD_noise, stats_noise = fv.predict( I_test_noise, I_ref, dim_order="HWC" )

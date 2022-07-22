@@ -1093,10 +1093,20 @@ class fvvdp_video_source_array( fvvdp_video_source_dm ):
 
         if from_array.dtype is torch.float32:
             frame = from_array[:,:,frame:(frame+1),:,:].to(device)
+        elif from_array.dtype is torch.int16:
+            # Use int16 to losslessly pack uint16 values
+            # Unpack from int16 by bit masking as described in this thread:
+            # https://stackoverflow.com/a/20766900
+            max_value = 2**16 - 1
+            # Cast to int32 to store values >= 2**15
+            frame_int32 = from_array[:,:,frame:(frame+1),:,:].to(device).to(torch.int32)
+            frame_uint16 = frame_int32 & max_value
+            # Finally convert to float in the range [0,1]
+            frame = frame_uint16.to(torch.float32) / max_value
         elif from_array.dtype is torch.uint8:
             frame = from_array[:,:,frame:(frame+1),:,:].to(device).to(torch.float32)/255
         else:
-            raise RuntimeError( "Only uint8 and float32 is currently supported" )
+            raise RuntimeError( "Only uint8, uint16 and float32 is currently supported" )
 
         L = self.dm_photometry.forward( frame )
         
