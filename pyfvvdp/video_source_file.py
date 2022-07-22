@@ -1,5 +1,5 @@
 import os
-from PIL import Image
+import imageio.v2 as io
 import numpy as np
 from torch.functional import Tensor
 import torch
@@ -8,7 +8,9 @@ import ffmpeg
 from pyfvvdp.fvvdp import fvvdp_video_source, fvvdp_video_source_dm, fvvdp_video_source_array, reshuffle_dims
 
 def load_image_as_array(imgfile):
-    img = np.array(Image.open(imgfile).convert("RGB"))
+    # 16-bit PNG not supported by default
+    lib = 'PNG-FI' if os.path.splitext(imgfile)[1].lower() == '.png' else None
+    img = io.imread(imgfile, format=lib)
     return img
 
 
@@ -136,18 +138,18 @@ class fvvdp_video_source_file(fvvdp_video_source):
 
     def __init__( self, test_fname, reference_fname, display_photometry='sdr_4k_30', color_space_name='sRGB', frames=-1 ):
         # these extensions switch mode to images instead
-        image_extensions = [".png", ".jpg", ".gif", ".bmp", ".jpeg", ".ppm", ".tiff", ".dds"]        
+        image_extensions = [".png", ".jpg", ".gif", ".bmp", ".jpeg", ".ppm", ".tiff", ".dds", ".exr", ".hdr"]
 
-        if not os.path.isfile(test_fname):
-            raise RuntimeError( 'File does not exists: "{}"'.format(test_fname) )
-        if not os.path.isfile(reference_fname):
-            raise RuntimeError( 'File does not exists: "{}"'.format(reference_fname) )
+        assert os.path.isfile(test_fname), f'File does not exists: "{test_fname}"'
+        assert os.path.isfile(reference_fname), f'File does not exists: "{reference_fname}"'
 
-        if os.path.splitext(test_fname)[1] in image_extensions:
+        if os.path.splitext(test_fname)[1].lower() in image_extensions:
+            assert os.path.splitext(reference_fname)[1].lower() in image_extensions, 'Test is an image, but reference is a video'
             img_test = load_image_as_array(test_fname)
             img_reference = load_image_as_array(reference_fname)
             self.vs = fvvdp_video_source_array( img_test, img_reference, 0, dim_order='HWC', display_photometry=display_photometry, color_space_name=color_space_name )
         else:
+            assert os.path.splitext(reference_fname)[1].lower() not in image_extensions, 'Test is a video, but reference is an image'
             self.vs = fvvdp_video_source_video_file( test_fname, reference_fname, display_photometry=display_photometry, color_space_name=color_space_name, frames=frames )
 
 

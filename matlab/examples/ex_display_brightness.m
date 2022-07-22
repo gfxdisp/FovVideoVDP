@@ -7,7 +7,7 @@ if ~exist( 'fvvdp', 'file' )
     addpath( fullfile( pwd, '..') );
 end
 
-I_ref = imread( 'wavy_facade.png' );
+I_ref = imread( '../../example_media/wavy_facade.png' );
 I_test_noise = imnoise( I_ref, 'gaussian', 0, 0.001 );
 
 % Measure quality on displays of different brightness

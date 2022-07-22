@@ -4,12 +4,12 @@ if ~exist( 'fovvdp', 'file' )
     addpath( fullfile( pwd, '..') );
 end
 
-I_ref = imread( 'wavy_facade.png' );
+I_ref = imread( '../../example_media/wavy_facade.png' );
 %I_ref = imread( 'tree.jpg' );
 
 % Generate distorted images as needed.
 % We store distorted images so that we can compare Matlab/Python results
-noise_fname = 'wavy_facade_noise.png';
+noise_fname = '../../example_media/wavy_facade_noise.png';
 if isfile( noise_fname )
     I_test_noise = imread( noise_fname );
 else
@@ -17,7 +17,7 @@ else
     imwrite( I_test_noise, noise_fname );
 end
 
-blur_fname = 'wavy_facade_blur.png';
+blur_fname = '../../example_media/wavy_facade_blur.png';
 if isfile( blur_fname )
     I_test_blur = imread( blur_fname );
 else
@@ -27,6 +27,10 @@ end
 
 [Q_JOD_noise, diff_map_noise] = fvvdp( I_test_noise, I_ref, 'display_name', 'standard_4k', 'heatmap', 'threshold' );
 [Q_JOD_blur, diff_map_blur] = fvvdp( I_test_blur, I_ref, 'display_name', 'standard_4k', 'heatmap', 'threshold' );
+
+fprintf( 1, '=== Noise Q_JOD = %g\n', Q_JOD_noise);
+fprintf( 1, '=== Blur Q_JOD = %g\n', Q_JOD_blur);
+
 
 clf
 subplot( 2, 2, 1 );

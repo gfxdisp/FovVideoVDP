@@ -4,7 +4,7 @@ if ~exist( 'fvvdp', 'file' )
     addpath( fullfile( pwd, '..') );
 end
 
-I_ref = hdrread( 'nancy_church.hdr' );
+I_ref = hdrread( '../../example_media/nancy_church.hdr' );
 
 L_peak = 4000; % Peak luminance of an HDR display
 
