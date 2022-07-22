@@ -21,12 +21,6 @@ N_amplitude = 0.07; # Amplitude of the noise (in gamma encoded values, scale 0-1
 V_static_noise = utils.imnoise(V_ref, N_amplitude, static=True)
 V_dynamic_noise = utils.imnoise(V_ref, N_amplitude)
 
-# Torch does not natively support uint16.
-# A workaround is to pack uint16 values into int16.
-# This will be efficiently transferred and unpacked on the GPU.
-V_ref, V_static_noise, V_dynamic_noise = utils.uint16toint16((V_ref, V_static_noise, V_dynamic_noise))
-
-
 fv = fvvdp(display_name='standard_4k', heatmap=None)
 
 start = time.time()

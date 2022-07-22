@@ -12,11 +12,6 @@ I_ref = load_image_as_array(os.path.join('example_media', 'wavy_facade.png'))
 std = np.sqrt(0.001)
 I_test_noise = utils.imnoise(I_ref, std)
 
-# Torch does not natively support uint16.
-# A workaround is to pack uint16 values into int16.
-# This will be efficiently transferred and unpacked on the GPU.
-I_ref, I_test_noise = utils.uint16toint16((I_ref, I_test_noise))
-
 # Measure quality on displays of different brightness
 disp_peaks = np.logspace(np.log10(1), np.log10(1000), 5)
 

@@ -25,12 +25,6 @@ else:
     sigma = 2
     I_test_blur = utils.imgaussblur(I_ref, sigma)
 
-# Torch does not natively support uint16.
-# A workaround is to pack uint16 values into int16.
-# This will be efficiently transferred and unpacked on the GPU.
-I_ref, I_test_noise, I_test_blur = utils.uint16toint16((I_ref, I_test_noise, I_test_blur))
-
-
 fv = fvvdp(display_name='standard_4k', heatmap='threshold')
 
 # predict() method can handle numpy ndarrays or PyTorch tensors. The data
@@ -46,11 +40,11 @@ blur_str = f'Blur - Quality: {Q_JOD_blur:.3f} JOD'
 print( blur_str )
 
 f, axs = plt.subplots(2, 2)
-axs[0][0].imshow( I_test_noise )
+axs[0][0].imshow( I_test_noise/(2**16 - 1) )
 axs[0][0].set_title('Test image with noise')
 axs[0][0].set_xticks([])
 axs[0][0].set_yticks([])
-axs[0][1].imshow( I_test_blur )
+axs[0][1].imshow( I_test_blur/(2**16 - 1) )
 axs[0][1].set_title('Test image with blur')
 axs[0][1].set_xticks([])
 axs[0][1].set_yticks([])
