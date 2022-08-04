@@ -17,7 +17,7 @@ setup(
                       'scipy==1.8.1',
                       'graphviz==0.16',
                       'ffmpeg-python==0.2.0',
-                      'torch==1.10.0',
+                      'torch==1.12.0',
                       'natsort==6.0.0',
                       'ffmpeg==1.4',
                       'imageio==2.19.5'],
