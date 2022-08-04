@@ -588,7 +588,7 @@ class FovVideoVDP(torch.nn.Module):
 
                 for cc in range(temp_ch):
                     # 1D filter over time (over frames)
-                    corr_filter = self.F[cc].flip(0).view([1,1,self.F[cc].shape[0],1,1]) 
+                    corr_filter = self.F[cc].flip(0).view([1,1,self.F[cc].shape[0],1,1])
                     R[:,cc*2+0, :, :, :] = (sw_buf[0] * corr_filter).sum(dim=-3,keepdim=True)
                     R[:,cc*2+1, :, :, :] = (sw_buf[1] * corr_filter).sum(dim=-3,keepdim=True)
 
@@ -1331,9 +1331,10 @@ class fvvdp:
                 R = torch.zeros((1, 4, 1, height, width), device=self.device)
 
                 for cc in range(temp_ch):
-                    corr_filter = self.F[cc].flip(0).view([1,1,1,1,self.F[cc].shape[0]]) # pytorch convolutions default to "correlation" instead
-                    R[:,cc*2+0, :, :, :] = Func.conv3d(sw_buf[0].permute(0,1,3,4,2), corr_filter, padding=0).permute(0,1,4,2,3)
-                    R[:,cc*2+1, :, :, :] = Func.conv3d(sw_buf[1].permute(0,1,3,4,2), corr_filter, padding=0).permute(0,1,4,2,3)
+                    # 1D filter over time (over frames)
+                    corr_filter = self.F[cc].flip(0).view([1,1,self.F[cc].shape[0],1,1]) 
+                    R[:,cc*2+0, :, :, :] = (sw_buf[0] * corr_filter).sum(dim=-3,keepdim=True)
+                    R[:,cc*2+1, :, :, :] = (sw_buf[1] * corr_filter).sum(dim=-3,keepdim=True)
 
             if self.debug: self.tb.verify_against_matlab(R.permute(0,2,3,4,1), 'Rdata', self.device, file='R_%d' % (ff+1), tolerance = 0.01)
 
