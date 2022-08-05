@@ -1139,7 +1139,7 @@ class fvvdp:
         else:
             self.display_photometry = display_photometry
         
-        self.do_heatmap = not self.heatmap is None
+        self.do_heatmap = (not self.heatmap is None) and (self.heatmap != "none")
 
         if display_geometry is None:
             self.display_geometry = fvvdp_display_geometry.load(display_name)
@@ -1203,6 +1203,7 @@ class fvvdp:
         self.mask_q_trans = parameters['mask_q_trans']
         self.k_cm = parameters['k_cm']  # new parameter controlling cortical magnification
         self.filter_len = parameters['filter_len']
+        self.version = parameters['version']
 
         # other parameters
         self.debug = False

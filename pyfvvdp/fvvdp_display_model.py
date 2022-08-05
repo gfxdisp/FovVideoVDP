@@ -139,7 +139,7 @@ class fvvdp_display_photo_gog(fvvdp_display_photometry):
         return L
         
 
-    def  get_peak_luminance( self ):
+    def get_peak_luminance( self ):
         return self.Y_peak
 
 
