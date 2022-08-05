@@ -16,9 +16,7 @@ import logging
 from pyfvvdp.visualize_diff_map import visualize_diff_map
 
 # For debugging only
-from gfxdisp.pfs.pfs_torch import pfs_torch
-
-from PIL import Image
+# from gfxdisp.pfs.pfs_torch import pfs_torch
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
@@ -590,7 +588,7 @@ class FovVideoVDP(torch.nn.Module):
 
                 for cc in range(temp_ch):
                     # 1D filter over time (over frames)
-                    corr_filter = self.F[cc].flip(0).view([1,1,self.F[cc].shape[0],1,1]) 
+                    corr_filter = self.F[cc].flip(0).view([1,1,self.F[cc].shape[0],1,1])
                     R[:,cc*2+0, :, :, :] = (sw_buf[0] * corr_filter).sum(dim=-3,keepdim=True)
                     R[:,cc*2+1, :, :, :] = (sw_buf[1] * corr_filter).sum(dim=-3,keepdim=True)
 
@@ -1044,8 +1042,18 @@ class fvvdp_video_source_array( fvvdp_video_source_dm ):
 
         # Convert numpy arrays to tensors. Note that we do not upload to device or change dtype at this point (to save GPU memory)
         if isinstance( test_video, np.ndarray ):
+            if test_video.dtype == np.uint16:
+                # Torch does not natively support uint16. A workaround is to pack uint16 values into int16.
+                # This will be efficiently transferred and unpacked on the GPU.
+                # logging.info('Test has datatype uint16, packing into int16')
+                test_video = test_video.astype(np.int16)
             test_video = torch.tensor(test_video)
         if isinstance( reference_video, np.ndarray ):
+            if reference_video.dtype == np.uint16:
+                # Torch does not natively support uint16. A workaround is to pack uint16 values into int16.
+                # This will be efficiently transferred and unpacked on the GPU.
+                # logging.info('Reference has datatype uint16, packing into int16')
+                reference_video = reference_video.astype(np.int16)
             reference_video = torch.tensor(reference_video)
 
         # Change the order of dimension to match BFCHW - batch, frame, colour, height, width
@@ -1095,10 +1103,21 @@ class fvvdp_video_source_array( fvvdp_video_source_dm ):
 
         if from_array.dtype is torch.float32:
             frame = from_array[:,:,frame:(frame+1),:,:].to(device)
+        elif from_array.dtype is torch.int16:
+            # Use int16 to losslessly pack uint16 values
+            # Unpack from int16 by bit masking as described in this thread:
+            # https://stackoverflow.com/a/20766900
+            # logging.info('Found int16 datatype, unpack into uint16')
+            max_value = 2**16 - 1
+            # Cast to int32 to store values >= 2**15
+            frame_int32 = from_array[:,:,frame:(frame+1),:,:].to(device).to(torch.int32)
+            frame_uint16 = frame_int32 & max_value
+            # Finally convert to float in the range [0,1]
+            frame = frame_uint16.to(torch.float32) / max_value
         elif from_array.dtype is torch.uint8:
             frame = from_array[:,:,frame:(frame+1),:,:].to(device).to(torch.float32)/255
         else:
-            raise RuntimeError( "Only uint8 and float32 is currently supported" )
+            raise RuntimeError( "Only uint8, uint16 and float32 is currently supported" )
 
         L = self.dm_photometry.forward( frame )
         
@@ -1312,9 +1331,10 @@ class fvvdp:
                 R = torch.zeros((1, 4, 1, height, width), device=self.device)
 
                 for cc in range(temp_ch):
-                    corr_filter = self.F[cc].flip(0).view([1,1,1,1,self.F[cc].shape[0]]) # pytorch convolutions default to "correlation" instead
-                    R[:,cc*2+0, :, :, :] = Func.conv1d(sw_buf[0].permute(0,1,3,4,2), corr_filter, padding=0).permute(0,1,4,2,3)
-                    R[:,cc*2+1, :, :, :] = Func.conv1d(sw_buf[1].permute(0,1,3,4,2), corr_filter, padding=0).permute(0,1,4,2,3)
+                    # 1D filter over time (over frames)
+                    corr_filter = self.F[cc].flip(0).view([1,1,self.F[cc].shape[0],1,1]) 
+                    R[:,cc*2+0, :, :, :] = (sw_buf[0] * corr_filter).sum(dim=-3,keepdim=True)
+                    R[:,cc*2+1, :, :, :] = (sw_buf[1] * corr_filter).sum(dim=-3,keepdim=True)
 
             if self.debug: self.tb.verify_against_matlab(R.permute(0,2,3,4,1), 'Rdata', self.device, file='R_%d' % (ff+1), tolerance = 0.01)
 

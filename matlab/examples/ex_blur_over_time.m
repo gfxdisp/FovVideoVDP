@@ -6,13 +6,12 @@ if ~exist( 'fvvdp', 'file' )
 end
 
 % The frame to use for the video. Note that this is a uint16 image
-I_ref = imread( 'tree.jpg' );
+I_ref = imread( '../../example_media/tree.jpg' );
 
 N = 60*4; % The number of frames
 fps = 30; % Frames per second
 
 V_ref = repmat( I_ref, [1 1 1 N] ); % Reference video (in colour). Use [height x with x N] matrix for a grayscale video. 
-max_v = single(intmax( 'uint16' ));
 
 V_blur = zeros(size(V_ref), 'like', V_ref);
 sigma_max = 2;
@@ -27,6 +26,8 @@ display_name = 'standard_4k';
 tic
 [Q_JOD_blur, diff_map_blur] = fvvdp( V_blur, V_ref, 'frames_per_second', fps, 'display_name', display_name, 'heatmap', 'threshold', 'options', options );
 toc
+
+fprintf( 1, '=== Blur-over-time Q_JOD = %g\n', Q_JOD_blur );
 
 % Prepare visualization
 
