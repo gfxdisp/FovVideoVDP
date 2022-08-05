@@ -179,7 +179,7 @@ class fvvdp_display_photo_absolute(fvvdp_display_photometry):
         # Clamp the values that are outside the (L_min, L_max) range.
         L = V.clamp(self.L_min, self.L_max)
 
-        if V.max() >= 1:
+        if V.max() < 1:
             logging.warning('Pixel values are very low. Perhaps images are' \
                             ' not scaled in the absolute units of cd/m^2.')
 
