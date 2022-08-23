@@ -80,7 +80,7 @@ optional arguments:
   --heatmap-dir dir     where to save heatmap images/videos (the current dir by default)
                         supra-threshold). 
   --verbose             verbose mode
-  --display DISPLAY     display name, e.g. HTC Vive
+  --display DISPLAY     display name, e.g. "HTC Vive"
   --quiet               suppress all output and show only the final JOD value(s)
 ```
 

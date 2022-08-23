@@ -10,6 +10,8 @@ from pyfvvdp.fvvdp import fvvdp_video_source, fvvdp_video_source_dm, fvvdp_video
 def load_image_as_array(imgfile):
     # 16-bit PNG not supported by default
     lib = 'PNG-FI' if os.path.splitext(imgfile)[1].lower() == '.png' else None
+    # If the line below fails on Windows stating that "it cannot `"PNG-FI` can not handle the given uri.", 
+    # run `imageio.plugins.freeimage.download()` or check imageio.help( 'PNG-FI' )
     img = io.imread(imgfile, format=lib)
     return img
 

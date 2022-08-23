@@ -1,5 +1,8 @@
-# v1.01 - ?
+# v1.1 - ?
+- [Python] Thoroughly redesided the interface so that the code can be easily run from python code.
+- [Python] All code examples are now both in python and Matlab.
 - [Python] Optimized code for the Laplacian pyramid decomposition - faster predictions. There is a small (<0.02) difference in the predicted JODs.
+- [Python] Improved compatibility with pytorch 1.12 + better performance
 - [Matlab] Improved computation of eccentricity for wide-field-of-view displays
 - [Matlab] Added new option 'ignore_boundary_pixels'
 - [Matlab] Fixed the cortical magnificatioon bug in the CSF
