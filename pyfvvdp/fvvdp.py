@@ -359,7 +359,7 @@ class fvvdp:
         height, width, N_frames = vid_sz
 
         if fixation_point is None:
-            fixation_point = [width//2, height//2]
+            fixation_point = torch.tensor([width//2, height//2])
         elif isinstance(fixation_point, np.ndarray):
             fixation_point = torch.tensor(fixation_point)
 
@@ -508,21 +508,26 @@ class fvvdp:
 
                     if N_nCSF[bb][cc] is None:
 
-                        if fixation_point.dim() == 2:
-                            current_fixation_point = fixation_point[ff,:].squeeze()
-                        else:
-                            current_fixation_point = fixation_point
+                        if self.foveated:   # Fixation, parafoveal sensitivity
+                            if fixation_point.dim() == 2:
+                                current_fixation_point = fixation_point[ff,:].squeeze()
+                            else:
+                                current_fixation_point = fixation_point
 
-                        xv = torch.linspace( 0.5, vid_sz[1]-0.5, T_f.shape[-1], device=self.device )
-                        yv = torch.linspace( 0.5, vid_sz[0]-0.5, T_f.shape[-2], device=self.device )
-                        [xx, yy] = torch.meshgrid( xv, yv, indexing='xy' )
+                            xv = torch.linspace( 0.5, vid_sz[1]-0.5, T_f.shape[-1], device=self.device )
+                            yv = torch.linspace( 0.5, vid_sz[0]-0.5, T_f.shape[-2], device=self.device )
+                            [xx, yy] = torch.meshgrid( xv, yv, indexing='xy' )
 
-                        ecc = self.display_geometry.pix2eccentricity( torch.tensor((vid_sz[1], vid_sz[0])), xx, yy, current_fixation_point+0.5 )
+                            ecc = self.display_geometry.pix2eccentricity( torch.tensor((vid_sz[1], vid_sz[0])), xx, yy, current_fixation_point+0.5 )
 
-                        # The same shape as bands
-                        ecc = ecc.reshape( [1, 1, ecc.shape[-2], ecc.shape[-1]] )
+                            # The same shape as bands
+                            ecc = ecc.reshape( [1, 1, ecc.shape[-2], ecc.shape[-1]] )
 
-                        res_mag = self.display_geometry.get_resolution_magnification(ecc)
+                            res_mag = self.display_geometry.get_resolution_magnification(ecc)
+                        else:   # No fixation, foveal sensitivity everywhere
+                            res_mag = torch.ones(R_f.shape[-2:])
+                            ecc = torch.zeros(R_f.shape[-2:])
+
                         rho = rho_band[bb] * res_mag
 
                         # if self.debug: self.tb.verify_against_matlab(ecc, 'ecc_data', self.device, file='ecc_%d_%d_%d' % (ff+1,bb+1,cc+1), tolerance = 0.01)  
@@ -602,26 +607,6 @@ class fvvdp:
             R = torch.clamp(torch.div(R, L_bkg_clamped), max=1000.0)
 
         return L_bkg, R, T
-
-    def get_ecc_res_magn(self, base_shape, band_shape, fixation_point):
-        if self.foveated:
-                        # xv = torch.linspace( 0.5, width-0.5, T_f.shape[1], device=T_f.device )
-                        # yv = torch.linspace( 0.5, height-0.5, T_f.shape[0], device=T_f.device )
-                        # [xx, yy] = torch.meshgrid( [xv, yv] )                        
-                        # ecc = self.display_geometry.pix2eccentricity( [width, height], xx, yy, fix_point+0.5 )                       
-
-            [yy, xx] = torch.meshgrid( torch.arange(band_shape[-2], device=self.device)+1, torch.arange(band_shape[-1], device=self.device)+1 )
-
-            df = base_shape[-1]/band_shape[-1] # ratio of width
-
-            ecc = torch.sqrt((xx-fixation_point[0]/df) ** 2 + (yy-fixation_point[1]/df) ** 2 )*(df/self.pix_per_deg)
-            # np2img((ecc * 0.05).squeeze().unsqueeze(-1).expand(ecc.shape[0], ecc.shape[1], 3).cpu().numpy()).show()
-            res_mag = self.display_model.get_resolution_magnification(ecc)
-        else:
-            res_mag = torch.full((band_shape[-2], band_shape[-1]), 1.0, device=self.device)
-            ecc     = torch.full((band_shape[-2], band_shape[-1]), 0.0, device=self.device)
-
-        return ecc, res_mag
 
     def get_cache_key(self, omega, sigma, k_cm):
         return ("o%g_s%g_cm%f" % (omega, sigma, k_cm)).replace('-', 'n').replace('.', '_')
