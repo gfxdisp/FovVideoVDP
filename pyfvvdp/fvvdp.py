@@ -98,7 +98,7 @@ This video_source uses a photometric display model to convert input content (e.g
 class fvvdp_video_source_dm( fvvdp_video_source ):
 
     def __init__( self,  display_photometry='sdr_4k_30', color_space_name='sRGB' ):
-        colorspaces_file = os.path.join(os.path.dirname(__file__), "../fvvdp_data/color_spaces.json")
+        colorspaces_file = os.path.join(os.path.dirname(__file__), "fvvdp_data/color_spaces.json")
         colorspaces = json2dict(colorspaces_file)
 
         if not color_space_name in colorspaces:
@@ -107,7 +107,7 @@ class fvvdp_video_source_dm( fvvdp_video_source ):
         self.color_to_luminance = colorspaces[color_space_name]['RGB2Y']
 
         if isinstance( display_photometry, str ):
-            display_models_file = os.path.join(os.path.dirname(__file__), "../fvvdp_data/display_models.json")
+            display_models_file = os.path.join(os.path.dirname(__file__), "fvvdp_data/display_models.json")
             display_models = json2dict(display_models_file)
 
             self.dm_photometry = fvvdp_display_photometry.load(display_photometry)
@@ -285,7 +285,7 @@ class fvvdp:
 
     def load_config( self ):
 
-        parameters_file = os.path.join(os.path.dirname(__file__), "../fvvdp_data/fvvdp_parameters.json")
+        parameters_file = os.path.join(os.path.dirname(__file__), "fvvdp_data/fvvdp_parameters.json")
         parameters = json2dict(parameters_file)
 
         #all common parameters between Matlab and Pytorch, loaded from the .json file
@@ -525,8 +525,8 @@ class fvvdp:
 
                             res_mag = self.display_geometry.get_resolution_magnification(ecc)
                         else:   # No fixation, foveal sensitivity everywhere
-                            res_mag = torch.ones(R_f.shape[-2:])
-                            ecc = torch.zeros(R_f.shape[-2:])
+                            res_mag = torch.ones(R_f.shape[-2:], device=self.device)
+                            ecc = torch.zeros(R_f.shape[-2:], device=self.device)
 
                         rho = rho_band[bb] * res_mag
 

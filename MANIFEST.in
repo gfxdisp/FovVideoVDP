@@ -1,0 +1,2 @@
+include pyfvvdp/csf_cache/*.mat
+include pyfvvdp/fvvdp_data/*.json

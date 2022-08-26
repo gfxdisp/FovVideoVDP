@@ -34,7 +34,7 @@ class fvvdp_display_photometry:
 
     @classmethod
     def load( cls, display_name ):
-        models_file      = os.path.join(os.path.dirname(__file__), "../fvvdp_data/display_models.json")
+        models_file      = os.path.join(os.path.dirname(__file__), "fvvdp_data/display_models.json")
 
         models = json2dict(models_file)
 
@@ -389,7 +389,7 @@ class fvvdp_display_geometry:
 
     @classmethod
     def load( cls, display_name ):
-        models_file      = os.path.join(os.path.dirname(__file__), "../fvvdp_data/display_models.json")
+        models_file      = os.path.join(os.path.dirname(__file__), "fvvdp_data/display_models.json")
         models = json2dict(models_file)
 
         for mk in models:
