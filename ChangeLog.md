@@ -1,4 +1,4 @@
-# v1.1 - 28/08/2022
+# v1.1.1 - 28/08/2022
 - [Python] Thoroughly redesided the interface so that the code can be easily run from python code.
 - [Python] All code examples are now both in python and Matlab.
 - [Python] Optimized code for the Laplacian pyramid decomposition - faster predictions. There is a small (<0.02) difference in the predicted JODs.

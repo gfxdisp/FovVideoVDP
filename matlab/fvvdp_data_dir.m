@@ -3,6 +3,6 @@ function path = fvvdp_data_dir()
 % Those files are shared by both Matlab and Python version of the metric.  
 
 pathstr = fileparts(mfilename( 'fullpath' ));
-path = fullfile( pathstr, '..', 'fvvdp_data' );
+path = fullfile( pathstr, '..', 'pyfvvdp', 'fvvdp_data' );
 
 end

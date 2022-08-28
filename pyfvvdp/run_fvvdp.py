@@ -145,7 +145,7 @@ def main():
     else:
         standard_str = ''
     fv_mode = 'foveated' if args.foveated else 'non-foveated'
-    logging.info( '"FovVideoVDP v{:.01f}, {:.4g} [pix/deg], Lpeak={:.5g}, Lblack={:.4g} [cd/m^2], {}{}"'.format(fv.version, fv.pix_per_deg, fv.display_photometry.get_peak_luminance(), fv.display_photometry.get_black_level(), fv_mode, standard_str) )
+    logging.info( '"FovVideoVDP v{}, {:.4g} [pix/deg], Lpeak={:.5g}, Lblack={:.4g} [cd/m^2], {}{}"'.format(fv.version, fv.pix_per_deg, fv.display_photometry.get_peak_luminance(), fv.display_photometry.get_black_level(), fv_mode, standard_str) )
 
     for kk in range( max(N_test, N_ref) ):
         test_file = args.test[min(kk,N_test-1)]

@@ -23,7 +23,7 @@ Install with PyPI `pip install pyfvvdp` and run directly from the command line:
 ```bash
 fvvdp --test test_file --ref ref_file --gpu 0 --display standard_fhd
 ```
-The test and reference files can be images or videos. `--display` specified a display on which the conrent is viewed. See [fvvdp_data/display_models](https://github.com/gfxdisp/FovVideoVDP/blob/main/fvvdp_data/display_models.json) for the available displays.
+The test and reference files can be images or videos. `--display` specified a display on which the conrent is viewed. See [fvvdp_data/display_models.json](https://github.com/gfxdisp/FovVideoVDP/blob/main/fvvdp_data/display_models.json) for the available displays.
 
 See [Command line interface](#command-line-interface) for further details. FovVideoVDP can be also run directly from Python - see [Low-level Python interface](#low-level-python-interface). 
 
@@ -73,17 +73,17 @@ The differences in JOD scores can be converted to the percentage increase in pre
     <td>Coarse JOD scale</td>
   </tr>
   <tr>
-    <td><img width="512" src="https://github.com/gfxdisp/FovVideoVDP/blob/webpage/imgs/fine_jod_scale.png"></img></td>
-    <td><img width="512" src="https://github.com/gfxdisp/FovVideoVDP/blob/webpage/imgs/coarse_jod_scale.png"></img></td>
+    <td><img width="512" src="https://github.com/gfxdisp/FovVideoVDP/raw/webpage/imgs/fine_jod_scale.png"></img></td>
+    <td><img width="512" src="https://github.com/gfxdisp/FovVideoVDP/raw/webpage/imgs/coarse_jod_scale.png"></img></td>
   </tr>
 </table>
 
 ## PyTorch
 
 ### Command line interface
-The main script to run the model on a set of images or videos is [run_fvvdp.py](https://github.com/gfxdisp/FovVideoVDP/blob/devel/pytorch/run_fvvdp.py), from which the binary `fvvdp` is created . Run `fvvdp --help` for detailed usage information.
+The main script to run the model on a set of images or videos is [run_fvvdp.py](https://github.com/gfxdisp/FovVideoVDP/blob/main/pyfvvdp/run_fvvdp.py), from which the binary `fvvdp` is created . Run `fvvdp --help` for detailed usage information.
 
-<img src="https://github.com/gfxdisp/FovVideoVDP/blob/devel/example_media/aliasing/ferris-ref.gif"></img>
+<img src="https://github.com/gfxdisp/FovVideoVDP/raw/main/example_media/aliasing/ferris-ref.gif"></img>
 
 For the first example, the above video was downsampled (4x4) and upsampled (4x4) by different combinations of Bicubic and Nearest filters. To predict quality, you can run:
 
@@ -105,10 +105,10 @@ fvvdp --test example_media/aliasing/ferris-*-*.mp4 --ref example_media/aliasing/
     <td>5.9450</td>
   </tr>
   <tr>
-    <td><img src="https://github.com/gfxdisp/FovVideoVDP/blob/devel/example_media/aliasing/diff_maps/ferris-bicubic-bicubic_diff_map_viz.gif"></img></td>
-    <td><img src="https://github.com/gfxdisp/FovVideoVDP/blob/devel/example_media/aliasing/diff_maps/ferris-bicubic-nearest_diff_map_viz.gif"></img></td>
-    <td><img src="https://github.com/gfxdisp/FovVideoVDP/blob/devel/example_media/aliasing/diff_maps/ferris-nearest-bicubic_diff_map_viz.gif"></img></td>
-    <td><img src="https://github.com/gfxdisp/FovVideoVDP/blob/devel/example_media/aliasing/diff_maps/ferris-nearest-nearest_diff_map_viz.gif"></img></td>
+    <td><img src="https://github.com/gfxdisp/FovVideoVDP/raw/main/example_media/aliasing/diff_maps/ferris-bicubic-bicubic_diff_map_viz.gif"></img></td>
+    <td><img src="https://github.com/gfxdisp/FovVideoVDP/raw/main/example_media/aliasing/diff_maps/ferris-bicubic-nearest_diff_map_viz.gif"></img></td>
+    <td><img src="https://github.com/gfxdisp/FovVideoVDP/raw/main/example_media/aliasing/diff_maps/ferris-nearest-bicubic_diff_map_viz.gif"></img></td>
+    <td><img src="https://github.com/gfxdisp/FovVideoVDP/raw/main/example_media/aliasing/diff_maps/ferris-nearest-nearest_diff_map_viz.gif"></img></td>
   </tr>
 </table>
 
@@ -134,9 +134,9 @@ I_test_blur = utils.imgaussblur(I_ref, 2)
 Q_JOD_blur, stats_blur = fv.predict( I_test_blur, I_ref, dim_order="HWC" )
 ```
 
-<img src="https://github.com/gfxdisp/FovVideoVDP/blob/devel/example_media/simple_image_diff_map.png"></img>
+<img src="https://github.com/gfxdisp/FovVideoVDP/raw/main/example_media/simple_image_diff_map.png"></img>
 
-More examples can be found in these [example scripts](https://github.com/gfxdisp/FovVideoVDP/blob/devel/pytorch_examples).
+More examples can be found in these [example scripts](https://github.com/gfxdisp/FovVideoVDP/blob/main/pytorch_examples).
 
 
 ## MATLAB
@@ -169,7 +169,7 @@ By default, FovVideoVDP will run the code on a GPU using `gpuArray`s, which requ
 
 ## Release notes
 
-* v1.1 - 28 August 2022
+* v1.1.1 - 28 August 2022
   * We found a small inconsistency in eccentricity calculations. After fixing this, the metric has been retrained on the same datasets as described in the paper. FovVideoVDP v1.1 will return JOD values that are different than v1.0. For that reason, it is important to mention the version number when reporting the results. 
   * Python interface has been thoroughly redesigned and make more consistent with Matlab's conterpart. Now it should be much easier to call the metric from Python. 
   * All Matlab examples has been ported to Python. 
