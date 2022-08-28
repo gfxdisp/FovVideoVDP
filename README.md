@@ -4,9 +4,9 @@
 
 FovVideoVDP is a full-reference visual quality metric that predicts the perceptual difference between pairs of images and videos. Similar to popular metrics like PSNR and SSIM, it is aimed at comparing a ground truth reference video against a distorted (e.g. compressed, lower framerate) version.
 
-However, unlike traditional quality metrics, FovVideoVDP works for videos in addition to images, and accounts for peripheral acuity. We model the response of the human visual system to changes over time as well as across the visual field, so we can predict temporal artifacts like flicker and judder, as well as spatiotemporal artifacts as perceived at different degrees of peripheral vision. Such a metric is important for head-mounted displays as it accounts for both the dynamic content, as well as the large field of view.
+However, unlike traditional quality metrics, FovVideoVDP works for videos in addition to images, accounts for peripheral acuity, works with SDR and HDR content. We model the response of the human visual system to changes over time as well as across the visual field, so we can predict temporal artifacts like flicker and judder, as well as spatiotemporal artifacts as perceived at different degrees of peripheral vision. Such a metric is important for head-mounted displays as it accounts for both the dynamic content, as well as the large field of view.
 
-FovVideoVDP currently has both a PyTorch and MATLAB implementation. The usage is described below.
+FovVideoVDP has both a PyTorch and MATLAB implementations. The usage is described below.
 
 The details of the metric can be found in:
 
@@ -21,9 +21,11 @@ If you use the metric in your research, please cite the paper above.
 Install with PyPI `pip install pyfvvdp` and run directly from the command line:
 
 ```bash
-fvvdp --test test_file --ref ref_file --gpu 0
+fvvdp --test test_file --ref ref_file --gpu 0 --display standard_fhd
 ```
-The test and reference files can be images or videos.
+The test and reference files can be images or videos. `--display` specified a display on which the conrent is viewed. See [fvvdp_data/display_models](https://github.com/gfxdisp/FovVideoVDP/blob/main/fvvdp_data/display_models.json) for the available displays.
+
+See [Command line interface](#command-line-interface) for further details. FovVideoVDP can be also run directly from Python - see [Low-level Python interface](#low-level-python-interface). 
 
 **Table of contents**
 - [Display specification](#display-specification)
@@ -36,6 +38,7 @@ The test and reference files can be images or videos.
 - [MATLAB](#matlab)
     - [Low-level MATLAB interface](#low-level-matlab-interface)
 - [Differences between MATLAB and PyTorch versions](#differences-between-matlab-and-pytorch-versions)
+- [Release notes](#release-notes)
 
 ## Display specification
 
@@ -43,18 +46,17 @@ Unlike most image quality metrics, FovVideoVDP needs physical specification of t
 
 You specify the display by passing `--display` argument to the PyTorch code, or `display_name` parameter to the MATLAB code. 
 
-Note the the specification in `display_models.json` is for the display and not the image. If you select to use `standard_hdr` with the resolution of 3840x2160 for your display and pass a 1920x1080 image, the metric will assume that the image occupies one quarter of that display. 
+Note the the specification in `display_models.json` is for the display and not the image. If you select to use `standard_hdr` with the resolution of 3840x2160 for your display and pass a 1920x1080 image, the metric will assume that the image occupies one quarter of that display (the central portion). 
 
 
 ### Custom specification
 
-The display photometry and geometry is typically specified by passing `display_name` parameter to the metric. Alternatively, ff you need more flexibility in specifying display geometry (size, fov, viewing distance) and its colorimetry, you can instead pass objects of the classes `fvvdp_display_geometry`, `fvvdp_display_photo_gog` for most SDR displays, and `fvvdp_display_photo_absolute` for HDR displays. You can also create your own subclasses of those classes for custom display specification. 
-
+The display photometry and geometry is typically specified by passing `display_name` parameter to the metric. Alternatively, if you need more flexibility in specifying display geometry (size, fov, viewing distance) and its colorimetry, you can instead pass objects of the classes `fvvdp_display_geometry`, `fvvdp_display_photo_gog` for most SDR displays, and `fvvdp_display_photo_absolute` for HDR displays. You can also create your own subclasses of those classes for custom display specification. 
 
 ### Reporting metric results
 
 When reporting the results of the metric, please include the string returned by the metric, such as:
-`"FovVideoVDP v1.0, 75.4 [pix/deg], Lpeak=200, Lblack=0.5979 [cd/m^2], non-foveated, (standard_4k)"`
+`"FovVideoVDP v1.1, 75.4 [pix/deg], Lpeak=200, Lblack=0.5979 [cd/m^2], non-foveated, (standard_4k)"`
 This is to ensure that you provide enough details to reproduce your results. 
 
 ### Predicted quality scores
@@ -163,6 +165,18 @@ By default, FovVideoVDP will run the code on a GPU using `gpuArray`s, which requ
 ## Differences between MATLAB and Pytorch versions
 
 * Both versions are implementation of the same metric, but due to differences in the video loaders, you can expect to see small differences in their predictions - typically up to 0.05 JOD.
-* The MATLAB version currently has a richer interface and can be supplied with images or videos in any format. 
-* Both versions have approximately the same processing time when run on a GPU. 
-* The PyTorch version loads the entire video into GPU memory and therefore cannot process very large sequences and may require more memory. The MATLAB version loads one frame at the time and requires less GPU memory.
+* PyTorch version is a bit faster when running on a GPU. 
+
+## Release notes
+
+* v1.1 - 28 August 2022
+  * We found a small inconsistency in eccentricity calculations. After fixing this, the metric has been retrained on the same datasets as described in the paper. FovVideoVDP v1.1 will return JOD values that are different than v1.0. For that reason, it is important to mention the version number when reporting the results. 
+  * Python interface has been thoroughly redesigned and make more consistent with Matlab's conterpart. Now it should be much easier to call the metric from Python. 
+  * All Matlab examples has been ported to Python. 
+  * Python version is now faster. 
+  * Published as a PIP repository. 
+
+* v1.0 - 21 April 2021
+  * The original FovVideoVDP release, released with the paper.
+
+The detailed list of changes can be found in [ChangeLog.md](https://github.com/gfxdisp/FovVideoVDP/blob/main/ChangeLog.md).
