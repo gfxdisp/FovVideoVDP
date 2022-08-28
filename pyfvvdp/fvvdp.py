@@ -603,26 +603,6 @@ class fvvdp:
 
         return L_bkg, R, T
 
-    def get_ecc_res_magn(self, base_shape, band_shape, fixation_point):
-        if self.foveated:
-                        # xv = torch.linspace( 0.5, width-0.5, T_f.shape[1], device=T_f.device )
-                        # yv = torch.linspace( 0.5, height-0.5, T_f.shape[0], device=T_f.device )
-                        # [xx, yy] = torch.meshgrid( [xv, yv] )                        
-                        # ecc = self.display_geometry.pix2eccentricity( [width, height], xx, yy, fix_point+0.5 )                       
-
-            [yy, xx] = torch.meshgrid( torch.arange(band_shape[-2], device=self.device)+1, torch.arange(band_shape[-1], device=self.device)+1 )
-
-            df = base_shape[-1]/band_shape[-1] # ratio of width
-
-            ecc = torch.sqrt((xx-fixation_point[0]/df) ** 2 + (yy-fixation_point[1]/df) ** 2 )*(df/self.pix_per_deg)
-            # np2img((ecc * 0.05).squeeze().unsqueeze(-1).expand(ecc.shape[0], ecc.shape[1], 3).cpu().numpy()).show()
-            res_mag = self.display_model.get_resolution_magnification(ecc)
-        else:
-            res_mag = torch.full((band_shape[-2], band_shape[-1]), 1.0, device=self.device)
-            ecc     = torch.full((band_shape[-2], band_shape[-1]), 0.0, device=self.device)
-
-        return ecc, res_mag
-
     def get_cache_key(self, omega, sigma, k_cm):
         return ("o%g_s%g_cm%f" % (omega, sigma, k_cm)).replace('-', 'n').replace('.', '_')
 
