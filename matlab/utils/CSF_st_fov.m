@@ -38,7 +38,7 @@ classdef CSF_st_fov
                                 
                 %fname_lock = strcat( fname, '.lock' );
                 
-                if obj.use_file_cache && exist( fname, 'file' )
+                if obj.use_file_cache && isfile( fname )
                     
                     
                     % Wait up to 1 sec for the lock to be released
@@ -167,7 +167,7 @@ classdef CSF_st_fov
             sccsf = SCCSF_ConeContrastMat();
             LMS_d65 = xyz2lms2006( whitepoint( 'd65' ) );
             % Achromatic sensitivity, accounting for luminance, frequency and size
-            S_sp = sccsf.sensitivity_coldir( rho, L_bkg(:) * LMS_d65, 1, A_cm );
+            S_sp = sccsf.sensitivity_coldir( rho_cm, L_bkg(:) * LMS_d65, 1, A_cm );
             
             S = reshape( S_sp .* S_st, size(L_bkg) );
             

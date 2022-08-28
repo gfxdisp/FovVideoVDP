@@ -1,0 +1,137 @@
+
+{
+  "standard_4k": {
+    "name": "30-inch 4K monitor, peak luminance 200 cd/m^2, viewed under office light levels (250 lux), seen from 2 x display height", 
+    "resolution": [3840, 2160], 
+    "viewing_distance_meters":  0.7472,  
+    "diagonal_size_inches": 30,   
+    "max_luminance": 200,   
+    "contrast": 1000,
+    "E_ambient": 250,
+    "source": "none" },
+
+  "standard_hdr": {
+      "name": "30-inch 4K HDR, monitor, peak luminance 1500 cd/m^2, viewed under low light levels (10 lux), seen from 2 x display height", 
+      "resolution": [3840, 2160], 
+      "viewing_distance_meters":  0.7472,  
+      "diagonal_size_inches": 30,   
+      "max_luminance": 1500,   
+      "contrast": 1000000,
+      "E_ambient": 10,
+      "source": "none" },
+  
+  "standard_fhd": {
+      "name": "24-inch FullHD monitor, peak luminance 200 cd/m^2, viewed under office light levels (250 lux), seen from 2 x display height", 
+      "resolution": [1920, 1080], 
+      "viewing_distance_meters":  0.6,  
+      "diagonal_size_inches": 24,   
+      "max_luminance": 200,   
+      "contrast": 1000,
+      "E_ambient": 250,
+      "source": "none" },
+
+  "standard_hmd": {
+      "name": "A head-mounted VR headset, 110 deg FOV, 1440x1600 per-eye resolution", 
+      "resolution": [1440, 1600], 
+      "fov_diagonal": 110.0,
+      "viewing_distance_meters": 3,
+      "max_luminance": 100, 
+      "min_luminance": 0.1,    
+      "source": "none" },
+
+  "standard_phone": {
+      "name": "A mobile phone display, ", 
+      "resolution": [2400, 1080], 
+      "viewing_distance_meters":  0.4,  
+      "diagonal_size_inches": 6,  
+      "max_luminance": 500,   
+      "min_luminance": 0.05, 
+      "E_ambient": 250, 
+      "source": "none"
+    },              
+
+  "sdr_4k_30": {
+    "name": "30-inch 4K SDR Monitor, viewed under office light levels (250 lux)", 
+    "resolution": [3840, 2160], 
+    "viewing_distance_meters":  0.6,  
+    "diagonal_size_inches": 30,   
+    "max_luminance": 100,   
+    "contrast": 1000,
+    "E_ambient": 250,
+    "source": "none" },
+
+  "sdr_fhd_24": {
+    "name": "24-inch 4K SDR Monitor, viewed under office light levels (250 lux)", 
+    "resolution": [1920, 1080], 
+    "viewing_distance_meters":  0.6,  
+    "diagonal_size_inches": 24,   
+    "max_luminance": 100,   
+    "contrast": 1000,
+    "E_ambient": 250,
+    "source": "none" },
+
+  "htc_vive_pro": {
+    "name": "HTC Vive Pro", 
+    "resolution": [1440, 1600], 
+    "fov_diagonal": 110.0,
+    "viewing_distance_meters": 3,
+    "max_luminance": 133.3, 
+    "min_luminance": 0.1,    
+    "source": "https://arxiv.org/pdf/1912.02913.pdf"},
+
+  "iphone_12_pro": {
+    "name": "iPhone 12 Pro", 
+    "resolution": [2532, 1170], 
+    "viewing_distance_inches":  20,  
+    "diagonal_size_inches": 6.1,  
+    "max_luminance": 825,   
+    "min_luminance": 0.0004, 
+    "E_ambient": 250, 
+    "source": "https://www.displaymate.com/iPhone_12Pro_ShootOut_1P.htm"
+  },
+
+  "ipad_pro_12_9": {
+    "name": "iPad Pro 12.9", 
+    "resolution": [2732, 2048], 
+    "viewing_distance_inches":  20,  
+    "diagonal_size_inches": 12.9, 
+    "max_luminance": 600,   
+    "min_luminance": 0.37, 
+    "E_ambient": 250,   
+    "source": "https://www.apple.com/ipad-pro/specs/"
+  },
+
+  "macbook_pro_16": { 
+    "name": "MacBook Pro 16", 
+    "resolution": [3072, 1920], 
+    "viewing_distance_inches":  25,  
+    "diagonal_size_inches": 16,   
+    "max_luminance": 500,   
+    "min_luminance": 0.37, 
+    "E_ambient": 250,   
+    "source": "https://www.apple.com/macbook-pro-16/specs/"
+  },
+
+  "lg_oled_2017_sdr": { 
+    "name": "LG OLED 2017 SDR", 
+    "resolution": [3840, 2160], 
+    "viewing_distance_inches": 101, 
+    "diagonal_size_inches": 64.5, 
+    "max_luminance": 272,   
+    "min_luminance": 0.014, 
+    "E_ambient": 100,   
+    "source": "https://www.displaymate.com/OLED_TV2017_ShootOut_1a.htm"
+  },
+
+  "lg_oled_2017_hdr": {
+    "name": "LG OLED 2017 HDR", 
+    "resolution": [3840, 2160], 
+    "viewing_distance_inches":  101, 
+    "diagonal_size_inches": 64.5, 
+    "max_luminance": 754,   
+    "min_luminance": 0.038, 
+    "E_ambient": 100,  
+    "source": "https://www.displaymate.com/OLED_TV2017_ShootOut_1a.htm"
+  }    
+
+}

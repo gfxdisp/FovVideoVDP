@@ -5,8 +5,7 @@ if ~exist( 'fovvdp', 'file' )
 end
 
 % The frame to use for the video. Note that this is uint16 image
-I_ref = imread( 'wavy_facade.png' );
-%I_ref = imread( 'night_car.png' );
+I_ref = imread( '../../example_media/wavy_facade.png' );
 
 N = 60; % The number of frames
 fps = 30; % Frames per second
@@ -14,8 +13,10 @@ fps = 30; % Frames per second
 V_ref = repmat( I_ref, [1 1 1 N] ); % Reference video (in colour). Use [height x with x N] matrix for a grayscale video. 
 max_v = single(intmax( 'uint16' ));
 N_amplitude = 0.07; % Amplitude of the noise (in gamma encoded values, scale 0-1)
-V_dynamic_noise = V_ref + uint16(randn(size(V_ref))*max_v*N_amplitude); % Dynamic Gaussian noise
-V_static_noise = V_ref + repmat( uint16(randn(size(V_ref,1),size(V_ref,2),size(V_ref,3))*max_v*N_amplitude), [1 1 1 size(V_ref,4)] ); % Static Gaussian noise
+noise = repmat( randn( size(V_ref,1), size(V_ref,2), size(V_ref,3), 'single' )*max_v*N_amplitude, [1 1 1 size(V_ref,4)] );
+V_static_noise = uint16( single(V_ref) + noise ); % Static Gaussian noise
+noise = randn( size(V_ref), 'single' )*max_v*N_amplitude;
+V_dynamic_noise = uint16( single(V_ref) + noise ); % Dynamic Gaussian noise
 
 % Used to compare Python and Matlab versions
 % profile='Uncompressed AVI';
@@ -23,7 +24,7 @@ V_static_noise = V_ref + repmat( uint16(randn(size(V_ref,1),size(V_ref,2),size(V
 % save_as_video( uint8(V_dynamic_noise/255), 'wavy_facade_vid_dynamic_noise.avi', 30, profile );
 % save_as_video( uint8(V_static_noise/255), 'wavy_facade_vid_static_noise.avi', 30, profile );
 
-options = {};
+options = { };
 display_name = 'standard_4k';
 tic
 [Q_JOD_static_noise, diff_map_static_noise] = fvvdp( V_static_noise, V_ref, 'frames_per_second', fps, 'display_name', display_name, 'heatmap', 'threshold', 'options', options );

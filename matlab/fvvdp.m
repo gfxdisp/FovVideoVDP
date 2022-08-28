@@ -12,11 +12,11 @@ function [Q_JOD, diff_map, Q] = fvvdp(test_video, reference_video, varargin)
 % [...] = fvvdp(..., 'display_name', '?' )
 % [...] = fvvdp(..., 'display_photometry', disp_photo )
 % [...] = fvvdp(..., 'display_geometry', disp_geo )
-% [...] = fvvdp(..., 'color_space', 'rec2020' )
+% [...] = fvvdp(..., 'color_space', 'rec709'|'rec2020' )
 % [...] = fvvdp(..., 'foveated', true|[false] )
-% [Q_JOD, diff_map] = fvvdp(..., 'heatmap', 'threshold' )
-% [...] = fvvdp(..., 'options', { 'fixation_point', [100 100] } )
-% [...] = fvvdp(..., 'quiet', true )
+% [Q_JOD, diff_map] = fvvdp(..., 'heatmap', 'supra-threshold'|'threshold' )
+% [...] = fvvdp(..., 'options', { 'fixation_point', [x y], ... } )
+% [...] = fvvdp(..., 'quiet', true|[false] )
 %
 % test_image and reference_image must be either a path to a video file or 
 % a tensor of the size:
@@ -81,13 +81,20 @@ function [Q_JOD, diff_map, Q] = fvvdp(test_video, reference_video, varargin)
 %          centre of the image. To simulate a moving gaze point, you can pass 
 %          a matrix of the size [N 2] where N is the number of frames. 
 %
-%    'frame_padding', type - the metric requires at least 250ms of video to
+%    'frame_padding', type - the metric requires at least 250ms of video 
 %          for temporal processing. Because no previous frames exist in the
 %          first 250ms of video, the metric must pad those first frames.
 %          This options specifies the type of padding to use.
 %          'replicate' - replicate the first frame
 %          'circular' - tile the video in the front, so that the last frame 
 %                       is used for frame 0.
+%
+%   'ignore_boundary_pixels', true/[false] - ignore pixels at the edge of the image.
+%          'symmetric' padding is used to filter frames at the edge. If
+%          this padding is unsuitable, the boundary pixels may contain
+%          spurious differences. Setting this option to true will ignore
+%          the boundary pixels. Default is false. 
+%
 %
 %    'use_gpu', true/false - set to false if you do not have CUDA-capable
 %          graphics card. The etric will be much slower. 
@@ -153,9 +160,9 @@ else
 end
 
 if ischar( test_video ) && ischar( reference_video ) % If privided with file names
-    vs = fvvdp_video_source_sdr_file( test_video, reference_video, display_ph_model, p.Results.color_space );
+    vs = fvvdp_video_source_dm_file( test_video, reference_video, display_ph_model, p.Results.color_space );
 else % If provided with tensors
-    vs = fvvdp_video_source_sdr( test_video, reference_video, p.Results.frames_per_second, display_ph_model, p.Results.color_space );
+    vs = fvvdp_video_source_dm( test_video, reference_video, p.Results.frames_per_second, display_ph_model, p.Results.color_space );
 end
 
 if ~isempty( p.Results.display_geometry )

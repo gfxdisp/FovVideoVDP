@@ -71,7 +71,7 @@ metric_par.fixation_point = []; % in pixel coordinates (x,y), where x=0..width-1
 metric_par.band_callback = [];  % [internal] Used to analyze the masking model
 metric_par.video_name = 'channels'; % Where to store "debug" video
 metric_par.do_temporal_channels = true;  % [internal] Set to false to disable temporal channels and treat each frame as a image (for an ablation study)
-
+metric_par.ignore_boundary_pixels = false; % Exclude the pixels that are on the edge of the image - those pixes may be inaccurare when the 'symmetric' padding is invalid
 
 
 metric_par.content_mapping = [];
@@ -310,23 +310,22 @@ for ff=1:N % for each frame
                 
                 if metric_par.do_foveated % Fixation, parafoveal sensitivity
                     if size(metric_par.fixation_point,1)>1 % moving fixation point
-                        fix_point = metric_par.fixation_point(ff,:)+1;
+                        fix_point = metric_par.fixation_point(ff,:);
                     else
-                        fix_point = metric_par.fixation_point+1;
+                        fix_point = metric_par.fixation_point;
                     end
                     
                     if isempty( metric_par.content_mapping )
-
-                        xv = single(0:(size(T_f,2)-1));
-                        yv = single(0:(size(T_f,1)-1));
+                        % Calculate the eccentricity for a flat-panel display                                                
+                        xv = linspace( 0.5, video_sz(2)-0.5, size(T_f,2) );
+                        yv = linspace( 0.5, video_sz(1)-0.5, size(T_f,1) );
                         if metric_par.use_gpu
-                            xv = gpuArray( xv );
-                            yv = gpuArray( yv );
-                        end
-                        [xx, yy] = meshgrid( xv, yv );
-                        df = video_sz(2)/size(T_f,2); % Downscale factor
-                    
-                        ecc = sqrt( (xx-fix_point(1)/df).^2 + (yy-fix_point(2)/df).^2 )*(df/pix_per_deg);
+                            xv = gpuArray( single(xv) );
+                            yv = gpuArray( single(yv) );
+                        end                        
+                        [xx, yy] = meshgrid( xv, yv );                        
+                        ecc = display_geometry.pix2eccentricity( video_sz([2 1]), xx, yy, fix_point+0.5 );                        
+                        
                     else
                         df = video_sz(2)/size(T_f,2); % Downscale factor
                         ecc = metric_par.content_mapping.get_eccentricity_map( [size(T_f,1) size(T_f,2)], fix_point/df );
@@ -360,6 +359,19 @@ for ff=1:N % for each frame
             end
             
             D = masking_model( metric_par, T_f, R_f, N_nCSF{bb,cc}, cc );
+            
+            
+            if metric_par.ignore_boundary_pixels 
+                % Ignore the boundary pixels at each level
+                % This is because the pixels at the edge cannot be correctly
+                % downsampled (to compute the pyramid levels) without the knowledge if what is outside the
+                % image.
+                cpix = min( 3, size(D) ); % crop 3 pixels or less
+                D(:,1:cpix(2)) = 0;
+                D(1:cpix(1),:) = 0;
+                D(:,(end-cpix(2)+1):end) = 0;
+                D((end-cpix(1)+1):end,:) = 0;
+            end
             
             if ~isempty( metric_par.content_mapping ) % Relevant only for 360 videos
                 % To make sure that we cannot see anything behind our head                

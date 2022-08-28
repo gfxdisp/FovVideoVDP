@@ -1,14 +1,14 @@
 % This example shows how to run FovVideoVD on the downsampling/upsampling
 % example from README.md
 
-if ~exist( 'fovvdp', 'file' )
+if ~exist( 'fvvdp', 'file' )
     addpath( fullfile( pwd, '..') );
 end
 
 display_name = 'sdr_fhd_24';
 
-ref_file = '../../pytorch_examples/aliasing/ferris-ref.mp4';
-TST_FILEs = dir( '../../pytorch_examples/aliasing/ferris-*-*.mp4' );
+ref_file = '../../example_media/aliasing/ferris-ref.mp4';
+TST_FILEs = dir( '../../example_media/aliasing/ferris-*-*.mp4' );
 
 options = { 'use_gpu', true };
 quiet = false;

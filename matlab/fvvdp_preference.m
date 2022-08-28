@@ -9,9 +9,9 @@ function [p_pref, p_A_better] = fvvdp_preference( JOD_A, JOD_B )
 % output variables are assigned, the function will print the
 % interpretation of the quality difference. 
 %
-% The function can accept vectors and matrices of the same size as input. 
+% The function can accept scalars, vectors and matrices of the same size. 
 % 
-% Please refer to "Predicted quality scores" on the README.md.
+% Please refer to "Predicted quality scores" in the README.md.
 
 sigma_cdf = 1.4826; % The standard deviation for the JOD/JND units (1 JOD = 0.75 p_A_better)
 
