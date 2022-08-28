@@ -1,4 +1,4 @@
-
+# Code used for testing the consistency between Matlab and Python versions of the metric.
 
 from utils import load_mat_tensor
 import torch

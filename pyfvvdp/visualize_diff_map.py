@@ -1,3 +1,5 @@
+# Visualization of difference maps.
+
 import torch
 from pyfvvdp.interp import interp1
 

@@ -1,3 +1,5 @@
+# Command-line interface for FovVideoVDP. 
+
 import os, sys
 import os.path
 import argparse
@@ -26,14 +28,6 @@ def expand_wildcards(filestrs):
         else:
             files.append(filestr)
     return files
-
-# def make_grayscale(x):
-#     # layout: NC***, channels R, G, B
-#     return (
-#         0.2126 * x[:,0:1,...] + 
-#         0.7152 * x[:,1:2,...] +
-#         0.0722 * x[:,2:3,...]
-#     )
 
 # Save a numpy array as a video
 def np2vid(np_srgb, vidfile, fps, verbose=False):

@@ -1,3 +1,5 @@
+# Classes for reading images or videos from files so that they can be passed to FovVideoVDP frame-by-frame
+
 import os
 import imageio.v2 as io
 import numpy as np
