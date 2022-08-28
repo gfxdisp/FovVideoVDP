@@ -98,7 +98,7 @@ This video_source uses a photometric display model to convert input content (e.g
 class fvvdp_video_source_dm( fvvdp_video_source ):
 
     def __init__( self,  display_photometry='sdr_4k_30', color_space_name='sRGB' ):
-        colorspaces_file = os.path.join(os.path.dirname(__file__), "../fvvdp_data/color_spaces.json")
+        colorspaces_file = os.path.join(os.path.dirname(__file__), "fvvdp_data/color_spaces.json")
         colorspaces = json2dict(colorspaces_file)
 
         if not color_space_name in colorspaces:
@@ -107,7 +107,7 @@ class fvvdp_video_source_dm( fvvdp_video_source ):
         self.color_to_luminance = colorspaces[color_space_name]['RGB2Y']
 
         if isinstance( display_photometry, str ):
-            display_models_file = os.path.join(os.path.dirname(__file__), "../fvvdp_data/display_models.json")
+            display_models_file = os.path.join(os.path.dirname(__file__), "fvvdp_data/display_models.json")
             display_models = json2dict(display_models_file)
 
             self.dm_photometry = fvvdp_display_photometry.load(display_photometry)
@@ -285,7 +285,7 @@ class fvvdp:
 
     def load_config( self ):
 
-        parameters_file = os.path.join(os.path.dirname(__file__), "../fvvdp_data/fvvdp_parameters.json")
+        parameters_file = os.path.join(os.path.dirname(__file__), "fvvdp_data/fvvdp_parameters.json")
         parameters = json2dict(parameters_file)
 
         #all common parameters between Matlab and Pytorch, loaded from the .json file
@@ -359,7 +359,7 @@ class fvvdp:
         height, width, N_frames = vid_sz
 
         if fixation_point is None:
-            fixation_point = [width//2, height//2]
+            fixation_point = torch.tensor([width//2, height//2])
         elif isinstance(fixation_point, np.ndarray):
             fixation_point = torch.tensor(fixation_point)
 
@@ -508,21 +508,26 @@ class fvvdp:
 
                     if N_nCSF[bb][cc] is None:
 
-                        if fixation_point.dim() == 2:
-                            current_fixation_point = fixation_point[ff,:].squeeze()
-                        else:
-                            current_fixation_point = fixation_point
+                        if self.foveated:   # Fixation, parafoveal sensitivity
+                            if fixation_point.dim() == 2:
+                                current_fixation_point = fixation_point[ff,:].squeeze()
+                            else:
+                                current_fixation_point = fixation_point
 
-                        xv = torch.linspace( 0.5, vid_sz[1]-0.5, T_f.shape[-1], device=self.device )
-                        yv = torch.linspace( 0.5, vid_sz[0]-0.5, T_f.shape[-2], device=self.device )
-                        [xx, yy] = torch.meshgrid( xv, yv, indexing='xy' )
+                            xv = torch.linspace( 0.5, vid_sz[1]-0.5, T_f.shape[-1], device=self.device )
+                            yv = torch.linspace( 0.5, vid_sz[0]-0.5, T_f.shape[-2], device=self.device )
+                            [xx, yy] = torch.meshgrid( xv, yv, indexing='xy' )
 
-                        ecc = self.display_geometry.pix2eccentricity( torch.tensor((vid_sz[1], vid_sz[0])), xx, yy, current_fixation_point+0.5 )
+                            ecc = self.display_geometry.pix2eccentricity( torch.tensor((vid_sz[1], vid_sz[0])), xx, yy, current_fixation_point+0.5 )
 
-                        # The same shape as bands
-                        ecc = ecc.reshape( [1, 1, ecc.shape[-2], ecc.shape[-1]] )
+                            # The same shape as bands
+                            ecc = ecc.reshape( [1, 1, ecc.shape[-2], ecc.shape[-1]] )
 
-                        res_mag = self.display_geometry.get_resolution_magnification(ecc)
+                            res_mag = self.display_geometry.get_resolution_magnification(ecc)
+                        else:   # No fixation, foveal sensitivity everywhere
+                            res_mag = torch.ones(R_f.shape[-2:], device=self.device)
+                            ecc = torch.zeros(R_f.shape[-2:], device=self.device)
+
                         rho = rho_band[bb] * res_mag
 
                         # if self.debug: self.tb.verify_against_matlab(ecc, 'ecc_data', self.device, file='ecc_%d_%d_%d' % (ff+1,bb+1,cc+1), tolerance = 0.01)  

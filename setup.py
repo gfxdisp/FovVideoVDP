@@ -1,34 +1,42 @@
 from setuptools import setup
 
+with open("README.md", "r") as fh:
+    long_description = fh.read()
+
 setup(
     name='pyfvvdp',
-    version='0.1.0',    
+    version='1.0.0',
     description='Pytorch code accompanying "FovVideoVDP": a full-reference' \
                 'visual quality metric that predicts the perceptual' \
                 'difference between pairs of images and videos.',
-    url='https://github.com/gfxdisp/pyfvvdp',
+    long_description=long_description,
+    url='https://github.com/gfxdisp/FovVideoVDP',
+    long_description_content_type='text/markdown',
     author='Rafał K. Mantiuk',
     author_email='mantiuk@gmail.com',
     license='Creative Commons',
-    packages=['pyfvvdp'],
-    install_requires=['pytorch_msssim==0.2.1',
-                      'scikit_video==1.1.11',
-                      'numpy==1.23.1',
+    packages=['pyfvvdp', 'pyfvvdp/third_party'],
+    package_data={'pyfvvdp': ['csf_cache/*.mat', 'fvvdp_data/*.json']},
+    include_package_data=True,
+    install_requires=['numpy==1.23.1',
                       'scipy==1.8.1',
-                      'graphviz==0.16',
                       'ffmpeg-python==0.2.0',
                       'torch==1.12.0',
-                      'natsort==6.0.0',
                       'ffmpeg==1.4',
                       'imageio==2.19.5'],
 
     classifiers=[
         'Development Status :: 3 - Alpha',
         'Intended Audience :: Science/Research',
-        'License :: OSI Approved :: Creative Commons License',  
-        'Operating System :: POSIX :: Linux',
+        'Operating System :: OS Independent',
         'Programming Language :: Python :: 3.7',
         'Programming Language :: Python :: 3.8',
         'Programming Language :: Python :: 3.9',
     ],
+
+    entry_points={
+        'console_scripts': [
+            'fvvdp=pyfvvdp.run_fvvdp:main'
+        ]
+    }
 )

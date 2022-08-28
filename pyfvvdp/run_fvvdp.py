@@ -89,7 +89,7 @@ def parse_args():
     args = parser.parse_args()
     return args
 
-if __name__ == '__main__':
+def main():
     args = parse_args()
 
     if args.quiet:
@@ -141,7 +141,7 @@ if __name__ == '__main__':
         logging.error( "Pass the same number of reference and test sources, or a single reference (to be used with all test sources), or a single test (to be used with all reference sources)." )
         sys.exit()
 
-    fv = fvvdp( display_name=args.display, foveated=args.foveated, heatmap=args.heatmap )
+    fv = fvvdp( display_name=args.display, foveated=args.foveated, heatmap=args.heatmap, device=device )
 
     logging.info( 'When reporting metric results, please include the following information:' )    
 
@@ -184,3 +184,6 @@ if __name__ == '__main__':
 
     #     del test_vid
     #     torch.cuda.empty_cache()
+
+if __name__ == '__main__':
+    main()

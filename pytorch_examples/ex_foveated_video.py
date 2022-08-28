@@ -39,7 +39,7 @@ V_test_noise = utils.imnoise(V_ref, noise_amplitude)
 gaze_pos = np.stack((np.linspace(0, V_ref.shape[1]-1, N),
                      np.linspace(0, V_ref.shape[0]-1, N))).T
 
-fv = fvvdp(display_name='standard_4k', heatmap=None, foveated=True)
+fv = fvvdp(display_name='htc_vive_pro', heatmap=None, foveated=True)
 
 start = time.time()
 Q_JOD_dynamic, stats_dynamic = fv.predict(V_test_noise, V_ref,
