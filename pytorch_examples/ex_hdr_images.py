@@ -20,9 +20,7 @@ L_peak = 4000   # Peak luminance of an HDR display
 I_ref = I_ref/I_ref.max() * L_peak * 4
 
 # Add Gaussian noise of 20% contrast
-# I_test_noise = I_ref + I_ref.*randn(size(I_ref))*0.3;
-std = 0.3/L_peak
-I_test_noise = utils.imnoise(I_ref, std, peak=L_peak*4)
+I_test_noise = (I_ref + I_ref*np.random.randn(*I_ref.shape)*0.3).astype(I_ref.dtype)
 
 I_test_blur = utils.imgaussblur(I_ref, 2)
 
