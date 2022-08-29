@@ -15,7 +15,8 @@ L_peak = 4000   # Peak luminance of an HDR display
 # HDR images are often given in relative photometric units. They MUST be
 # mapped to absolute amount of light emitted from the display. For that, 
 # we map the peak value in the image to the peak value of the display,
-# then we increase the brightness by 2 stops (*4):
+# then we increase the brightness by 2 stops (*4). This is an arbitrary 
+# choise (of colour grading/tone mapping), and different mapping could be used. 
 I_ref = I_ref/I_ref.max() * L_peak * 4
 
 # Add Gaussian noise of 20% contrast
