@@ -4,8 +4,4 @@
 dist/
 build/
 
-# Dynamically generated examples
-example_media/wavy_facade_noise.png
-example_media/wavy_facade_blur.png
-
 .vscode/

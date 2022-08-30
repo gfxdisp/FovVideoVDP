@@ -140,7 +140,28 @@ I_test_blur = utils.imgaussblur(I_ref, 2)
 Q_JOD_blur, stats_blur = fv.predict( I_test_blur, I_ref, dim_order="HWC" )
 ```
 
-<img src="https://github.com/gfxdisp/FovVideoVDP/raw/main/example_media/simple_image_diff_map.png"></img>
+<table>
+  <tr>
+    <td>Original</td>
+    <td>Gaussian noise (σ<sup>2</sup> = 0.003)</td>
+    <td>Gaussian blur (σ = 2)</td>
+  </tr>
+  <tr>
+    <td><img src="https://github.com/gfxdisp/FovVideoVDP/raw/main/example_media/wavy_facade.png" width="100%"></img></td>
+    <td><img src="https://github.com/gfxdisp/FovVideoVDP/raw/main/example_media/wavy_facade_noise.png" width="100%"></img></td>
+    <td><img src="https://github.com/gfxdisp/FovVideoVDP/raw/main/example_media/wavy_facade_blur.png" width="100%"></img></td>
+  </tr>
+  <tr>
+    <td>Quality</td>
+    <td>9.532</td>
+    <td>8.674</td>
+  </tr>
+  <tr>
+    <td>Difference map</td>
+    <td><img src="https://github.com/gfxdisp/FovVideoVDP/raw/main/example_media/wavy_facade_noise_diff_map_viz.png" width="100%"></img></td>
+    <td><img src="https://github.com/gfxdisp/FovVideoVDP/raw/main/example_media/wavy_facade_blur_diff_map_viz.png" width="100%"></img></td>
+  </tr>
+</table>
 
 More examples can be found in these [example scripts](https://github.com/gfxdisp/FovVideoVDP/blob/main/pytorch_examples).
 
