@@ -83,9 +83,7 @@ The differences in JOD scores can be converted to the percentage increase in pre
 ### Command line interface
 The main script to run the model on a set of images or videos is [run_fvvdp.py](https://github.com/gfxdisp/FovVideoVDP/blob/main/pyfvvdp/run_fvvdp.py), from which the binary `fvvdp` is created . Run `fvvdp --help` for detailed usage information.
 
-<img src="https://github.com/gfxdisp/FovVideoVDP/raw/main/example_media/aliasing/ferris-ref.gif"></img>
-
-For the first example, the above video was downsampled (4x4) and upsampled (4x4) by different combinations of Bicubic and Nearest filters. To predict quality, you can run:
+For the first example, a video was downsampled (4x4) and upsampled (4x4) by different combinations of Bicubic and Nearest filters. To predict quality, you can run:
 
 ```bash
 fvvdp --test example_media/aliasing/ferris-*-*.mp4 --ref example_media/aliasing/ferris-ref.mp4 --gpu 0 --display standard_fhd --heatmap supra-threshold
@@ -93,26 +91,34 @@ fvvdp --test example_media/aliasing/ferris-*-*.mp4 --ref example_media/aliasing/
 
 <table>
   <tr>
+    <td>Original</td>
     <td>Bicubic &#8595; Bicubic &#8593; (4x4)</td>
     <td>Bicubic &#8595; Nearest &#8593; (4x4)</td>
     <td>Nearest &#8595; Bicubic &#8593; (4x4)</td>
     <td>Nearest &#8595; Nearest &#8593; (4x4)</td>
   </tr>
   <tr>
+    <td><img src="https://github.com/gfxdisp/FovVideoVDP/raw/main/example_media/aliasing/gifs/ferris-ref.gif"></img></td>
+    <td><img src="https://github.com/gfxdisp/FovVideoVDP/raw/main/example_media/aliasing/gifs/ferris-bicubic-bicubic.gif"></img></td>
+    <td><img src="https://github.com/gfxdisp/FovVideoVDP/raw/main/example_media/aliasing/gifs/ferris-bicubic-nearest.gif"></img></td>
+    <td><img src="https://github.com/gfxdisp/FovVideoVDP/raw/main/example_media/aliasing/gifs/ferris-nearest-bicubic.gif"></img></td>
+    <td><img src="https://github.com/gfxdisp/FovVideoVDP/raw/main/example_media/aliasing/gifs/ferris-nearest-nearest.gif"></img></td>
+  </tr>
+  <tr>
+    <td>Quality</td>
     <td>6.6277</td>
     <td>6.4803</td>
     <td>6.0446</td>
     <td>5.9450</td>
   </tr>
   <tr>
+    <td>Difference map</td>
     <td><img src="https://github.com/gfxdisp/FovVideoVDP/raw/main/example_media/aliasing/diff_maps/ferris-bicubic-bicubic_diff_map_viz.gif"></img></td>
     <td><img src="https://github.com/gfxdisp/FovVideoVDP/raw/main/example_media/aliasing/diff_maps/ferris-bicubic-nearest_diff_map_viz.gif"></img></td>
     <td><img src="https://github.com/gfxdisp/FovVideoVDP/raw/main/example_media/aliasing/diff_maps/ferris-nearest-bicubic_diff_map_viz.gif"></img></td>
     <td><img src="https://github.com/gfxdisp/FovVideoVDP/raw/main/example_media/aliasing/diff_maps/ferris-nearest-nearest_diff_map_viz.gif"></img></td>
   </tr>
 </table>
-
-The second row of the table shows predicted quality and the GIFs show difference maps for various conditions.
 
 ### Low-level Python interface
 FovVideoVDP can also be run through the Python interface by instatiating the `pyfvvdp.fvvdp.fvvdp` class. This example shows how to predict the quality of images degraded by Gaussian noise and blur.
