@@ -89,36 +89,12 @@ For the first example, a video was downsampled (4x4) and upsampled (4x4) by diff
 fvvdp --test example_media/aliasing/ferris-*-*.mp4 --ref example_media/aliasing/ferris-ref.mp4 --gpu 0 --display standard_fhd --heatmap supra-threshold
 ```
 
-<table>
-  <tr>
-    <td>Original</td>
-    <td>Bicubic &#8595; Bicubic &#8593; (4x4)</td>
-    <td>Bicubic &#8595; Nearest &#8593; (4x4)</td>
-    <td>Nearest &#8595; Bicubic &#8593; (4x4)</td>
-    <td>Nearest &#8595; Nearest &#8593; (4x4)</td>
-  </tr>
-  <tr>
-    <td><img src="https://github.com/gfxdisp/FovVideoVDP/raw/main/example_media/aliasing/gifs/ferris-ref.gif"></img></td>
-    <td><img src="https://github.com/gfxdisp/FovVideoVDP/raw/main/example_media/aliasing/gifs/ferris-bicubic-bicubic.gif"></img></td>
-    <td><img src="https://github.com/gfxdisp/FovVideoVDP/raw/main/example_media/aliasing/gifs/ferris-bicubic-nearest.gif"></img></td>
-    <td><img src="https://github.com/gfxdisp/FovVideoVDP/raw/main/example_media/aliasing/gifs/ferris-nearest-bicubic.gif"></img></td>
-    <td><img src="https://github.com/gfxdisp/FovVideoVDP/raw/main/example_media/aliasing/gifs/ferris-nearest-nearest.gif"></img></td>
-  </tr>
-  <tr>
-    <td>Quality</td>
-    <td>6.6277</td>
-    <td>6.4803</td>
-    <td>6.0446</td>
-    <td>5.9450</td>
-  </tr>
-  <tr>
-    <td>Difference map</td>
-    <td><img src="https://github.com/gfxdisp/FovVideoVDP/raw/main/example_media/aliasing/diff_maps/ferris-bicubic-bicubic_diff_map_viz.gif"></img></td>
-    <td><img src="https://github.com/gfxdisp/FovVideoVDP/raw/main/example_media/aliasing/diff_maps/ferris-bicubic-nearest_diff_map_viz.gif"></img></td>
-    <td><img src="https://github.com/gfxdisp/FovVideoVDP/raw/main/example_media/aliasing/diff_maps/ferris-nearest-bicubic_diff_map_viz.gif"></img></td>
-    <td><img src="https://github.com/gfxdisp/FovVideoVDP/raw/main/example_media/aliasing/diff_maps/ferris-nearest-nearest_diff_map_viz.gif"></img></td>
-  </tr>
-</table>
+|Original | ![ferris wheel](https://github.com/gfxdisp/FovVideoVDP/raw/main/example_media/aliasing/gifs/ferris-ref.gif) | Quality | Difference map |
+| :---: | :---: | :---: | :---: |
+| Bicubic &#8595;<br />Bicubic &#8593;<br />(4x4) | ![bicubic-bicubic](https://github.com/gfxdisp/FovVideoVDP/raw/main/example_media/aliasing/gifs/ferris-bicubic-bicubic.gif) | 6.6277 | ![bicubic-bicubic-diff](https://github.com/gfxdisp/FovVideoVDP/raw/main/example_media/aliasing/diff_maps/ferris-bicubic-bicubic_diff_map_viz.gif) |
+| Bicubic &#8595;<br />Nearest &#8593;<br />(4x4) | ![bicubic-nearest](https://github.com/gfxdisp/FovVideoVDP/raw/main/example_media/aliasing/gifs/ferris-bicubic-nearest.gif) | 6.4803 | ![bicubic-nearest-diff](https://github.com/gfxdisp/FovVideoVDP/raw/main/example_media/aliasing/diff_maps/ferris-bicubic-nearest_diff_map_viz.gif) |
+| Nearest &#8595;<br />Bicubic &#8593;<br />(4x4) | ![nearest-bicubic](https://github.com/gfxdisp/FovVideoVDP/raw/main/example_media/aliasing/gifs/ferris-nearest-bicubic.gif) | 6.0446 | ![nearest-bicubic-diff](https://github.com/gfxdisp/FovVideoVDP/raw/main/example_media/aliasing/diff_maps/ferris-nearest-bicubic_diff_map_viz.gif) |
+| Nearest &#8595;<br />Nearest &#8593;<br />(4x4) | ![nearest-nearest](https://github.com/gfxdisp/FovVideoVDP/raw/main/example_media/aliasing/gifs/ferris-nearest-nearest.gif) | 5.9450 | ![nearest-nearest-diff](https://github.com/gfxdisp/FovVideoVDP/raw/main/example_media/aliasing/diff_maps/ferris-nearest-nearest_diff_map_viz.gif) |
 
 ### Low-level Python interface
 FovVideoVDP can also be run through the Python interface by instatiating the `pyfvvdp.fvvdp.fvvdp` class. This example shows how to predict the quality of images degraded by Gaussian noise and blur.
@@ -140,28 +116,10 @@ I_test_blur = utils.imgaussblur(I_ref, 2)
 Q_JOD_blur, stats_blur = fv.predict( I_test_blur, I_ref, dim_order="HWC" )
 ```
 
-<table>
-  <tr>
-    <td>Original</td>
-    <td>Gaussian noise (σ<sup>2</sup> = 0.003)</td>
-    <td>Gaussian blur (σ = 2)</td>
-  </tr>
-  <tr>
-    <td><img src="https://github.com/gfxdisp/FovVideoVDP/raw/main/example_media/wavy_facade.png" width="100%"></img></td>
-    <td><img src="https://github.com/gfxdisp/FovVideoVDP/raw/main/example_media/wavy_facade_noise.png" width="100%"></img></td>
-    <td><img src="https://github.com/gfxdisp/FovVideoVDP/raw/main/example_media/wavy_facade_blur.png" width="100%"></img></td>
-  </tr>
-  <tr>
-    <td>Quality</td>
-    <td>9.532</td>
-    <td>8.674</td>
-  </tr>
-  <tr>
-    <td>Difference map</td>
-    <td><img src="https://github.com/gfxdisp/FovVideoVDP/raw/main/example_media/wavy_facade_noise_diff_map_viz.png" width="100%"></img></td>
-    <td><img src="https://github.com/gfxdisp/FovVideoVDP/raw/main/example_media/wavy_facade_blur_diff_map_viz.png" width="100%"></img></td>
-  </tr>
-</table>
+|Original | ![wavy-facade](https://github.com/gfxdisp/FovVideoVDP/raw/main/example_media/wavy_facade.png) | Quality | Difference map |
+| :---: | :---: | :---: | :---: |
+| Gaussian noise (σ<sup>2</sup> = 0.003) | ![noise](https://github.com/gfxdisp/FovVideoVDP/raw/main/example_media/wavy_facade_noise.png) | 9.532 | ![noise-diff](https://github.com/gfxdisp/FovVideoVDP/raw/main/example_media/wavy_facade_noise_diff_map_viz.png) |
+| Gaussian blur (σ = 2) | ![blur](https://github.com/gfxdisp/FovVideoVDP/raw/main/example_media/wavy_facade_blur.png) | 8.674 | ![blur-diff](https://github.com/gfxdisp/FovVideoVDP/raw/main/example_media/wavy_facade_blur_diff_map_viz.png) |
 
 More examples can be found in these [example scripts](https://github.com/gfxdisp/FovVideoVDP/blob/main/pytorch_examples).
 
