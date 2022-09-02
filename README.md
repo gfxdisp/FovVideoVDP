@@ -157,7 +157,7 @@ By default, FovVideoVDP will run the code on a GPU using `gpuArray`s, which requ
 * v1.1.1 - 28 August 2022
   * We found a small inconsistency in eccentricity calculations. After fixing this, the metric has been retrained on the same datasets as described in the paper. FovVideoVDP v1.1 will return JOD values that are different than v1.0. For that reason, it is important to mention the version number when reporting the results. 
   * Python interface has been thoroughly redesigned and make more consistent with Matlab's conterpart. Now it should be much easier to call the metric from Python. 
-  * All Matlab examples has been ported to Python. 
+  * All Matlab examples have been ported to Python. 
   * Python version is now faster. 
   * Published as a PIP repository. 
 
