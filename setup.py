@@ -23,7 +23,8 @@ setup(
                       'ffmpeg-python>=0.2.0',
                       'torch>=1.12.0',
                       'ffmpeg>=1.4',
-                      'imageio>=2.19.5'],
+                      'imageio>=2.19.5',
+                      'PyEXR>=0.3.10'],
 
     classifiers=[
         'Development Status :: 3 - Alpha',
