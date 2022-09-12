@@ -80,7 +80,7 @@ def reshuffle_dims( T: Tensor, in_dims: str, out_dims: str ) -> Tensor:
         if ind == -1:
             raise RuntimeError( 'Dimension "{}" missing in the target dimensions: "{}"'.format(in_dims[kk],out_dims) )
         perm[kk] = ind                    
-    T_p = torch.permute(T, perm)
+    T_p = T.permute(perm)
 
     # Add missing dimensions
     out_sh = [1] * len(out_dims)
