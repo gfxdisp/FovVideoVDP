@@ -1,3 +1,6 @@
+# v1.1.2 - 23/09/2022
+ - [Python] Updated Python dependencies - now works with earlier versions of PyTorch, Numpy and SciPy
+
 # v1.1.1 - 28/08/2022
 - [Python] Thoroughly redesided the interface so that the code can be easily run from python code.
 - [Python] All code examples are now both in python and Matlab.
