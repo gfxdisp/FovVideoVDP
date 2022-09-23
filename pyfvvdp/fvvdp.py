@@ -203,8 +203,11 @@ class fvvdp_video_source_array( fvvdp_video_source_dm ):
         # Determine the maximum value of the data type storing the
         # image/video
 
-        if from_array.dtype is torch.float32:
+        if from_array.dtype in (torch.float32, torch.float16):
             frame = from_array[:,:,frame:(frame+1),:,:].to(device)
+            if from_array.dtype is torch.float16 and device == torch.device('cpu'):
+                # Torch CPU does not support some operations for float16
+                frame = frame.to(torch.float32)
         elif from_array.dtype is torch.int16:
             # Use int16 to losslessly pack uint16 values
             # Unpack from int16 by bit masking as described in this thread:
@@ -232,12 +235,14 @@ class fvvdp_video_source_array( fvvdp_video_source_dm ):
 """
 FovVideoVDP metric. Refer to pytorch_examples for examples on how to use this class. 
 """
-class fvvdp:
-    def __init__(self, display_name="standard_4k", display_photometry=None, display_geometry=None, color_space="sRGB", foveated=False, heatmap=None, quiet=False, device=None):
+class fvvdp(torch.nn.Module):
+    def __init__(self, display_name="standard_4k", display_photometry=None, display_geometry=None, color_space="sRGB", foveated=False, heatmap=None, quiet=False, device=None, use_checkpoints=False):
+        super().__init__()
         self.quiet = quiet
         self.foveated = foveated
         self.heatmap = heatmap
         self.color_space = color_space
+        self.use_checkpoints = use_checkpoints
 
         if display_photometry is None:
             self.display_photometry = fvvdp_display_photometry.load(display_name)
@@ -455,8 +460,10 @@ class fvvdp:
                     R[:,cc*2+0, :, :, :] = (sw_buf[0] * corr_filter).sum(dim=-3,keepdim=True)
                     R[:,cc*2+1, :, :, :] = (sw_buf[1] * corr_filter).sum(dim=-3,keepdim=True)
 
-            # self.process_frame(ff, R, vid_sz, temp_ch, fixation_point, heatmap, dummy)
-            checkpoint.checkpoint(self.process_frame, ff, R, vid_sz, temp_ch, fixation_point, heatmap, use_reentrant=False)
+            if self.use_checkpoints:
+                checkpoint.checkpoint(self.process_frame, ff, R, vid_sz, temp_ch, fixation_point, heatmap, use_reentrant=False)
+            else:
+                self.process_frame(ff, R, vid_sz, temp_ch, fixation_point, heatmap)
 
         Q_sc = self.lp_norm(self.Q_per_ch, self.beta_sch, 0, False)
         Q_tc = self.lp_norm(Q_sc,     self.beta_tch, 1, False)
