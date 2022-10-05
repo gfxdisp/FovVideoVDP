@@ -25,6 +25,8 @@ fvvdp --test test_file --ref ref_file --gpu 0 --display standard_fhd
 ```
 The test and reference files can be images or videos. The option `--display` specifies a display on which the content is viewed. See [fvvdp_data/display_models.json](https://github.com/gfxdisp/FovVideoVDP/blob/main/pyfvvdp/fvvdp_data/display_models.json) for the available displays.
 
+Note that the default installation skips the [PyEXR](https://pypi.org/project/PyEXR/) package and uses ImageIO instead. It is recommended to separately install this package since ImageIO's handling of OpenEXR files is unreliable as evidenced [here](https://github.com/imageio/imageio/issues/517). PyEXR is not automatically installed because it depends on the [OpenEXR](https://www.openexr.com/) library, whose installation is operating system specific.
+
 See [Command line interface](#command-line-interface) for further details. FovVideoVDP can be also run directly from Python - see [Low-level Python interface](#low-level-python-interface). 
 
 **Table of contents**

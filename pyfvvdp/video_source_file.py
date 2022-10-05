@@ -2,7 +2,6 @@
 
 import os
 import imageio.v2 as io
-import pyexr
 import numpy as np
 from torch.functional import Tensor
 import torch
@@ -10,14 +9,20 @@ import ffmpeg
 
 from pyfvvdp.fvvdp import fvvdp_video_source, fvvdp_video_source_dm, fvvdp_video_source_array, reshuffle_dims
 
+try:
+    # This may fail if OpenEXR is not installed. To install,
+    # ubuntu: sudo apt install libopenexr-dev
+    # mac: brew install openexr
+    import pyexr
+    use_pyexr = True
+except ImportError as e:
+    # Imageio's imread is unreliable for OpenEXR images
+    # See https://github.com/imageio/imageio/issues/517
+    use_pyexr = False
+
 def load_image_as_array(imgfile):
     ext = os.path.splitext(imgfile)[1].lower()
-    if ext == '.exr':
-        # Imageio's imread is unreliable for OpenEXR images
-        # See https://github.com/imageio/imageio/issues/517
-        # This may fail if OpenEXR is not installed. To install,
-        # ubuntu: sudo apt install libopenexr-dev
-        # mac: brew install openexr
+    if ext == '.exr' and use_pyexr:
         precisions = pyexr.open(imgfile).precisions
         assert precisions.count(precisions[0]) == len(precisions), 'All channels must have same precision'
         img = pyexr.read(imgfile, precision=precisions[0])
