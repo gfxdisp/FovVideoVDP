@@ -4,12 +4,9 @@ import numpy as np
 import ex_utils as utils
 from PIL import Image
 
-from pyfvvdp.fvvdp import fvvdp
-from pyfvvdp.video_source_file import load_image_as_array
-from pyfvvdp.fvvdp_display_model import fvvdp_display_photo_gog
+import pyfvvdp
 
-
-I_ref = load_image_as_array(os.path.join('example_media', 'wavy_facade.png'))
+I_ref = pyfvvdp.load_image_as_array(os.path.join('example_media', 'wavy_facade.png'))
 ar = 1440/1600; # the aspect ratio of HTC Vive Pro (width/height)
 h, w, _ = I_ref.shape
 crop_pix = int(np.floor((w - h*ar)/2))
@@ -39,7 +36,7 @@ V_test_noise = utils.imnoise(V_ref, noise_amplitude)
 gaze_pos = np.stack((np.linspace(0, V_ref.shape[1]-1, N),
                      np.linspace(0, V_ref.shape[0]-1, N))).T
 
-fv = fvvdp(display_name='htc_vive_pro', heatmap=None, foveated=True)
+fv = pyfvvdp.fvvdp(display_name='htc_vive_pro', heatmap=None, foveated=True)
 
 start = time.time()
 Q_JOD_dynamic, stats_dynamic = fv.predict(V_test_noise, V_ref,

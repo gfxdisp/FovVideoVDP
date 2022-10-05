@@ -3,12 +3,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 import ex_utils as utils
 
-from pyfvvdp.fvvdp import fvvdp
-from pyfvvdp.fvvdp_display_model import fvvdp_display_photo_gog
-from pyfvvdp.video_source_file import load_image_as_array
+import pyfvvdp
 
-
-I_ref = load_image_as_array(os.path.join('example_media', 'wavy_facade.png'))
+I_ref = pyfvvdp.load_image_as_array(os.path.join('example_media', 'wavy_facade.png'))
 std = np.sqrt(0.001)
 I_test_noise = utils.imnoise(I_ref, std)
 
@@ -23,8 +20,8 @@ k_refl = 0.005    # Reflectivity of the display
 
 Q_JOD = []
 for dd, Y_peak in enumerate(disp_peaks):
-    disp_photo = fvvdp_display_photo_gog(Y_peak, contrast, gamma, E_ambient, k_refl)
-    fv = fvvdp(display_name='standard_4k', display_photometry=disp_photo, heatmap='threshold')
+    disp_photo = pyfvvdp.fvvdp_display_photo_gog(Y_peak, contrast, gamma, E_ambient, k_refl)
+    fv = pyfvvdp.fvvdp(display_name='standard_4k', display_photometry=disp_photo, heatmap='threshold')
     
     q, stats = fv.predict(I_test_noise, I_ref, dim_order="HWC")
     Q_JOD.append(q.cpu())

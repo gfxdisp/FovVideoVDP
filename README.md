@@ -100,12 +100,11 @@ fvvdp --test example_media/aliasing/ferris-*-*.mp4 --ref example_media/aliasing/
 FovVideoVDP can also be run through the Python interface by instatiating the `pyfvvdp.fvvdp.fvvdp` class. This example shows how to predict the quality of images degraded by Gaussian noise and blur.
 
 ```python
-from pyfvvdp.fvvdp import fvvdp
-from pyfvvdp.video_source_file import load_image_as_array
+import pyfvvdp
 import ex_utils as utils
 
-I_ref = load_image_as_array(os.path.join('example_media', 'wavy_facade.png'))
-fv = fvvdp(display_name='standard_4k', heatmap='threshold')
+I_ref = pyfvvdp.load_image_as_array(os.path.join('example_media', 'wavy_facade.png'))
+fv = pyfvvdp.fvvdp(display_name='standard_4k', heatmap='threshold')
 
 # Gaussian noise with variance 0.003
 I_test_noise = utils.imnoise(I_ref, np.sqrt(0.003))

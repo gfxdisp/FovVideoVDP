@@ -10,10 +10,9 @@ import ffmpeg
 import numpy as np
 import torch
 import imageio.v2 as imageio
-#from PIL import Image
-from pyfvvdp.video_source_file import fvvdp_video_source_file
-from pyfvvdp.fvvdp import fvvdp
-from pyfvvdp.visualize_diff_map import visualize_diff_map
+
+import pyfvvdp
+# from pyfvvdp.visualize_diff_map import visualize_diff_map
 #from pytorch_msssim import SSIM
 from utils import *
 
@@ -135,7 +134,7 @@ def main():
         logging.error( "Pass the same number of reference and test sources, or a single reference (to be used with all test sources), or a single test (to be used with all reference sources)." )
         sys.exit()
 
-    fv = fvvdp( display_name=args.display, foveated=args.foveated, heatmap=args.heatmap, device=device )
+    fv = pyfvvdp.fvvdp( display_name=args.display, foveated=args.foveated, heatmap=args.heatmap, device=device )
 
     logging.info( 'When reporting metric results, please include the following information:' )    
 
@@ -151,7 +150,7 @@ def main():
         test_file = args.test[min(kk,N_test-1)]
         ref_file = args.ref[min(kk,N_ref-1)]
         logging.info("Predicting the quality of '" + test_file + "' compared to '" + ref_file + "' ...")
-        vs = fvvdp_video_source_file( test_file, ref_file )
+        vs = pyfvvdp.fvvdp_video_source_file( test_file, ref_file )
         Q_jod, stats = fv.predict_video_source(vs)
         if args.quiet:                
             print( "{Q_jod:0.4f}".format(Q_jod=Q_jod) )

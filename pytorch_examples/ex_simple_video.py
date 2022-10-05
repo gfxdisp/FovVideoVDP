@@ -6,12 +6,10 @@ import time
 import numpy as np
 import ex_utils as utils
 
-from pyfvvdp.fvvdp import fvvdp
-from pyfvvdp.video_source_file import load_image_as_array
-
+import pyfvvdp
 
 # The frame to use for the video
-I_ref = load_image_as_array(os.path.join('example_media', 'wavy_facade.png'))
+I_ref = pyfvvdp.load_image_as_array(os.path.join('example_media', 'wavy_facade.png'))
 
 N = 60 # The number of frames
 fps = 30 # Frames per second
@@ -21,7 +19,7 @@ N_amplitude = 0.07; # Amplitude of the noise (in gamma encoded values, scale 0-1
 V_static_noise = utils.imnoise(V_ref, N_amplitude, static=True)
 V_dynamic_noise = utils.imnoise(V_ref, N_amplitude)
 
-fv = fvvdp(display_name='standard_4k', heatmap=None)
+fv = pyfvvdp.fvvdp(display_name='standard_4k', heatmap=None)
 
 start = time.time()
 Q_JOD_static, stats_static = fv.predict( V_static_noise, V_ref, dim_order="HWCF", frames_per_second=fps )
