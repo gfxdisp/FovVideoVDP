@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf8") as fh:
 
 setup(
     name='pyfvvdp',
-    version='1.1.2',
+    version='1.1.3',
     description='PyTorch code for \'FovVideoVDP\': a full-reference' \
                 'visual quality metric that predicts the perceptual' \
                 'difference between pairs of images or videos.',

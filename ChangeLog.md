@@ -1,3 +1,8 @@
+# v1.1.3 - 18/10/2022
+ - [Python] Added "raw" heatmap type to the command line
+ - [Python] Changed the way pyfvvdp classes are imported  to avoid clash between the file and class names (see updated pytortch_examples)
+ - [Python] Installation of PyEXR is now optional (caused problems on some operating systems)
+
 # v1.1.2 - 23/09/2022
  - [Python] Updated Python dependencies - now works with earlier versions of PyTorch, Numpy and SciPy
 

@@ -8,6 +8,7 @@
 - Increment version number [here](pyfvvdp/fvvdp_data/fvvdp_parameters.json) and [here](setup.py).
 - [Optional] Remove previous versions `rm dist/*`
 - Create the new package: `python setup.py sdist`
+- [Optiona] Upload to the testpypi: `twine upload --repository testpypi dist/*`
 - Upload the package: `twine upload dist/*`. You will be asked to enter your credentials for every update.
 
 # Steps for Conda
