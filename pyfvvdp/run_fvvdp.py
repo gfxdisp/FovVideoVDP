@@ -99,17 +99,18 @@ def main():
 
     logging.info("Running on device: " + str(device))
 
-    heatmap_types = {
-        "threshold"   : {"scale" : 1.000, "colormap_type": "trichromatic"},
-        "supra-threshold" : {"scale" : 0.333, "colormap_type": "dichromatic"},
-    }
+    # heatmap_types = {
+    #     "threshold"   : {"scale" : 1.000, "colormap_type": "trichromatic"},
+    #     "supra-threshold" : {"scale" : 0.333, "colormap_type": "dichromatic"},
+    # }
+    heatmap_types = ["raw", "threshold", "supra-threshold"]
 
     if args.heatmap == "none":
         args.heatmap = None
 
     if args.heatmap:
         if not args.heatmap in heatmap_types:
-            logging.error( 'The recognized heatmap types are: "none", "threshold" and "supra-threshold"' )
+            logging.error( 'The recognized heatmap types are: "none", "raw", "threshold" and "supra-threshold"' )
             sys.exit()
 
         do_heatmap = True
@@ -158,7 +159,7 @@ def main():
             print( "Q_JOD={Q_jod:0.4f}".format(Q_jod=Q_jod) )
 
         if do_heatmap:
-            diff_type = heatmap_types[args.heatmap]
+            # diff_type = heatmap_types[args.heatmap]
             # heatmap = stats["heatmap"] * diff_type["scale"]
             # diff_map_viz = visualize_diff_map(heatmap, context_image=ref_vid_luminance, colormap_type=diff_type["colormap_type"])
             out_dir = "." if args.heatmap_dir is None else args.heatmap_dir
