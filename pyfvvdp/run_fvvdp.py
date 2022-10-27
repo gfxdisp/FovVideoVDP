@@ -12,6 +12,7 @@ import torch
 import imageio.v2 as imageio
 
 import pyfvvdp
+from fvvdp_display_model import fvvdp_display_photometry
 # from pyfvvdp.visualize_diff_map import visualize_diff_map
 #from pytorch_msssim import SSIM
 from utils import *
@@ -69,14 +70,15 @@ def np2img(np_srgb, imgfile):
 # -----------------------------------
 def parse_args():
     parser = argparse.ArgumentParser(description="Evaluate FovVideoVDP on a set of videos")
-    parser.add_argument("--test", type=str, nargs='+', required = True, help="list of test images/videos")
-    parser.add_argument("--ref", type=str, nargs='+', required = True, help="list of reference images/videos")
+    parser.add_argument("--test", type=str, nargs='+', required = False, help="list of test images/videos")
+    parser.add_argument("--ref", type=str, nargs='+', required = False, help="list of reference images/videos")
     parser.add_argument("--gpu", type=int,  default=-1, help="select which GPU to use (e.g. 0), default is CPU")
     parser.add_argument("--heatmap", type=str, default="none", help="type of difference map (none, raw, threshold, supra-threshold)")
     parser.add_argument("--heatmap-dir", type=str, default=None, help="in which directory heatmaps should be stored (the default is the current directory)")
     parser.add_argument("--verbose", action='store_true', default=False, help="Verbose mode")
     parser.add_argument("--foveated", action='store_true', default=False, help="Run in a foveated mode (non-foveated is the default)")
-    parser.add_argument("--display", type=str, default="standard_4k", help="display name, e.g. HTC Vive")
+    parser.add_argument("--display", type=str, default="standard_4k", help="display name, e.g. 'HTC Vive', or ? to print the list of models.")
+    parser.add_argument("--display-models", type=str, default=None, help="A path to the JSON file with a list of display models")
     #parser.add_argument("--nframes", type=int, default=60, help="# of frames from video you want to load")
     parser.add_argument("--quiet", action='store_const', const=True, default=False, help="Do not print any information but the final JOD value.")
     args = parser.parse_args()
@@ -91,6 +93,14 @@ def main():
         log_level = logging.INFO
         
     logging.basicConfig(format='[%(levelname)s] %(message)s', level=log_level)
+
+    if args.display == "?":
+        fvvdp_display_photometry.list_displays(args.display_models)
+        return
+
+    if args.test is None or args.ref is None:
+        logging.error( "Paths to both test and reference content needs to be specified.")
+        return
 
     if args.gpu >= 0 and torch.cuda.is_available():
         device = torch.device('cuda:' + str(args.gpu))
@@ -135,7 +145,7 @@ def main():
         logging.error( "Pass the same number of reference and test sources, or a single reference (to be used with all test sources), or a single test (to be used with all reference sources)." )
         sys.exit()
 
-    fv = pyfvvdp.fvvdp( display_name=args.display, foveated=args.foveated, heatmap=args.heatmap, device=device )
+    fv = pyfvvdp.fvvdp( display_name=args.display, foveated=args.foveated, heatmap=args.heatmap, device=device, display_models=args.display_models )
 
     logging.info( 'When reporting metric results, please include the following information:' )    
 

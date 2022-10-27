@@ -1,3 +1,7 @@
+# v1.1.4 - ?
+ - [Python] Added option "--display-models" to specify an external file with display models
+ - [Python] When passed "--display ?", a list of available display models will be printed
+
 # v1.1.3 - 18/10/2022
  - [Python] Added "raw" heatmap type to the command line
  - [Python] Changed the way pyfvvdp classes are imported  to avoid clash between the file and class names (see updated pytortch_examples)

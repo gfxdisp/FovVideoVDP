@@ -33,8 +33,28 @@ class fvvdp_display_photometry:
         pass
 
     @classmethod
-    def load( cls, display_name ):
-        models_file      = os.path.join(os.path.dirname(__file__), "fvvdp_data/display_models.json")
+    def default_model_file( cls ):
+        return os.path.join(os.path.dirname(__file__), "fvvdp_data/display_models.json")
+
+    @classmethod
+    def list_displays( cls, models_file=None ):
+
+        if models_file is None:
+            models_file = fvvdp_display_photometry.default_model_file()
+
+        logging.info( f"JSON file with display models: {models_file}" )
+
+        models = json2dict(models_file)
+
+        for display_name in models:
+            dm = fvvdp_display_photometry.load(display_name, models_file=models_file)
+            dm.print()
+
+    @classmethod
+    def load( cls, display_name, models_file=None ):
+
+        if models_file is None:
+            models_file = fvvdp_display_photometry.default_model_file()
 
         models = json2dict(models_file)
 
@@ -70,7 +90,7 @@ class fvvdp_display_photometry:
         else:
             gamma = 2.2
 
-        obj = fvvdp_display_photo_gog( Y_peak, contrast, gamma, E_ambient, k_refl)
+        obj = fvvdp_display_photo_gog( Y_peak, contrast, gamma, E_ambient, k_refl, name=display_name)
         obj.full_name = model["name"]
         obj.short_name = display_name
 
@@ -111,13 +131,14 @@ class fvvdp_display_photo_gog(fvvdp_display_photometry):
     # https://www.cl.cam.ac.uk/~rkm38/pdfs/mantiuk2016perceptual_display.pdf
     #
     # Copyright (c) 2010-2021, Rafal Mantiuk
-    def __init__( self, Y_peak, contrast = 1000, gamma = 2.2, E_ambient = 0, k_refl = 0.005 ):
+    def __init__( self, Y_peak, contrast = 1000, gamma = 2.2, E_ambient = 0, k_refl = 0.005, name=None ):
             
         self.Y_peak = Y_peak            
         self.contrast = contrast
         self.gamma = gamma
         self.E_ambient = E_ambient
         self.k_refl = k_refl
+        self.name = name
     
         
     # Transforms gamma-encoded pixel values V, which must be in the range
@@ -154,10 +175,10 @@ class fvvdp_display_photo_gog(fvvdp_display_photometry):
     def print( self ):
         Y_black = self.get_black_level()
         
-        logging.info( 'Photometric display model:' )
+        logging.info( 'Photometric display model: {}'.format(self.name) )
         logging.info( '  Peak luminance: {} cd/m^2'.format(self.Y_peak) )
-        logging.info( '  Contrast - theoretical: {}:1'.format( math.round(self.contrast) ) )
-        logging.info( '  Contrast - effective: {}:1'.format, math.round(self.Y_peak/Y_black) )
+        logging.info( '  Contrast - theoretical: {}:1'.format( round(self.contrast) ) )
+        logging.info( '  Contrast - effective: {}:1'.format( round(self.Y_peak/Y_black) ) )
         logging.info( '  Ambient light: {} lux'.format( self.E_ambient ) )
         logging.info( '  Display reflectivity: {}%'.format( self.k_refl*100 ) )
     
@@ -388,8 +409,11 @@ class fvvdp_display_geometry:
             logging.info( '  Pixels-per-degree (center): {ppd:.2f}'.format(ppd=self.get_ppd()) )
 
     @classmethod
-    def load( cls, display_name ):
-        models_file      = os.path.join(os.path.dirname(__file__), "fvvdp_data/display_models.json")
+    def load( cls, display_name, models_file=None ):
+
+        if models_file is None:
+            models_file = fvvdp_display_photometry.default_model_file()
+
         models = json2dict(models_file)
 
         for mk in models:
