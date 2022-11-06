@@ -5,8 +5,8 @@ with open("README.md", "r", encoding="utf8") as fh:
 
 setup(
     name='pyfvvdp',
-    version='1.1.1',
-    description='PyTorch code for "FovVideoVDP": a full-reference' \
+    version='1.1.3',
+    description='PyTorch code for \'FovVideoVDP\': a full-reference' \
                 'visual quality metric that predicts the perceptual' \
                 'difference between pairs of images or videos.',
     long_description=long_description,
@@ -23,8 +23,7 @@ setup(
                       'ffmpeg-python>=0.2.0',
                       'torch>=1.8.2',
                       'ffmpeg>=1.4',
-                      'imageio>=2.19.5',
-                      'PyEXR>=0.3.10'],
+                      'imageio>=2.19.5'],
 
     classifiers=[
         'Development Status :: 3 - Alpha',

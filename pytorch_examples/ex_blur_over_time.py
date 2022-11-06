@@ -6,11 +6,10 @@ import numpy as np
 import time
 import ex_utils as utils
 
-from pyfvvdp.fvvdp import fvvdp
-from pyfvvdp.video_source_file import load_image_as_array
+import pyfvvdp
 
 # The frame to use for the video
-I_ref = load_image_as_array(os.path.join('example_media', 'tree.jpg'))
+I_ref = pyfvvdp.load_image_as_array(os.path.join('example_media', 'tree.jpg'))
 
 N = 60*4 # The number of frames
 fps = 30 # Frames per second
@@ -20,7 +19,7 @@ V_ref = np.repeat(I_ref[...,np.newaxis], N, axis=3) # Reference video (in colour
 SIGMAs = np.concatenate((np.linspace(0.01, sigma_max, N//2), np.linspace(sigma_max, 0.01, N//2)))
 V_blur = utils.imgaussblur(V_ref, SIGMAs)
 
-fv = fvvdp(display_name='standard_4k', heatmap=None)
+fv = pyfvvdp.fvvdp(display_name='standard_4k', heatmap=None)
 
 start = time.time()
 Q_JOD, stats = fv.predict(V_blur, V_ref, dim_order="HWCF", frames_per_second=fps)

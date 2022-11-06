@@ -1,31 +1,30 @@
 import os
 import numpy as np
 import matplotlib.pyplot as plt
-import ex_utils as utils
 
-from pyfvvdp.fvvdp import fvvdp
-from pyfvvdp.video_source_file import load_image_as_array
+import ex_utils as utils
+import pyfvvdp
 
 debug = False
 
 
-I_ref = load_image_as_array(os.path.join('example_media', 'wavy_facade.png'))
+I_ref = pyfvvdp.load_image_as_array(os.path.join('example_media', 'wavy_facade.png'))
 
 noise_fname = os.path.join('example_media', 'wavy_facade_noise.png')
 if os.path.isfile(noise_fname) and debug:
-    I_test_noise = load_image_as_array( noise_fname )
+    I_test_noise = pyfvvdp.load_image_as_array( noise_fname )
 else:
     std = np.sqrt(0.003)
     I_test_noise = utils.imnoise(I_ref, std)
 
 blur_fname = os.path.join('example_media', 'wavy_facade_blur.png')
 if os.path.isfile(blur_fname) and debug:
-    I_test_blur = load_image_as_array( blur_fname )
+    I_test_blur = pyfvvdp.load_image_as_array( blur_fname )
 else:
     sigma = 2
     I_test_blur = utils.imgaussblur(I_ref, sigma)
 
-fv = fvvdp(display_name='standard_4k', heatmap='threshold')
+fv = pyfvvdp.fvvdp(display_name='standard_4k', heatmap='threshold')
 
 # predict() method can handle numpy ndarrays or PyTorch tensors. The data
 # type should be float32, int16 or uint8.
@@ -57,5 +56,5 @@ axs[1][1].set_xticks([])
 axs[1][1].set_yticks([])
 axs[1][1].set_title(blur_str)
 
-f.show();
+f.show()
 plt.waitforbuttonpress()

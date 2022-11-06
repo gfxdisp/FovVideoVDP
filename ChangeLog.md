@@ -1,3 +1,15 @@
+# v1.1.4 - ?
+ - [Python] Added option "--display-models" to specify an external file with display models
+ - [Python] When passed "--display ?", a list of available display models will be printed
+
+# v1.1.3 - 18/10/2022
+ - [Python] Added "raw" heatmap type to the command line
+ - [Python] Changed the way pyfvvdp classes are imported  to avoid clash between the file and class names (see updated pytortch_examples)
+ - [Python] Installation of PyEXR is now optional (caused problems on some operating systems)
+
+# v1.1.2 - 23/09/2022
+ - [Python] Updated Python dependencies - now works with earlier versions of PyTorch, Numpy and SciPy
+
 # v1.1.1 - 28/08/2022
 - [Python] Thoroughly redesided the interface so that the code can be easily run from python code.
 - [Python] All code examples are now both in python and Matlab.
