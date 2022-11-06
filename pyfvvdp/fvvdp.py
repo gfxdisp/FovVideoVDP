@@ -236,8 +236,7 @@ class fvvdp_video_source_array( fvvdp_video_source_dm ):
 FovVideoVDP metric. Refer to pytorch_examples for examples on how to use this class. 
 """
 class fvvdp:
-    def __init__(self, display_name="standard_4k", display_photometry=None, display_geometry=None, color_space="sRGB", foveated=False, heatmap=None, quiet=False, device=None, display_models=None):
->>>>>>> main
+    def __init__(self, display_name="standard_4k", display_photometry=None, display_geometry=None, color_space="sRGB", foveated=False, heatmap=None, quiet=False, device=None, display_models=None, use_checkpoints=False):
         self.quiet = quiet
         self.foveated = foveated
         self.heatmap = heatmap
