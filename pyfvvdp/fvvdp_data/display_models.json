@@ -12,6 +12,7 @@
 
   "standard_hdr": {
       "name": "30-inch 4K HDR, monitor, peak luminance 1500 cd/m^2, viewed under low light levels (10 lux), seen from 2 x display height", 
+      "EOTF": "PQ",
       "resolution": [3840, 2160], 
       "viewing_distance_meters":  0.7472,  
       "diagonal_size_inches": 30,   

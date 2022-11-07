@@ -65,6 +65,11 @@ class fvvdp_display_photometry:
 
         Y_peak = model["max_luminance"]
 
+        if "EOTF" in model:
+            EOTF = model["EOTF"]
+        else:
+            EOTF = 'sRGB'
+
         if "min_luminance" in model:
             contrast = Y_peak/model["min_luminance"]
         elif "contrast" in model:
@@ -90,30 +95,146 @@ class fvvdp_display_photometry:
         else:
             gamma = 2.2
 
-        obj = fvvdp_display_photo_gog( Y_peak, contrast, gamma, E_ambient, k_refl, name=display_name)
+        obj = fvvdp_display_photo_eotf( Y_peak, contrast=contrast, gamma=gamma, EOTF=EOTF, E_ambient=E_ambient, k_refl=k_refl, name=display_name)
         obj.full_name = model["name"]
         obj.short_name = display_name
 
         return obj
 
+def pq2lin( V ):
+    """ Convert from PQ-encoded values V (between 0 and 1) to absolute linear values (between 0.005 and 10000)
+    """
+    Lmax = 10000
+    n    = 0.15930175781250000
+    m    = 78.843750000000000
+    c1   = 0.83593750000000000
+    c2   = 18.851562500000000
+    c3   = 18.687500000000000
+
+    im_t = torch.power(V,1/m)
+    L = Lmax * torch.power(torch.maximum(im_t-c1,0)/(c2-c3*im_t), 1/n)
+    return L
+
+class fvvdp_display_photo_eotf(fvvdp_display_photometry): 
+    # Display model with several EOTF, to simulate both SDR and HDR displays
+    #
+    # dm = fvvdp_display_photo_eotf( Y_peak, contrast, EOTF, gamma, E_ambient, k_refl )
+    #
+    # Parameters (default value shown in []):
+    # Y_peak - display peak luminance in cd/m^2 (nit), e.g. 200 for a typical
+    #          office monitor, 1000 for an HDR display, ...
+    # contrast - [1000] the contrast of the display. The value 1000 means
+    #          1000:1
+    # EOTF - 'sRGB', 'gamma' or 'PQ'
+    # gamma - gamma of the display, typically 2.2. Used only if EOTF=='gamma'       
+    # E_ambient - [0] ambient light illuminance in lux, e.g. 600 for bright
+    #         office
+    # k_refl - [0.005] reflectivity of the display screen
+    #
+    # For more details on the GOG display model, see:
+    # https://www.cl.cam.ac.uk/~rkm38/pdfs/mantiuk2016perceptual_display.pdf
+    #
+    # Copyright (c) 2010-2022, Rafal Mantiuk
+    def __init__( self, Y_peak, contrast = 1000, EOTF='sRGB', gamma = 2.2, E_ambient = 0, k_refl = 0.005, name=None ):
+            
+        self.Y_peak = Y_peak            
+        self.contrast = contrast
+        self.EOTF = EOTF
+        self.gamma = gamma
+        self.E_ambient = E_ambient
+        self.k_refl = k_refl
+        self.name = name    
+        
+    # Transforms display-encoded pixel values V, which must be in the range
+    # 0-1 into absolute linear colorimetric values emitted from
+    # the display.
+    def forward( self, V ):
+        
+        if torch.any(V>1).bool() or torch.any(V<0).bool():
+            logging.warning("Pixel outside the valid range 0-1")
+            V = V.clamp( 0., 1. )
+            
+        Y_black = self.get_black_level()
+                
+        if self.EOTF=='sRGB':
+            L = (self.Y_peak-Y_black)*srgb2lin(V) + Y_black
+        elif self.EOTF=='gamma':
+            L = (self.Y_peak-Y_black)*torch.pow(V, self.gamma) + Y_black
+        elif self.EOTF=='PQ':
+            L = pq2lin( V ).clip(0.005, self.Y_peak) + Y_black #TODO: soft clipping
+        else:
+            raise RuntimeError( f"Unknown EOTF '{self.EOTF}'" )        
+        return L
+        
+
+    def get_peak_luminance( self ):
+        return self.Y_peak
+
+    # Get the effective black level, accounting for screen reflections
+    def get_black_level( self ):
+        Y_refl = self.E_ambient/math.pi*self.k_refl  # Reflected ambient light            
+        Y_black = Y_refl + self.Y_peak/self.contrast
+
+        return Y_black
+
+    # Print the display specification    
+    def print( self ):
+        Y_black = self.get_black_level()
+        
+        logging.info( 'Photometric display model: {}'.format(self.name) )
+        logging.info( '  Peak luminance: {} cd/m^2'.format(self.Y_peak) )
+        logging.info( '  EOTF: {}'.format(self.EOTF) )
+        logging.info( '  Contrast - theoretical: {}:1'.format( round(self.contrast) ) )
+        logging.info( '  Contrast - effective: {}:1'.format( round(self.Y_peak/Y_black) ) )
+        logging.info( '  Ambient light: {} lux'.format( self.E_ambient ) )
+        logging.info( '  Display reflectivity: {}%'.format( self.k_refl*100 ) )
+    
+
+class fvvdp_display_photo_absolute(fvvdp_display_photometry):
+    # Use this photometric model when passing absolute colorimetric of
+    # photometric values, scaled in cd/m^2
+    # Object variables:
+    #  L_max - display peak luminance in cd/m^2
+    #  L_min - display black level
+    def __init__(self, L_max=10000, L_min=0.005):
+
+        self.L_max = L_max
+        self.L_min = L_min
+
+
+    def forward( self, V ):
+
+        # Clamp the values that are outside the (L_min, L_max) range.
+        L = V.clamp(self.L_min, self.L_max)
+
+        if V.max() < 1:
+            logging.warning('Pixel values are very low. Perhaps images are' \
+                            ' not scaled in the absolute units of cd/m^2.')
+
+        return L
+
+
+    def  get_peak_luminance( self ):
+        return self.L_max
+
+
+    def get_black_level( self ):
+        return self.L_min
+
+    # Print the display specification
+    def print( self ):
+        Y_black = self.get_black_level()
+
+        logging.info('Photometric display model:')
+        logging.info('  Absolute photometric/colorimetric values')
 
 
 
 class fvvdp_display_photo_gog(fvvdp_display_photometry): 
     # Gain-gamma-offset display model to simulate SDR displays
-    # Object variables:
-    #  Y_peak - display peak luminance in cd/m^2
-    #  contrast - display contrast 
-    #  gamma
-    #  E_ambient
-    #  k_refl
-    
-    # Gain-gamma-offset display model to simulate SDR displays
     #
-    # dm = fvvdp_display_photo_gog( Y_peak )
-    # dm = fvvdp_display_photo_gog( Y_peak, contrast )
-    # dm = fvvdp_display_photo_gog( Y_peak, contrast, gamma )
-    # dm = fvvdp_display_photo_gog( Y_peak, contrast, gamma, E_ambient )
+    # Depreciated, included for compatibility. Use fvvdp_display_photo_eotf instead
+    #
     # dm = fvvdp_display_photo_gog( Y_peak, contrast, gamma, E_ambient, k_refl )
     #
     # Parameters (default value shown in []):

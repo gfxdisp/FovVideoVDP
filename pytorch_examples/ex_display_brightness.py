@@ -20,7 +20,7 @@ k_refl = 0.005    # Reflectivity of the display
 
 Q_JOD = []
 for dd, Y_peak in enumerate(disp_peaks):
-    disp_photo = pyfvvdp.fvvdp_display_photo_gog(Y_peak, contrast, gamma, E_ambient, k_refl)
+    disp_photo = pyfvvdp.fvvdp_display_photo_eotf(Y_peak=Y_peak, contrast=contrast, EOTF='sRGB', gamma=gamma, E_ambient=E_ambient, k_refl=k_refl)
     fv = pyfvvdp.fvvdp(display_name='standard_4k', display_photometry=disp_photo, heatmap='threshold')
     
     q, stats = fv.predict(I_test_noise, I_ref, dim_order="HWC")
