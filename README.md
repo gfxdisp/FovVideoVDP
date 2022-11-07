@@ -18,7 +18,7 @@ If you use the metric in your research, please cite the paper above.
 
 ## PyTorch quickstart
 
-Install with PyPI `pip install pyfvvdp` and run directly from the command line:
+Install with PyPI (`pip install pyfvvdp`) or Anaconda (`conda install -c gfxdisp -c conda-forge pyfvvdp`) and run directly from the command line:
 
 ```bash
 fvvdp --test test_file --ref ref_file --gpu 0 --display standard_fhd

@@ -14,20 +14,23 @@
 # Steps for Conda
 You can build separate packages for different architectures and python versions. This is a guide for python 3.9 on a Linux machine.
 ### Prerequisites
-- Install conda-build: `conda install conda-build`
+- First make sure the pip package is updated.
+- Create a fresh conda environment and activate it.
+- Install some conda packages: `conda install conda-build conda-verify`
 - Install conda client: `conda install anaconda-client`
 - Register at https://anaconda.org/account/login
 
 ### Publish release
-- Navigate to a different folder: `TMP=$(mktmp -d); cd $TMP`
+- Navigate to a different folder: `TMP=$(mktemp -d); cd $TMP`
 - Initialize with pip skeleton: `conda skeleton pypi pyfvvdp`
 - Open the file `pyfvvdp/meta.yaml` and make the following changes:
-  1. replace all occurances of "torch" with "pytorch". Pip and conda reference PyTorch under different names.
-  2. replace "pyfvvdp/third_party" with "pyfvvdp.third_party". Not sure why conda initializes this field incorrectly, need to investigate further.
+  1. `sed -i 's/torch/pytorch/g' pyfvvdp/meta.yaml`: replace all occurances of "torch" with "pytorch". Pip and conda reference PyTorch under different names.
+  2. `sed -i 's/pyfvvdp\/third_party/pyfvvdp.third_party/g' pyfvvdp/meta.yaml`: replace "pyfvvdp/third_party" with "pyfvvdp.third_party". Not sure why conda initializes this field incorrectly, need to investigate further.
   3. update the field "recipe-maintainers".
-- Build the conda package: `conda-build -c conda-forge -c pytorch --python 3.9 pyfvvdp`. You can build multiple packages, one for each python version to be supported.
-- The last few lines of the output will indicate where the build files are. For example `Source and build intermediates have been left in /auto/homes/pmh64/miniconda3/envs/fov/conda-bld`. Let this be `$BLD`
-- Convert the build to other architectures: `conda convert --platform win-64 $BLD/linux-64/pyfvvdp-1.1.1-py39_0.tar.bz2 -o $BLD`
-- Upload all the packages to conda: `anaconda upload $BLD/*/pyfvvdp-*.tar.bz2`
-- Logout from the client: `anaconda logout`
+  4. add requirement `libiconv` (under host and run)
+- Build the conda package: `conda-build -c conda-forge --python 3.9 pyfvvdp`. You can build multiple packages, one for each python version to be supported. **Important** Do not use multiple conda channels. This will result in broken packages.
+- Test the build by installing pyfvvdp `conda install -c ${CONDA_PREFIX}/conda-bld/ -c conda-forge pyfvvdp`
+- Convert the build to other architectures: E.g., `conda convert --platform all ${CONDA_PREFIX}/conda-bld/linux-64/pyfvvdp-1.1.1-py39_0.tar.bz2 -o ${CONDA_PREFIX}/conda-bld`
+- Upload all the packages to conda: `anaconda upload ${CONDA_PREFIX}/conda-bld/*/pyfvvdp-*.tar.bz2`
+- [Optional] Logout from the client: `anaconda logout`
 - [Optional] Clean intermediate build files: `conda build purge`
