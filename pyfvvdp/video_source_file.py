@@ -38,7 +38,7 @@ def load_image_as_array(imgfile):
 
 class video_reader:
 
-    def __init__(self, vidfile, frames, resize_fn=None, height=-1, width=-1):
+    def __init__(self, vidfile, frames, resize_fn=None, resize_height=-1, resize_width=-1):
         try:
             probe = ffmpeg.probe(vidfile)
         except:
@@ -80,10 +80,10 @@ class video_reader:
         #     .run_async(pipe_stdout=True, quiet=True)
         # )
         stream = ffmpeg.input(vidfile)
-        if resize_fn is not None:
-            stream = ffmpeg.filter(stream, 'scale', width, height, flags=resize_fn)
-            self.width = width
-            self.height = height
+        if (resize_fn is not None) and (resize_width!=self.width or resize_height!=self.height):
+            stream = ffmpeg.filter(stream, 'scale', resize_width, resize_height, flags=resize_fn)
+            self.width = resize_width
+            self.height = resize_height
         stream = ffmpeg.output(stream, 'pipe:', format='rawvideo', pix_fmt=self.out_pix_fmt)
         self.process = ffmpeg.run_async(stream, pipe_stderr=True, quiet=True)
 
@@ -107,10 +107,13 @@ Use ffmpeg to read video frames, one by one.
 '''
 class fvvdp_video_source_video_file(fvvdp_video_source_dm):
 
-    def __init__( self, test_fname, reference_fname, display_photometry='sdr_4k_30', color_space_name='auto', frames=-1, resize_fn=None ):
+    #   
+    def __init__( self, test_fname, reference_fname, display_photometry='sdr_4k_30', color_space_name='auto', frames=-1, display_models=None, full_screen_resize=None, resize_resolution=None ):
 
-        self.reference_vidr = video_reader(reference_fname, frames)
-        self.test_vidr = video_reader(test_fname, frames, resize_fn=resize_fn, width=self.reference_vidr.width, height=self.reference_vidr.height)
+        fs_width = -1 if full_screen_resize is None else resize_resolution[0]
+        fs_height = -1 if full_screen_resize is None else resize_resolution[1]
+        self.reference_vidr = video_reader(reference_fname, frames, resize_fn=full_screen_resize, resize_width=fs_width, resize_height=fs_height)
+        self.test_vidr = video_reader(test_fname, frames, resize_fn=full_screen_resize, resize_width=fs_width, resize_height=fs_height)
 
         if color_space_name=='auto':
             if self.test_vidr.color_space=='bt2020nc':
@@ -118,7 +121,7 @@ class fvvdp_video_source_video_file(fvvdp_video_source_dm):
             else:
                 color_space_name="sRGB"
 
-        super().__init__(display_photometry=display_photometry, color_space_name=color_space_name)        
+        super().__init__(display_photometry=display_photometry, color_space_name=color_space_name, display_models=display_models)        
 
         if self.test_vidr.color_transfer=="smpte2084" and self.dm_photometry.EOTF!="PQ":
             raise RuntimeError( f"Video color transfer function ({self.test_vidr.color_transfer}) inconsistent with EOTF of the display model ({self.dm_photometry.EOTF})" )
@@ -199,7 +202,7 @@ Recognize whether the file is an image of video and wraps an appropriate video_s
 '''
 class fvvdp_video_source_file(fvvdp_video_source):
 
-    def __init__( self, test_fname, reference_fname, display_photometry='sdr_4k_30', color_space_name='auto', frames=-1, resize_fn=None ):
+    def __init__( self, test_fname, reference_fname, display_photometry='sdr_4k_30', color_space_name='auto', frames=-1, display_models=None, full_screen_resize=None, resize_resolution=None ):
         # these extensions switch mode to images instead
         image_extensions = [".png", ".jpg", ".gif", ".bmp", ".jpeg", ".ppm", ".tiff", ".dds", ".exr", ".hdr"]
 
@@ -212,10 +215,10 @@ class fvvdp_video_source_file(fvvdp_video_source):
                 color_space_name='sRGB' # TODO: detect the right colour space
             img_test = load_image_as_array(test_fname)
             img_reference = load_image_as_array(reference_fname)
-            self.vs = fvvdp_video_source_array( img_test, img_reference, 0, dim_order='HWC', display_photometry=display_photometry, color_space_name=color_space_name )
+            self.vs = fvvdp_video_source_array( img_test, img_reference, 0, dim_order='HWC', display_photometry=display_photometry, color_space_name=color_space_name, display_models=display_models )
         else:
             assert os.path.splitext(reference_fname)[1].lower() not in image_extensions, 'Test is a video, but reference is an image'
-            self.vs = fvvdp_video_source_video_file( test_fname, reference_fname, display_photometry=display_photometry, color_space_name=color_space_name, frames=frames, resize_fn=resize_fn )
+            self.vs = fvvdp_video_source_video_file( test_fname, reference_fname, display_photometry=display_photometry, color_space_name=color_space_name, frames=frames, display_models=display_models, full_screen_resize=full_screen_resize, resize_resolution=resize_resolution )
 
 
     # Return (height, width, frames) touple with the resolution and

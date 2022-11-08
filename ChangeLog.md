@@ -3,6 +3,7 @@
  - [Python] When passed "--display ?", a list of available display models will be printed
  - [Python] Added PQ EOTF, fvvdp_display_photo_gog replaced with fvvdp_display_photo_eotf. 
  - [Python] sRGB EOTF used by default (instead of gamma). The predictions may differ slightly. 
+ - [Python] Added --full-screen-resize to enlarge videos to the full screen resolution.
  
 # v1.1.3 - 18/10/2022
  - [Python] Added "raw" heatmap type to the command line
