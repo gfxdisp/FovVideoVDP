@@ -35,7 +35,7 @@ def load_image_as_array(imgfile):
 
 class video_reader:
 
-    def __init__(self, vidfile, frames):
+    def __init__(self, vidfile, frames, resize_fn=None, height=-1, width=-1):
         try:
             probe = ffmpeg.probe(vidfile)
         except:
@@ -58,12 +58,19 @@ class video_reader:
                 raise RuntimeError( err_str )
             self.frames = frames
 
-        self.process = (
-            ffmpeg
-            .input(vidfile)
-            .output('pipe:', format='rawvideo', pix_fmt='rgb24')
-            .run_async(pipe_stdout=True, quiet=True)
-        )
+        # self.process = (
+        #     ffmpeg
+        #     .input(vidfile)
+        #     .output('pipe:', format='rawvideo', pix_fmt='rgb24')
+        #     .run_async(pipe_stdout=True, quiet=True)
+        # )
+        stream = ffmpeg.input(vidfile)
+        if resize_fn is not None:
+            stream = ffmpeg.filter(stream, 'scale', width, height, flags=resize_fn)
+            self.width = width
+            self.height = height
+        stream = ffmpeg.output(stream, 'pipe:', format='rawvideo', pix_fmt='rgb24')
+        self.process = ffmpeg.run_async(stream, pipe_stderr=True, quiet=True)
 
         self.curr_frame = -1
 
@@ -85,19 +92,19 @@ Use ffmpeg to read video frames, one by one.
 '''
 class fvvdp_video_source_video_file(fvvdp_video_source_dm):
 
-    def __init__( self, test_fname, reference_fname, display_photometry='sdr_4k_30', color_space_name='sRGB', frames=-1 ):
+    def __init__( self, test_fname, reference_fname, display_photometry='sdr_4k_30', color_space_name='sRGB', frames=-1, resize_fn=None ):
 
         super().__init__(display_photometry=display_photometry, color_space_name=color_space_name)        
 
-        self.test_vidr = video_reader(test_fname, frames)
         self.reference_vidr = video_reader(reference_fname, frames)
+        self.test_vidr = video_reader(test_fname, frames, resize_fn=resize_fn, width=self.reference_vidr.width, height=self.reference_vidr.height)
         if frames==-1:
             self.frames = self.test_vidr.frames
         else:
             self.frames = frames
 
         if self.test_vidr.height != self.reference_vidr.height or self.test_vidr.width != self.reference_vidr.width:
-            raise RuntimeError( 'Test and reference video sequences must have the same resolutions. Found: test {tw}x{th}, reference {rw}x{rh}'.format(tw=self.test_vidr.width, th=self.reference_vidr.height, rw=self.test_vidr.width, rh=self.referemce_vidr.height) )
+            raise RuntimeError( f'Test and reference video sequences must have the same resolutions. Found: test {self.test_vidr.width}x{self.test_vidr.height}, reference {self.reference_vidr.width}x{self.reference_vidr.height}' )
 
         # self.last_test_frame = None
         # self.last_reference_frame = None
@@ -155,7 +162,7 @@ Recognize whether the file is an image of video and wraps an appropriate video_s
 '''
 class fvvdp_video_source_file(fvvdp_video_source):
 
-    def __init__( self, test_fname, reference_fname, display_photometry='sdr_4k_30', color_space_name='sRGB', frames=-1 ):
+    def __init__( self, test_fname, reference_fname, display_photometry='sdr_4k_30', color_space_name='sRGB', frames=-1, resize_fn=None ):
         # these extensions switch mode to images instead
         image_extensions = [".png", ".jpg", ".gif", ".bmp", ".jpeg", ".ppm", ".tiff", ".dds", ".exr", ".hdr"]
 
@@ -169,7 +176,7 @@ class fvvdp_video_source_file(fvvdp_video_source):
             self.vs = fvvdp_video_source_array( img_test, img_reference, 0, dim_order='HWC', display_photometry=display_photometry, color_space_name=color_space_name )
         else:
             assert os.path.splitext(reference_fname)[1].lower() not in image_extensions, 'Test is a video, but reference is an image'
-            self.vs = fvvdp_video_source_video_file( test_fname, reference_fname, display_photometry=display_photometry, color_space_name=color_space_name, frames=frames )
+            self.vs = fvvdp_video_source_video_file( test_fname, reference_fname, display_photometry=display_photometry, color_space_name=color_space_name, frames=frames, resize_fn=resize_fn )
 
 
     # Return (height, width, frames) touple with the resolution and

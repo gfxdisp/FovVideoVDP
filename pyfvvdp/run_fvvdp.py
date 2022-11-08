@@ -81,6 +81,7 @@ def parse_args():
     parser.add_argument("--display-models", type=str, default=None, help="A path to the JSON file with a list of display models")
     #parser.add_argument("--nframes", type=int, default=60, help="# of frames from video you want to load")
     parser.add_argument("--quiet", action='store_const', const=True, default=False, help="Do not print any information but the final JOD value.")
+    parser.add_argument("--resize-fn", choices=['fast_bilinear', 'bilinear', 'bicubic', 'lanczos'], help="Resize function to use if test and reference have different sizes.")
     args = parser.parse_args()
     return args
 
@@ -161,7 +162,7 @@ def main():
         test_file = args.test[min(kk,N_test-1)]
         ref_file = args.ref[min(kk,N_ref-1)]
         logging.info("Predicting the quality of '" + test_file + "' compared to '" + ref_file + "' ...")
-        vs = pyfvvdp.fvvdp_video_source_file( test_file, ref_file )
+        vs = pyfvvdp.fvvdp_video_source_file( test_file, ref_file, resize_fn=args.resize_fn )
         Q_jod, stats = fv.predict_video_source(vs)
         if args.quiet:                
             print( "{Q_jod:0.4f}".format(Q_jod=Q_jod) )
