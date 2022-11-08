@@ -95,7 +95,7 @@ This video_source uses a photometric display model to convert input content (e.g
 """
 class fvvdp_video_source_dm( fvvdp_video_source ):
 
-    def __init__( self,  display_photometry='sdr_4k_30', color_space_name='sRGB' ):
+    def __init__( self,  display_photometry='sdr_4k_30', color_space_name='sRGB', display_models=None ):
         colorspaces_file = os.path.join(os.path.dirname(__file__), "fvvdp_data/color_spaces.json")
         colorspaces = json2dict(colorspaces_file)
 
@@ -105,10 +105,10 @@ class fvvdp_video_source_dm( fvvdp_video_source ):
         self.color_to_luminance = colorspaces[color_space_name]['RGB2Y']
 
         if isinstance( display_photometry, str ):
-            display_models_file = os.path.join(os.path.dirname(__file__), "fvvdp_data/display_models.json")
-            display_models = json2dict(display_models_file)
+            #display_models_file = os.path.join(os.path.dirname(__file__), "fvvdp_data/display_models.json")
+            #display_models = json2dict(display_models_file)
 
-            self.dm_photometry = fvvdp_display_photometry.load(display_photometry)
+            self.dm_photometry = fvvdp_display_photometry.load(display_photometry, models_file=display_models) 
         elif isinstance( display_photometry, fvvdp_display_photometry ):
             self.dm_photometry = display_photometry
         else:
@@ -132,9 +132,9 @@ class fvvdp_video_source_array( fvvdp_video_source_dm ):
     #   class
     # color_space_name - name of the colour space (see
     #   fvvdp_data/color_spaces.json)
-    def __init__( self, test_video, reference_video, fps, dim_order='BCFHW', display_photometry='sdr_4k_30', color_space_name='sRGB' ):
+    def __init__( self, test_video, reference_video, fps, dim_order='BCFHW', display_photometry='sdr_4k_30', color_space_name='sRGB', display_models=None ):
 
-        super().__init__(display_photometry=display_photometry, color_space_name=color_space_name)        
+        super().__init__(display_photometry=display_photometry, color_space_name=color_space_name, display_models=display_models)        
 
         if test_video.shape != reference_video.shape:
             raise RuntimeError( 'Test and reference image/video tensors must be exactly the same shape' )
