@@ -111,8 +111,8 @@ def pq2lin( V ):
     c2   = 18.851562500000000
     c3   = 18.687500000000000
 
-    im_t = torch.power(V,1/m)
-    L = Lmax * torch.power(torch.maximum(im_t-c1,0)/(c2-c3*im_t), 1/n)
+    im_t = torch.pow(V,1/m)
+    L = Lmax * torch.pow((im_t-c1).clamp(min=0)/(c2-c3*im_t), 1/n)
     return L
 
 class fvvdp_display_photo_eotf(fvvdp_display_photometry): 

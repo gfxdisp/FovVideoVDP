@@ -162,7 +162,7 @@ def main():
         test_file = args.test[min(kk,N_test-1)]
         ref_file = args.ref[min(kk,N_ref-1)]
         logging.info("Predicting the quality of '" + test_file + "' compared to '" + ref_file + "' ...")
-        vs = pyfvvdp.fvvdp_video_source_file( test_file, ref_file, resize_fn=args.resize_fn )
+        vs = pyfvvdp.fvvdp_video_source_file( test_file, ref_file, display_photometry=args.display, resize_fn=args.resize_fn )
         Q_jod, stats = fv.predict_video_source(vs)
         if args.quiet:                
             print( "{Q_jod:0.4f}".format(Q_jod=Q_jod) )
