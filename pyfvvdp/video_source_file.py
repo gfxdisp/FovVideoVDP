@@ -10,7 +10,7 @@ import ffmpeg
 from pyfvvdp.fvvdp import fvvdp_video_source, fvvdp_video_source_dm, fvvdp_video_source_array, reshuffle_dims
 
 # for debugging only
-from gfxdisp.pfs import pfs
+# from gfxdisp.pfs import pfs
 
 try:
     # This may fail if OpenEXR is not installed. To install,

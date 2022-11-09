@@ -15,6 +15,7 @@ from pyfvvdp.visualize_diff_map import visualize_diff_map
 
 # For debugging only
 # from gfxdisp.pfs.pfs_torch import pfs_torch
+from torchmetrics import PeakSignalNoiseRatio
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
@@ -283,6 +284,10 @@ class fvvdp:
 
         self.lpyr = None
         self.imgaussfilt = ImGaussFilt(0.5 * self.pix_per_deg, self.device)
+        self.pu = PU()
+        self.psnr_fn = PeakSignalNoiseRatio(data_range=self.pu.peak)
+        self.psnr_scale = 1.0
+        self.psnr_shift = 0.0
 
 
     def update_device( self, device ):
@@ -293,6 +298,7 @@ class fvvdp:
 
         self.lpyr = None
         self.imgaussfilt = ImGaussFilt(0.5 * self.pix_per_deg, self.device)
+        self.psnr_fn = self.psnr_fn.to(device)
 
 
     def load_config( self ):
@@ -487,6 +493,20 @@ class fvvdp:
         if self.debug: self.tb.print_summary()    
 
         return (Q_jod.squeeze(), stats)
+
+    def predict_video_source_pu_psnr(self, vid_source):
+        height, width, N_frames = vid_source.get_video_size()
+        T = torch.stack([vid_source.get_test_frame(ff, device=self.device) for ff in range(N_frames)])
+        R = torch.stack([vid_source.get_reference_frame(ff, device=self.device) for ff in range(N_frames)])
+
+        # Apply PU
+        T = self.pu.encode(T)
+        R = self.pu.encode(R)
+
+        psnr = self.psnr_fn(T, R)
+        jod = psnr*self.psnr_scale + self.psnr_shift
+        return jod, None
+
 
     def compute_local_contrast(self, R, T, next_gauss_band, L_adapt):
         if self.local_adapt=="simple":

@@ -124,3 +124,53 @@ class ImGaussFilt():
 
         img_4d = Func.pad(img_4d, pad, mode='reflect')
         return Func.conv2d(img_4d, self.K)[0,0]
+
+
+class PU():
+    '''
+    Transform absolute linear luminance values to/from the perceptually uniform space.
+    This class is intended for adopting image quality metrics to HDR content.
+
+    This is based on the new spatio-chromatic CSF from:
+      Wuerger, S., Ashraf, M., Kim, M., Martinovic, J., P�rez-Ortiz, M., & Mantiuk, R. K. (2020).
+      Spatio-chromatic contrast sensitivity under mesopic and photopic light levels.
+      Journal of Vision, 20(4), 23. https://doi.org/10.1167/jov.20.4.23
+
+    The implementation should work for both numpy arrays and torch tensors
+    '''
+    def __init__(self, L_min=0.005, L_max=10000, type='banding_glare'):
+        self.L_min = L_min
+        self.L_max = L_max
+
+        if type == 'banding':
+            self.p = [1.063020987, 0.4200327408, 0.1666005322, 0.2817030548, 1.029472678, 1.119265011, 502.1303377]
+        elif type == 'banding_glare':
+            self.p = [234.0235618, 216.9339286, 0.0001091864237, 0.893206924, 0.06733984121, 1.444718567, 567.6315065];
+        elif type == 'peaks':
+            self.p = [1.057454135, 0.6234292574, 0.3060331179, 0.3702234502, 1.116868695, 1.109926637, 391.3707005];
+        elif type == 'peaks_glare':
+            self.p = [1.374063733, 0.3160810744, 0.1350497609, 0.510558148, 1.049265455, 1.404963498, 427.3579761];
+        else:
+            raise ValueError(f'Unknown type: {type}')
+
+        self.peak = self.p[6]*(((self.p[0] + self.p[1]*L_max**self.p[3])/(1 + self.p[2]*L_max**self.p[3]))**self.p[4] - self.p[5])
+
+    def encode(self, Y):
+        '''
+        Convert from linear (optical) values Y to encoded (electronic) values V
+        '''
+        # epsilon = 1e-5
+        # if (Y < (self.L_min - epsilon)).any() or (Y > (self.L_max + epsilon)).any():
+        #     print( 'Values passed to encode are outside the valid range' )
+
+        Y = Y.clip(self.L_min, self.L_max)
+        V = self.p[6]*(((self.p[0] + self.p[1]*Y**self.p[3])/(1 + self.p[2]*Y**self.p[3]))**self.p[4] - self.p[5])
+        return V
+
+    def decode(self, V):
+        '''
+        Convert from encoded (electronic) values V into linear (optical) values Y
+        '''
+        V_p = ((V/self.p[6] + self.p[5]).clip(min=0))**(1/self.p[4])
+        Y = ((V_p - self.p[0]).clip(min=0)/(self.p[1] - self.p[2]*V_p))**(1/self.p[3])
+        return Y
