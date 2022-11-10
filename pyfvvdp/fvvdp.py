@@ -634,6 +634,9 @@ class fvvdp:
         else:
             N = 1.0
 
+        if isinstance( p, torch.Tensor ):
+            p = p.item()
+
         return torch.norm(x, p, dim=dim, keepdim=True) / (float(N) ** (1./p))
 
     def get_temporal_filters(self, frames_per_s):
