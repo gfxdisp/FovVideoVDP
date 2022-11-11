@@ -634,10 +634,11 @@ class fvvdp:
         else:
             N = 1.0
 
-        if isinstance( p, torch.Tensor ):
-            p = p.item()
-
-        return torch.norm(x, p, dim=dim, keepdim=True) / (float(N) ** (1./p))
+        if isinstance( p, torch.Tensor ): 
+            # p is a Tensor if it is being optimized. In that case, we need the formula for the norm
+            return torch.pow( torch.sum(x ** (p), dim=dim, keepdim=True)/float(N), 1/p) 
+        else:
+            return torch.norm(x, p, dim=dim, keepdim=True) / (float(N) ** (1./p))
 
     def get_temporal_filters(self, frames_per_s):
         t = torch.linspace(0.0, self.filter_len / frames_per_s, self.filter_len, device=self.device)
@@ -663,7 +664,10 @@ class fvvdp:
         return F, omega
 
     def torch_scalar(self, val, dtype=torch.float32):
-        return torch.tensor(val, dtype=dtype, device=self.device)
+        if isinstance(val, torch.Tensor):
+            return val
+        else:
+            return torch.tensor(val, dtype=dtype, device=self.device)
 
     '''
     This is the core per-frame processing block. Gradients computed in this function will not be
