@@ -18,10 +18,10 @@ If you use the metric in your research, please cite the paper above.
 
 ## PyTorch quickstart
 
-Start by installing the right version of PyTorch (with Cuda if supported) by following [these instructions](https://pytorch.org/get-started/locally/). Then, install pyffvdp with PyPI `pip install pyfvvdp` or Anaconda `conda install -c gfxdisp -c conda-forge pyfvvdp`. You can run `fvvdp` directly from the command line:
+Start by installing the right version of PyTorch (with CUDA if supported) by following [these instructions](https://pytorch.org/get-started/locally/). Then, install pyfvvdp with PyPI `pip install pyfvvdp` or Anaconda `conda install -c gfxdisp -c conda-forge pyfvvdp`. You can run `fvvdp` directly from the command line:
 
 ```bash
-fvvdp --test test_file --ref ref_file --gpu 0 --display standard_fhd
+fvvdp --test test_file --ref ref_file --display standard_fhd
 ```
 The test and reference files can be images or videos. The option `--display` specifies a display on which the content is viewed. See [fvvdp_data/display_models.json](https://github.com/gfxdisp/FovVideoVDP/blob/main/pyfvvdp/fvvdp_data/display_models.json) for the available displays.
 
@@ -44,12 +44,11 @@ See [Command line interface](#command-line-interface) for further details. FovVi
 
 ## Display specification
 
-Unlike most image quality metrics, FovVideoVDP needs physical specification of the display (e.g. its size, resolution, peak brightness) and viewing conditions (viewing distance, ambient light) to compute accurate predictions. The specifications of the displays are stored in `fvvdp_data/display_models.json`. You can add the exact specification of your display to this file, however, it is unknown to you, you are encouraged to use one of the standard display specifications listed on the top of that file, for example `standard_4k`, or `standard_fhd`. If you use one of the standard displays, there is a better chance that your results will be comparable with other studies. 
+Unlike most image quality metrics, FovVideoVDP needs physical specification of the display (e.g. its size, resolution, peak brightness) and viewing conditions (viewing distance, ambient light) to compute accurate predictions. The specifications of the displays are stored in `fvvdp_data/display_models.json`. You can add the exact specification of your display to this file, or create a new JSON file and pass it as `--display-models` parameter (`fvvdp` command). If the display specification is unknown to you, you are encouraged to use one of the standard display specifications listed on the top of that file, for example `standard_4k`, or `standard_fhd`. If you use one of the standard displays, there is a better chance that your results will be comparable with other studies. 
 
 You specify the display by passing `--display` argument to the PyTorch code, or `display_name` parameter to the MATLAB code. 
 
-Note the the specification in `display_models.json` is for the display and not the image. If you select to use `standard_hdr` with the resolution of 3840x2160 for your display and pass a 1920x1080 image, the metric will assume that the image occupies one quarter of that display (the central portion). 
-
+Note the the specification in `display_models.json` is for the display and not the image. If you select to use `standard_hdr` with the resolution of 3840x2160 for your display and pass a 1920x1080 image, the metric will assume that the image occupies one quarter of that display (the central portion). If you want to enlarge the image to the full resolution of the display, pass `--full-screen-resize {fast_bilinear,bilinear,bicubic,lanczos}` option (now works with video only). 
 
 ### Custom specification
 
@@ -58,7 +57,7 @@ The display photometry and geometry is typically specified by passing `display_n
 ### Reporting metric results
 
 When reporting the results of the metric, please include the string returned by the metric, such as:
-`"FovVideoVDP v1.1, 75.4 [pix/deg], Lpeak=200, Lblack=0.5979 [cd/m^2], non-foveated, (standard_4k)"`
+`"FovVideoVDP v1.4, 75.4 [pix/deg], Lpeak=200, Lblack=0.5979 [cd/m^2], non-foveated, (standard_4k)"`
 This is to ensure that you provide enough details to reproduce your results. 
 
 ### Predicted quality scores

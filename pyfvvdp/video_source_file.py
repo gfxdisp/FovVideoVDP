@@ -232,7 +232,9 @@ class fvvdp_video_source_file(fvvdp_video_source):
                 color_space_name='sRGB' # TODO: detect the right colour space
             img_test = load_image_as_array(test_fname)
             img_reference = load_image_as_array(reference_fname)
-            self.vs = fvvdp_video_source_array( img_test, img_reference, 0, dim_order='HWC', display_photometry=display_photometry, color_space_name=color_space_name, display_models=display_models )
+            if not full_screen_resize is None:
+                logging.error("full-screen-resize not implemented for images.")
+            self.vs = fvvdp_video_source_array( img_test, img_reference, 0, dim_order='HWC', display_photometry=display_photometry, color_space_name=color_space_name, display_models=display_models )            
         else:
             assert os.path.splitext(reference_fname)[1].lower() not in image_extensions, 'Test is a video, but reference is an image'
             self.vs = fvvdp_video_source_video_file( test_fname, reference_fname, display_photometry=display_photometry, color_space_name=color_space_name, frames=frames, display_models=display_models, full_screen_resize=full_screen_resize, resize_resolution=resize_resolution )

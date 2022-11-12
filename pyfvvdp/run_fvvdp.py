@@ -72,7 +72,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description="Evaluate FovVideoVDP on a set of videos")
     parser.add_argument("--test", type=str, nargs='+', required = False, help="list of test images/videos")
     parser.add_argument("--ref", type=str, nargs='+', required = False, help="list of reference images/videos")
-    parser.add_argument("--gpu", type=int,  default=-1, help="select which GPU to use (e.g. 0), default is CPU")
+    parser.add_argument("--gpu", type=int,  default=0, help="select which GPU to use (e.g. 0), default is GPU 0. Pass -1 to run on the CPU.")
     parser.add_argument("--heatmap", type=str, default="none", help="type of difference map (none, raw, threshold, supra-threshold)")
     parser.add_argument("--heatmap-dir", type=str, default=None, help="in which directory heatmaps should be stored (the default is the current directory)")
     parser.add_argument("--foveated", action='store_true', default=False, help="Run in a foveated mode (non-foveated is the default)")
@@ -147,6 +147,8 @@ def main():
         sys.exit()
 
     fv = pyfvvdp.fvvdp( display_name=args.display, foveated=args.foveated, heatmap=args.heatmap, device=device, display_models=args.display_models )
+    if args.verbose:
+        fv.display_photometry.print()
 
     logging.info( 'When reporting metric results, please include the following information:' )    
 
@@ -163,6 +165,7 @@ def main():
         ref_file = args.ref[min(kk,N_ref-1)]
         logging.info("Predicting the quality of '" + test_file + "' compared to '" + ref_file + "' ...")
         vs = pyfvvdp.fvvdp_video_source_file( test_file, ref_file, display_photometry=args.display, full_screen_resize=args.full_screen_resize, resize_resolution=fv.display_geometry.resolution, frames=args.nframes )
+
         Q_jod, stats = fv.predict_video_source(vs)
         if args.quiet:                
             print( "{Q_jod:0.4f}".format(Q_jod=Q_jod) )
