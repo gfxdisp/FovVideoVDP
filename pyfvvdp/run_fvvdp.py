@@ -75,12 +75,12 @@ def parse_args():
     parser.add_argument("--gpu", type=int,  default=-1, help="select which GPU to use (e.g. 0), default is CPU")
     parser.add_argument("--heatmap", type=str, default="none", help="type of difference map (none, raw, threshold, supra-threshold)")
     parser.add_argument("--heatmap-dir", type=str, default=None, help="in which directory heatmaps should be stored (the default is the current directory)")
-    parser.add_argument("--verbose", action='store_true', default=False, help="Verbose mode")
     parser.add_argument("--foveated", action='store_true', default=False, help="Run in a foveated mode (non-foveated is the default)")
     parser.add_argument("--display", type=str, default="standard_4k", help="display name, e.g. 'HTC Vive', or ? to print the list of models.")
     parser.add_argument("--display-models", type=str, default=None, help="A path to the JSON file with a list of display models")
-    #parser.add_argument("--nframes", type=int, default=60, help="# of frames from video you want to load")
-    parser.add_argument("--quiet", action='store_const', const=True, default=False, help="Do not print any information but the final JOD value.")
+    parser.add_argument("--nframes", type=int, default=-1, help="the number of video frames you want to compare")
+    parser.add_argument("--quiet", action='store_true', default=False, help="Do not print any information but the final JOD value. Warning message will be still printed.")
+    parser.add_argument("--verbose", action='store_true', default=False, help="Print out extra information.")
     parser.add_argument("--full-screen-resize", choices=['fast_bilinear', 'bilinear', 'bicubic', 'lanczos'], help="Both test and reference videos will be resized to match the full resolution of the display. Currently works only with videos.")
     args = parser.parse_args()
     return args
@@ -90,8 +90,8 @@ def main():
 
     if args.quiet:
         log_level = logging.WARNING
-    else:
-        log_level = logging.INFO
+    else:        
+        log_level = logging.DEBUG if args.verbose else logging.INFO
         
     logging.basicConfig(format='[%(levelname)s] %(message)s', level=log_level)
 
@@ -162,7 +162,7 @@ def main():
         test_file = args.test[min(kk,N_test-1)]
         ref_file = args.ref[min(kk,N_ref-1)]
         logging.info("Predicting the quality of '" + test_file + "' compared to '" + ref_file + "' ...")
-        vs = pyfvvdp.fvvdp_video_source_file( test_file, ref_file, display_photometry=args.display, full_screen_resize=args.full_screen_resize, resize_resolution=fv.display_geometry.resolution )
+        vs = pyfvvdp.fvvdp_video_source_file( test_file, ref_file, display_photometry=args.display, full_screen_resize=args.full_screen_resize, resize_resolution=fv.display_geometry.resolution, frames=args.nframes )
         Q_jod, stats = fv.predict_video_source(vs)
         if args.quiet:                
             print( "{Q_jod:0.4f}".format(Q_jod=Q_jod) )
