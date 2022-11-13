@@ -163,7 +163,7 @@ def main():
             if args.foveated:
                 logging.warning( f'Foveated mode is not supported by {mm}' )
             fv_mode = 'non-foveated'
-            metrics.append( pyfvvdp.pu_psnr( display_name=args.display, device=device, display_models=args.display_models ) )
+            metrics.append( pyfvvdp.pu_psnr(device=device) )
         else:
             raise RuntimeError( f"Unknown metric {mm}")
 
@@ -179,7 +179,7 @@ def main():
         display_photometry = fvvdp_display_photometry.load(args.display, models_file=args.display_models)
 
     if args.verbose:
-        metrics[0].display_photometry.print()
+        display_photometry.print()
 
     for kk in range( max(N_test, N_ref) ): # For each test and reference pair
         test_file = args.test[min(kk,N_test-1)]
