@@ -61,14 +61,15 @@ class pu_psnr:
         # We assume the pytorch default NCDHW layout
 
         _, _, N_frames = vid_source.get_video_size()
-        T = torch.stack([vid_source.get_test_frame(ff, device=self.device) for ff in range(N_frames)])
-        R = torch.stack([vid_source.get_reference_frame(ff, device=self.device) for ff in range(N_frames)])
 
         psnr = 0.0
-        for T_frame, R_frame in zip(T, R):
+        for ff in range(N_frames):
+            T = vid_source.get_test_frame(ff, device=self.device)
+            R = vid_source.get_reference_frame(ff, device=self.device)
+
             # Apply PU
-            T_enc = self.pu.encode(T_frame)
-            R_enc = self.pu.encode(R_frame)
+            T_enc = self.pu.encode(T)
+            R_enc = self.pu.encode(R)
 
             psnr = psnr + self.psnr_fn(T_enc, R_enc) / N_frames
         return psnr, None
