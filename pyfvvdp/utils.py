@@ -1,11 +1,11 @@
-
 import os
-from third_party.loadmat import loadmat
 import torch
 import numpy as np
 import json
 import torch.nn.functional as Func
 from PIL import Image
+
+from pyfvvdp.third_party.loadmat import loadmat
 
 def torch_gpu_mem_info():
     t = torch.cuda.get_device_properties(0).total_memory

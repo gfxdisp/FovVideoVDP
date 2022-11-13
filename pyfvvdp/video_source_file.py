@@ -9,8 +9,7 @@ import torch
 import ffmpeg
 
 import logging
-
-from pyfvvdp.fvvdp import fvvdp_video_source, fvvdp_video_source_dm, fvvdp_video_source_array, reshuffle_dims
+from video_source import *
 
 # for debugging only
 #from gfxdisp.pfs import pfs

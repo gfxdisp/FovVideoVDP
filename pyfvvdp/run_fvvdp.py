@@ -12,6 +12,7 @@ import torch
 import imageio.v2 as imageio
 
 import pyfvvdp
+
 from fvvdp_display_model import fvvdp_display_photometry
 # from pyfvvdp.visualize_diff_map import visualize_diff_map
 #from pytorch_msssim import SSIM
