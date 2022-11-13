@@ -50,6 +50,8 @@ You specify the display by passing `--display` argument to the PyTorch code, or 
 
 Note the the specification in `display_models.json` is for the display and not the image. If you select to use `standard_hdr` with the resolution of 3840x2160 for your display and pass a 1920x1080 image, the metric will assume that the image occupies one quarter of that display (the central portion). If you want to enlarge the image to the full resolution of the display, pass `--full-screen-resize {fast_bilinear,bilinear,bicubic,lanczos}` option (now works with video only). 
 
+The command line version of FovVideoVDP can take as input HDR video streams encoded using the PQ transfer function (from version 1.1.4). To correctly model HDR content, it is necessary to pass a display model with `EOTF="PQ"`, for example `standard_hdr`.
+
 ### Custom specification
 
 The display photometry and geometry is typically specified by passing `display_name` parameter to the metric. Alternatively, if you need more flexibility in specifying display geometry (size, fov, viewing distance) and its colorimetry, you can instead pass objects of the classes `fvvdp_display_geometry`, `fvvdp_display_photo_gog` for most SDR displays, and `fvvdp_display_photo_absolute` for HDR displays. You can also create your own subclasses of those classes for custom display specification. 
@@ -96,6 +98,7 @@ fvvdp --test example_media/aliasing/ferris-*-*.mp4 --ref example_media/aliasing/
 | Bicubic &#8595;<br />Nearest &#8593;<br />(4x4) | ![bicubic-nearest](https://www.cl.cam.ac.uk/research/rainbow/projects/fovvideovdp/html_reports/github_examples/aliasing/ferris-bicubic-nearest.gif) | 6.4803 | ![bicubic-nearest-diff](https://www.cl.cam.ac.uk/research/rainbow/projects/fovvideovdp/html_reports/github_examples/aliasing/diff_maps/ferris-bicubic-nearest_diff_map_viz.gif) |
 | Nearest &#8595;<br />Bicubic &#8593;<br />(4x4) | ![nearest-bicubic](https://www.cl.cam.ac.uk/research/rainbow/projects/fovvideovdp/html_reports/github_examples/aliasing/ferris-nearest-bicubic.gif) | 6.0446 | ![nearest-bicubic-diff](https://www.cl.cam.ac.uk/research/rainbow/projects/fovvideovdp/html_reports/github_examples/aliasing/diff_maps/ferris-nearest-bicubic_diff_map_viz.gif) |
 | Nearest &#8595;<br />Nearest &#8593;<br />(4x4) | ![nearest-nearest](https://www.cl.cam.ac.uk/research/rainbow/projects/fovvideovdp/html_reports/github_examples/aliasing/ferris-nearest-nearest.gif) | 5.9450 | ![nearest-nearest-diff](https://www.cl.cam.ac.uk/research/rainbow/projects/fovvideovdp/html_reports/github_examples/aliasing/diff_maps/ferris-nearest-nearest_diff_map_viz.gif) |
+
 
 ### Low-level Python interface
 FovVideoVDP can also be run through the Python interface by instatiating the `pyfvvdp.fvvdp.fvvdp` class. This example shows how to predict the quality of images degraded by Gaussian noise and blur.
