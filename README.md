@@ -18,10 +18,10 @@ If you use the metric in your research, please cite the paper above.
 
 ## PyTorch quickstart
 
-Start by installing the right version of PyTorch (with Cuda if supported) by following [these instructions](https://pytorch.org/get-started/locally/). Then, install pyffvdp with PyPI `pip install pyfvvdp` or Anaconda `conda install -c gfxdisp -c conda-forge pyfvvdp`. You can run `fvvdp` directly from the command line:
+Start by installing the right version of PyTorch (with CUDA if supported) by following [these instructions](https://pytorch.org/get-started/locally/). Then, install pyfvvdp with PyPI `pip install pyfvvdp` or Anaconda `conda install -c gfxdisp -c conda-forge pyfvvdp`. You can run `fvvdp` directly from the command line:
 
 ```bash
-fvvdp --test test_file --ref ref_file --gpu 0 --display standard_fhd
+fvvdp --test test_file --ref ref_file --display standard_fhd
 ```
 The test and reference files can be images or videos. The option `--display` specifies a display on which the content is viewed. See [fvvdp_data/display_models.json](https://github.com/gfxdisp/FovVideoVDP/blob/main/pyfvvdp/fvvdp_data/display_models.json) for the available displays.
 
@@ -44,12 +44,13 @@ See [Command line interface](#command-line-interface) for further details. FovVi
 
 ## Display specification
 
-Unlike most image quality metrics, FovVideoVDP needs physical specification of the display (e.g. its size, resolution, peak brightness) and viewing conditions (viewing distance, ambient light) to compute accurate predictions. The specifications of the displays are stored in `fvvdp_data/display_models.json`. You can add the exact specification of your display to this file, however, it is unknown to you, you are encouraged to use one of the standard display specifications listed on the top of that file, for example `standard_4k`, or `standard_fhd`. If you use one of the standard displays, there is a better chance that your results will be comparable with other studies. 
+Unlike most image quality metrics, FovVideoVDP needs physical specification of the display (e.g. its size, resolution, peak brightness) and viewing conditions (viewing distance, ambient light) to compute accurate predictions. The specifications of the displays are stored in `fvvdp_data/display_models.json`. You can add the exact specification of your display to this file, or create a new JSON file and pass it as `--display-models` parameter (`fvvdp` command). If the display specification is unknown to you, you are encouraged to use one of the standard display specifications listed on the top of that file, for example `standard_4k`, or `standard_fhd`. If you use one of the standard displays, there is a better chance that your results will be comparable with other studies. 
 
 You specify the display by passing `--display` argument to the PyTorch code, or `display_name` parameter to the MATLAB code. 
 
-Note the the specification in `display_models.json` is for the display and not the image. If you select to use `standard_hdr` with the resolution of 3840x2160 for your display and pass a 1920x1080 image, the metric will assume that the image occupies one quarter of that display (the central portion). 
+Note the the specification in `display_models.json` is for the display and not the image. If you select to use `standard_hdr` with the resolution of 3840x2160 for your display and pass a 1920x1080 image, the metric will assume that the image occupies one quarter of that display (the central portion). If you want to enlarge the image to the full resolution of the display, pass `--full-screen-resize {fast_bilinear,bilinear,bicubic,lanczos}` option (now works with video only). 
 
+The command line version of FovVideoVDP can take as input HDR video streams encoded using the PQ transfer function (from version 1.1.4). To correctly model HDR content, it is necessary to pass a display model with `EOTF="PQ"`, for example `standard_hdr`.
 
 ### Custom specification
 
@@ -58,7 +59,7 @@ The display photometry and geometry is typically specified by passing `display_n
 ### Reporting metric results
 
 When reporting the results of the metric, please include the string returned by the metric, such as:
-`"FovVideoVDP v1.1, 75.4 [pix/deg], Lpeak=200, Lblack=0.5979 [cd/m^2], non-foveated, (standard_4k)"`
+`"FovVideoVDP v1.4, 75.4 [pix/deg], Lpeak=200, Lblack=0.5979 [cd/m^2], non-foveated, (standard_4k)"`
 This is to ensure that you provide enough details to reproduce your results. 
 
 ### Predicted quality scores
@@ -97,6 +98,7 @@ fvvdp --test example_media/aliasing/ferris-*-*.mp4 --ref example_media/aliasing/
 | Bicubic &#8595;<br />Nearest &#8593;<br />(4x4) | ![bicubic-nearest](https://www.cl.cam.ac.uk/research/rainbow/projects/fovvideovdp/html_reports/github_examples/aliasing/ferris-bicubic-nearest.gif) | 6.4803 | ![bicubic-nearest-diff](https://www.cl.cam.ac.uk/research/rainbow/projects/fovvideovdp/html_reports/github_examples/aliasing/diff_maps/ferris-bicubic-nearest_diff_map_viz.gif) |
 | Nearest &#8595;<br />Bicubic &#8593;<br />(4x4) | ![nearest-bicubic](https://www.cl.cam.ac.uk/research/rainbow/projects/fovvideovdp/html_reports/github_examples/aliasing/ferris-nearest-bicubic.gif) | 6.0446 | ![nearest-bicubic-diff](https://www.cl.cam.ac.uk/research/rainbow/projects/fovvideovdp/html_reports/github_examples/aliasing/diff_maps/ferris-nearest-bicubic_diff_map_viz.gif) |
 | Nearest &#8595;<br />Nearest &#8593;<br />(4x4) | ![nearest-nearest](https://www.cl.cam.ac.uk/research/rainbow/projects/fovvideovdp/html_reports/github_examples/aliasing/ferris-nearest-nearest.gif) | 5.9450 | ![nearest-nearest-diff](https://www.cl.cam.ac.uk/research/rainbow/projects/fovvideovdp/html_reports/github_examples/aliasing/diff_maps/ferris-nearest-nearest_diff_map_viz.gif) |
+
 
 ### Low-level Python interface
 FovVideoVDP can also be run through the Python interface by instatiating the `pyfvvdp.fvvdp.fvvdp` class. This example shows how to predict the quality of images degraded by Gaussian noise and blur.

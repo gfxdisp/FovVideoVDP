@@ -6,7 +6,7 @@ import math
 import logging
 import os
 
-from utils import json2dict
+from pyfvvdp.utils import json2dict
 
 # Convert pixel values to linear RGB using sRGB non-linearity
 # 

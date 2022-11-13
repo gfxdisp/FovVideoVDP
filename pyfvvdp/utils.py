@@ -1,11 +1,11 @@
-
 import os
-from third_party.loadmat import loadmat
 import torch
 import numpy as np
 import json
 import torch.nn.functional as Func
 from PIL import Image
+
+from pyfvvdp.third_party.loadmat import loadmat
 
 def torch_gpu_mem_info():
     t = torch.cuda.get_device_properties(0).total_memory
@@ -20,7 +20,7 @@ def json2dict(file):
         with open(file, "r") as json_file:
             data=json.load(json_file)
     else:
-        print("Error: Cannot find file %s" % file)
+        raise RuntimeError( "Error: Cannot find file {file}" )
     return data
 
 def linear2srgb_torch(lin):
@@ -130,12 +130,10 @@ class PU():
     '''
     Transform absolute linear luminance values to/from the perceptually uniform space.
     This class is intended for adopting image quality metrics to HDR content.
-
     This is based on the new spatio-chromatic CSF from:
       Wuerger, S., Ashraf, M., Kim, M., Martinovic, J., P�rez-Ortiz, M., & Mantiuk, R. K. (2020).
       Spatio-chromatic contrast sensitivity under mesopic and photopic light levels.
       Journal of Vision, 20(4), 23. https://doi.org/10.1167/jov.20.4.23
-
     The implementation should work for both numpy arrays and torch tensors
     '''
     def __init__(self, L_min=0.005, L_max=10000, type='banding_glare'):

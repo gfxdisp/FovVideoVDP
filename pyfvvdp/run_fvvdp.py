@@ -12,7 +12,8 @@ import torch
 import imageio.v2 as imageio
 
 import pyfvvdp
-from fvvdp_display_model import fvvdp_display_photometry
+
+from pyfvvdp.fvvdp_display_model import fvvdp_display_photometry, fvvdp_display_geometry
 # from pyfvvdp.visualize_diff_map import visualize_diff_map
 #from pytorch_msssim import SSIM
 from utils import *
@@ -72,16 +73,17 @@ def parse_args():
     parser = argparse.ArgumentParser(description="Evaluate FovVideoVDP on a set of videos")
     parser.add_argument("--test", type=str, nargs='+', required = False, help="list of test images/videos")
     parser.add_argument("--ref", type=str, nargs='+', required = False, help="list of reference images/videos")
-    parser.add_argument("--gpu", type=int,  default=-1, help="select which GPU to use (e.g. 0), default is CPU")
+    parser.add_argument("--gpu", type=int,  default=0, help="select which GPU to use (e.g. 0), default is GPU 0. Pass -1 to run on the CPU.")
     parser.add_argument("--heatmap", type=str, default="none", help="type of difference map (none, raw, threshold, supra-threshold)")
     parser.add_argument("--heatmap-dir", type=str, default=None, help="in which directory heatmaps should be stored (the default is the current directory)")
-    parser.add_argument("--verbose", action='store_true', default=False, help="Verbose mode")
     parser.add_argument("--foveated", action='store_true', default=False, help="Run in a foveated mode (non-foveated is the default)")
     parser.add_argument("--display", type=str, default="standard_4k", help="display name, e.g. 'HTC Vive', or ? to print the list of models.")
     parser.add_argument("--display-models", type=str, default=None, help="A path to the JSON file with a list of display models")
-    #parser.add_argument("--nframes", type=int, default=60, help="# of frames from video you want to load")
-    parser.add_argument("--quiet", action='store_const', const=True, default=False, help="Do not print any information but the final JOD value.")
+    parser.add_argument("--nframes", type=int, default=-1, help="the number of video frames you want to compare")
+    parser.add_argument("--quiet", action='store_true', default=False, help="Do not print any information but the final JOD value. Warning message will be still printed.")
+    parser.add_argument("--verbose", action='store_true', default=False, help="Print out extra information.")
     parser.add_argument("--full-screen-resize", choices=['fast_bilinear', 'bilinear', 'bicubic', 'lanczos'], help="Both test and reference videos will be resized to match the full resolution of the display. Currently works only with videos.")
+    parser.add_argument("--metrics", choices=['fvvdp', 'pu-psnr'], nargs='+', default=['fvvdp'], help='Select which metric(s) to run')
     args = parser.parse_args()
     return args
 
@@ -90,8 +92,8 @@ def main():
 
     if args.quiet:
         log_level = logging.WARNING
-    else:
-        log_level = logging.INFO
+    else:        
+        log_level = logging.DEBUG if args.verbose else logging.INFO
         
     logging.basicConfig(format='[%(levelname)s] %(message)s', level=log_level)
 
@@ -146,46 +148,68 @@ def main():
         logging.error( "Pass the same number of reference and test sources, or a single reference (to be used with all test sources), or a single test (to be used with all reference sources)." )
         sys.exit()
 
-    fv = pyfvvdp.fvvdp( display_name=args.display, foveated=args.foveated, heatmap=args.heatmap, device=device, display_models=args.display_models )
+    metrics = []
+    display_photometry = None
+    display_geometry = None
+    for mm in args.metrics:
+        if mm == 'fvvdp':
+            fv = pyfvvdp.fvvdp( display_name=args.display, foveated=args.foveated, heatmap=args.heatmap, device=device, display_models=args.display_models )
+            metrics.append( fv )
+            display_photometry = fv.display_photometry
+            display_geometry = fv.display_geometry
+        elif mm == 'pu-psnr':
+            if args.heatmap:
+                logging.warning( f'Skipping heatmap as it is not supported by {mm}' )
+            if args.foveated:
+                logging.warning( f'Foveated mode is not supported by {mm}' )
+            metrics.append( pyfvvdp.pu_psnr(device=device) )
+        else:
+            raise RuntimeError( f"Unknown metric {mm}")
 
-    logging.info( 'When reporting metric results, please include the following information:' )    
+        info_str = metrics[-1].get_info_string()
+        if not info_str is None:
+            logging.info( 'When reporting metric results, please include the following information:' )
+            logging.info( info_str )
 
-    if args.display.startswith('standard_'):
-        #append this if are using one of the standard displays
-        standard_str = ', (' + args.display + ')'
-    else:
-        standard_str = ''
-    fv_mode = 'foveated' if args.foveated else 'non-foveated'
-    logging.info( '"FovVideoVDP v{}, {:.4g} [pix/deg], Lpeak={:.5g}, Lblack={:.4g} [cd/m^2], {}{}"'.format(fv.version, fv.pix_per_deg, fv.display_photometry.get_peak_luminance(), fv.display_photometry.get_black_level(), fv_mode, standard_str) )
+    # If none of the metrics requires display geometry/photometry, we still need those for video source
+    if display_geometry is None:
+        display_geometry = fvvdp_display_geometry.load(args.display, models_file=args.display_models)
+    if display_photometry is None:
+        display_photometry = fvvdp_display_photometry.load(args.display, models_file=args.display_models)
 
-    for kk in range( max(N_test, N_ref) ):
+    if args.verbose:
+        display_photometry.print()
+
+    for kk in range( max(N_test, N_ref) ): # For each test and reference pair
         test_file = args.test[min(kk,N_test-1)]
         ref_file = args.ref[min(kk,N_ref-1)]
-        logging.info("Predicting the quality of '" + test_file + "' compared to '" + ref_file + "' ...")
-        vs = pyfvvdp.fvvdp_video_source_file( test_file, ref_file, display_photometry=args.display, full_screen_resize=args.full_screen_resize, resize_resolution=fv.display_geometry.resolution )
-        Q_jod, stats = fv.predict_video_source(vs)
-        if args.quiet:                
-            print( "{Q_jod:0.4f}".format(Q_jod=Q_jod) )
-        else:
-            print( "Q_JOD={Q_jod:0.4f}".format(Q_jod=Q_jod) )
-
-        if do_heatmap:
-            # diff_type = heatmap_types[args.heatmap]
-            # heatmap = stats["heatmap"] * diff_type["scale"]
-            # diff_map_viz = visualize_diff_map(heatmap, context_image=ref_vid_luminance, colormap_type=diff_type["colormap_type"])
-            out_dir = "." if args.heatmap_dir is None else args.heatmap_dir
-            os.makedirs(out_dir, exist_ok=True)
-            base, ext = os.path.splitext(os.path.basename(test_file))            
-            if stats["heatmap"].shape[2]>1: # if it is a video
-                dest_name = os.path.join(out_dir, base + "_heatmap.mp4")
-                logging.info("Writing heat map '" + dest_name + "' ...")
-                np2vid(torch.squeeze(stats["heatmap"].permute((2,3,4,1,0)), dim=4).cpu().numpy(), dest_name, vs.get_frames_per_second(), args.verbose)
+        logging.info(f"Predicting the quality of '{test_file}' compared to '{ref_file}'")
+        for mm in metrics:
+            vs = pyfvvdp.fvvdp_video_source_file( test_file, ref_file, display_photometry=display_photometry, full_screen_resize=args.full_screen_resize, resize_resolution=display_geometry.resolution, frames=args.nframes )
+            Q_pred, stats = mm.predict_video_source(vs)
+            if args.quiet:
+                print( "{Q:0.4f}".format(Q=Q_pred) )
             else:
-                dest_name = os.path.join(out_dir, base + "_heatmap.png")
-                logging.info("Writing heat map '" + dest_name + "' ...")
-                np2img(torch.squeeze(stats["heatmap"].permute((2,3,4,1,0)), dim=4).cpu().numpy(), dest_name)
-                
-            del stats
+                units_str = f" [{mm.quality_unit()}]"
+                print( "{met_name}={Q:0.4f}{units}".format(met_name=mm.short_name(), Q=Q_pred, units=units_str) )
+
+            if do_heatmap and not stats is None:
+                # diff_type = heatmap_types[args.heatmap]
+                # heatmap = stats["heatmap"] * diff_type["scale"]
+                # diff_map_viz = visualize_diff_map(heatmap, context_image=ref_vid_luminance, colormap_type=diff_type["colormap_type"])
+                out_dir = "." if args.heatmap_dir is None else args.heatmap_dir
+                os.makedirs(out_dir, exist_ok=True)
+                base, ext = os.path.splitext(os.path.basename(test_file))            
+                if stats["heatmap"].shape[2]>1: # if it is a video
+                    dest_name = os.path.join(out_dir, base + "_heatmap.mp4")
+                    logging.info("Writing heat map '" + dest_name + "' ...")
+                    np2vid(torch.squeeze(stats["heatmap"].permute((2,3,4,1,0)), dim=4).cpu().numpy(), dest_name, vs.get_frames_per_second(), args.verbose)
+                else:
+                    dest_name = os.path.join(out_dir, base + "_heatmap.png")
+                    logging.info("Writing heat map '" + dest_name + "' ...")
+                    np2img(torch.squeeze(stats["heatmap"].permute((2,3,4,1,0)), dim=4).cpu().numpy(), dest_name)
+                    
+                del stats
 
     #     del test_vid
     #     torch.cuda.empty_cache()
