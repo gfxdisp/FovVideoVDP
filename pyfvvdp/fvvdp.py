@@ -42,8 +42,10 @@ class fvvdp:
 
         if display_photometry is None:
             self.display_photometry = fvvdp_display_photometry.load(display_name, models_file=display_models)
+            self.display_name = display_name
         else:
             self.display_photometry = display_photometry
+            self.display_name = "unspecified"
         
         self.do_heatmap = (not self.heatmap is None) and (self.heatmap != "none")
 
@@ -539,6 +541,21 @@ class fvvdp:
 
     def torch_scalar(self, val, dtype=torch.float32):
         return torch.tensor(val, dtype=dtype, device=self.device)
+
+    def short_name(self):
+        return "FovVideoVDP"
+
+    def quality_unit(self):
+        return "JOD"
+
+    def get_info_string(self):
+        if self.display_name.startswith('standard_'):
+            #append this if are using one of the standard displays
+            standard_str = ', (' + self.display_name + ')'
+        else:
+            standard_str = ''
+        fv_mode = 'foveated' if self.foveated else 'non-foveated'
+        return '"FovVideoVDP v{}, {:.4g} [pix/deg], Lpeak={:.5g}, Lblack={:.4g} [cd/m^2], {}{}"'.format(self.version, self.pix_per_deg, self.display_photometry.get_peak_luminance(), self.display_photometry.get_black_level(), fv_mode, standard_str)
 
 
 

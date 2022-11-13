@@ -9,7 +9,7 @@ from pyfvvdp.fvvdp_display_model import fvvdp_display_photometry, fvvdp_display_
 PU21-PSNR metric. Usage is same as the FovVideoVDP metric (see pytorch_examples).
 """
 class pu_psnr:
-    def __init__(self, display_name="standard_4k", display_photometry=None, display_geometry=None, color_space="sRGB", foveated=False, heatmap=None, quiet=False, device=None, display_models=None):
+    def __init__(self, display_name="standard_4k", display_photometry=None, display_geometry=None, color_space="sRGB", quiet=False, device=None, display_models=None):
         self.color_space = color_space
 
         if display_photometry is None:
@@ -91,9 +91,19 @@ class pu_psnr:
         R_enc = self.pu.encode(R)
 
         psnr = self.psnr_fn(T_enc, R_enc)
-        jod = psnr*self.scale + self.shift
-        return jod, None
+        # we should not add that shift 
+        #jod = psnr*self.scale + self.shift 
+        return psnr, None
 
     def psnr_fn(self, img1, img2):
         mse = torch.mean( (img1 - img2)**2 )
         return 20*torch.log10( self.pu.peak/torch.sqrt(mse) )
+
+    def short_name(self):
+        return "PU21-PSNR"
+
+    def quality_unit(self):
+        return "dB"
+
+    def get_info_string(self):
+        return None

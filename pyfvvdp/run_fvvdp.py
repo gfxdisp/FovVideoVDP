@@ -13,7 +13,7 @@ import imageio.v2 as imageio
 
 import pyfvvdp
 
-from fvvdp_display_model import fvvdp_display_photometry
+from fvvdp_display_model import fvvdp_display_photometry, fvvdp_display_geometry
 # from pyfvvdp.visualize_diff_map import visualize_diff_map
 #from pytorch_msssim import SSIM
 from utils import *
@@ -148,42 +148,53 @@ def main():
         logging.error( "Pass the same number of reference and test sources, or a single reference (to be used with all test sources), or a single test (to be used with all reference sources)." )
         sys.exit()
 
+    metrics = []
+    display_photometry = None
+    display_geometry = None
     for mm in args.metrics:
         if mm == 'fvvdp':
-            metric = pyfvvdp.fvvdp( display_name=args.display, foveated=args.foveated, heatmap=args.heatmap, device=device, display_models=args.display_models )
-            if args.verbose:
-                metric.display_photometry.print()
-
-            logging.info( 'When reporting metric results, please include the following information:' )
-
-            if args.display.startswith('standard_'):
-                #append this if are using one of the standard displays
-                standard_str = ', (' + args.display + ')'
-            else:
-                standard_str = ''
-            fv_mode = 'foveated' if args.foveated else 'non-foveated'
-            logging.info( '"FovVideoVDP v{}, {:.4g} [pix/deg], Lpeak={:.5g}, Lblack={:.4g} [cd/m^2], {}{}"'.format(metric.version, metric.pix_per_deg, metric.display_photometry.get_peak_luminance(), metric.display_photometry.get_black_level(), fv_mode, standard_str) )
+            fv = pyfvvdp.fvvdp( display_name=args.display, foveated=args.foveated, heatmap=args.heatmap, device=device, display_models=args.display_models )
+            metrics.append( fv )
+            display_photometry = fv.display_photometry
+            display_geometry = fv.display_geometry
         elif mm == 'pu-psnr':
             if args.heatmap:
                 logging.warning( f'Skipping heatmap as it is not supported by {mm}' )
             if args.foveated:
                 logging.warning( f'Foveated mode is not supported by {mm}' )
             fv_mode = 'non-foveated'
-            metric = pyfvvdp.pu_psnr( display_name=args.display, foveated=args.foveated, heatmap=False, device=device, display_models=args.display_models )
+            metrics.append( pyfvvdp.pu_psnr( display_name=args.display, device=device, display_models=args.display_models ) )
+        else:
+            raise RuntimeError( f"Unknown metric {mm}")
 
-        for kk in range( max(N_test, N_ref) ):
-            test_file = args.test[min(kk,N_test-1)]
-            ref_file = args.ref[min(kk,N_ref-1)]
-            logging.info(f"Predicting the quality of '{test_file}' compared to '{ref_file}' using metric {mm} ...")
-            vs = pyfvvdp.fvvdp_video_source_file( test_file, ref_file, display_models=args.display_models, display_photometry=args.display, full_screen_resize=args.full_screen_resize, resize_resolution=metric.display_geometry.resolution, frames=args.nframes )
+        info_str = metrics[-1].get_info_string()
+        if not info_str is None:
+            logging.info( 'When reporting metric results, please include the following information:' )
+            logging.info( info_str )
 
-            Q_jod, stats = metric.predict_video_source(vs)
+    # If none of the metrics requires display geometry/photometry, we still need those for video source
+    if display_geometry is None:
+        display_geometry = fvvdp_display_geometry.load(args.display, models_file=args.display_models)
+    if display_photometry is None:
+        display_photometry = fvvdp_display_photometry.load(args.display, models_file=args.display_models)
+
+    if args.verbose:
+        metrics[0].display_photometry.print()
+
+    for kk in range( max(N_test, N_ref) ): # For each test and reference pair
+        test_file = args.test[min(kk,N_test-1)]
+        ref_file = args.ref[min(kk,N_ref-1)]
+        logging.info(f"Predicting the quality of '{test_file}' compared to '{ref_file}'")
+        for mm in metrics:
+            vs = pyfvvdp.fvvdp_video_source_file( test_file, ref_file, display_photometry=display_photometry, full_screen_resize=args.full_screen_resize, resize_resolution=display_geometry.resolution, frames=args.nframes )
+            Q_pred, stats = mm.predict_video_source(vs)
             if args.quiet:
-                print( "{Q_jod:0.4f}".format(Q_jod=Q_jod) )
+                print( "{Q:0.4f}".format(Q=Q_pred) )
             else:
-                print( "Q_JOD={Q_jod:0.4f}".format(Q_jod=Q_jod) )
+                units_str = f" [{mm.quality_unit()}]"
+                print( "{met_name}={Q:0.4f}{units}".format(met_name=mm.short_name(), Q=Q_pred, units=units_str) )
 
-            if do_heatmap:
+            if do_heatmap and not stats is None:
                 # diff_type = heatmap_types[args.heatmap]
                 # heatmap = stats["heatmap"] * diff_type["scale"]
                 # diff_map_viz = visualize_diff_map(heatmap, context_image=ref_vid_luminance, colormap_type=diff_type["colormap_type"])
