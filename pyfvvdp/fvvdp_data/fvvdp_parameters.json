@@ -25,8 +25,5 @@
     "mask_q_sust": 2.43685,
     "mask_q_trans": 4.946,
     "k_cm": 0.604562,
-    "filter_len": -1,
-
-    "pu_psnr_scale": 1.0,
-    "pu_psnr_shift": 0.0
+    "filter_len": -1
 }

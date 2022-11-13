@@ -162,7 +162,6 @@ def main():
                 logging.warning( f'Skipping heatmap as it is not supported by {mm}' )
             if args.foveated:
                 logging.warning( f'Foveated mode is not supported by {mm}' )
-            fv_mode = 'non-foveated'
             metrics.append( pyfvvdp.pu_psnr(device=device) )
         else:
             raise RuntimeError( f"Unknown metric {mm}")

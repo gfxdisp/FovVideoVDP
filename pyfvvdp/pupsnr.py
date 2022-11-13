@@ -1,9 +1,7 @@
 import torch
-import os
 
-from pyfvvdp.utils import json2dict, PU
+from pyfvvdp.utils import PU
 from pyfvvdp.video_source import *
-from pyfvvdp.fvvdp_display_model import fvvdp_display_photometry, fvvdp_display_geometry
 
 """
 PU21-PSNR metric. Usage is same as the FovVideoVDP metric (see pytorch_examples).
@@ -19,15 +17,8 @@ class pu_psnr:
         else:
             self.device = device
 
-        self.load_config()
         self.pu = PU()
 
-    def load_config( self ):
-        parameters_file = os.path.join(os.path.dirname(__file__), "fvvdp_data/fvvdp_parameters.json")
-        parameters = json2dict(parameters_file)
-
-        self.shift = parameters['pu_psnr_shift']
-        self.scale = parameters['pu_psnr_scale']
 
     '''
     Videos/images are encoded using perceptually uniform PU21 before computing PSNR.
@@ -73,13 +64,13 @@ class pu_psnr:
         T = torch.stack([vid_source.get_test_frame(ff, device=self.device) for ff in range(N_frames)])
         R = torch.stack([vid_source.get_reference_frame(ff, device=self.device) for ff in range(N_frames)])
 
-        # Apply PU
-        T_enc = self.pu.encode(T)
-        R_enc = self.pu.encode(R)
+        psnr = 0.0
+        for T_frame, R_frame in zip(T, R):
+            # Apply PU
+            T_enc = self.pu.encode(T_frame)
+            R_enc = self.pu.encode(R_frame)
 
-        psnr = self.psnr_fn(T_enc, R_enc)
-        # we should not add that shift 
-        #jod = psnr*self.scale + self.shift 
+            psnr = psnr + self.psnr_fn(T_enc, R_enc) / N_frames
         return psnr, None
 
     def psnr_fn(self, img1, img2):
