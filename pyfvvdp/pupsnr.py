@@ -86,3 +86,6 @@ class pu_psnr:
 
     def get_info_string(self):
         return None
+
+    def update_device(self, device):
+        self.device = device
