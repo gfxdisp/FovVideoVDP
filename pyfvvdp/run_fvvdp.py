@@ -149,14 +149,15 @@ def main():
         sys.exit()
 
     metrics = []
-    display_photometry = None
-    display_geometry = None
+    display_photometry = fvvdp_display_photometry.load(args.display, models_file=args.display_models)
+    display_geometry = fvvdp_display_geometry.load(args.display, models_file=args.display_models)
+    if args.verbose:
+        display_photometry.print()
+
     for mm in args.metrics:
         if mm == 'fvvdp':
-            fv = pyfvvdp.fvvdp( display_name=args.display, foveated=args.foveated, heatmap=args.heatmap, device=device, display_models=args.display_models )
+            fv = pyfvvdp.fvvdp( display_photometry=display_photometry, display_geometry=display_geometry, foveated=args.foveated, heatmap=args.heatmap, device=device )
             metrics.append( fv )
-            display_photometry = fv.display_photometry
-            display_geometry = fv.display_geometry
         elif mm == 'pu-psnr':
             if args.heatmap:
                 logging.warning( f'Skipping heatmap as it is not supported by {mm}' )
@@ -170,15 +171,6 @@ def main():
         if not info_str is None:
             logging.info( 'When reporting metric results, please include the following information:' )
             logging.info( info_str )
-
-    # If none of the metrics requires display geometry/photometry, we still need those for video source
-    if display_geometry is None:
-        display_geometry = fvvdp_display_geometry.load(args.display, models_file=args.display_models)
-    if display_photometry is None:
-        display_photometry = fvvdp_display_photometry.load(args.display, models_file=args.display_models)
-
-    if args.verbose:
-        display_photometry.print()
 
     for kk in range( max(N_test, N_ref) ): # For each test and reference pair
         test_file = args.test[min(kk,N_test-1)]
