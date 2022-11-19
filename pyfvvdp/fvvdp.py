@@ -22,7 +22,7 @@ from pyfvvdp.video_source import *
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from third_party.cpuinfo import cpuinfo
-from hdrvdp_lpyr_dec import hdrvdp_lpyr_dec
+from pyfvvdp.fvvdp_lpyr_dec import fvvdp_lpyr_dec, fvvdp_contrast_pyr
 from interp import interp1, interp3
 from utils import *
 from fvvdp_test import FovVideoVDP_Testbench
@@ -64,7 +64,7 @@ class fvvdp:
                 self.device = torch.device('cpu')
         else:
             self.device = device
-
+        
         self.load_config()
 
         # if self.mask_s > 0.0:
@@ -82,6 +82,7 @@ class fvvdp:
 
         self.lpyr = None
         self.imgaussfilt = ImGaussFilt(0.5 * self.pix_per_deg, self.device)
+        self.heatmap_pyr = None
 
 
     def load_config( self ):
@@ -165,7 +166,14 @@ class fvvdp:
             fixation_point = torch.tensor(fixation_point)
 
         if self.lpyr is None or self.lpyr.W!=width or self.lpyr.H!=height:
-            self.lpyr = hdrvdp_lpyr_dec(width, height, self.pix_per_deg, self.device)
+            if self.local_adapt=="gpyr":
+                self.lpyr = fvvdp_contrast_pyr(width, height, self.pix_per_deg, self.device)
+            else:
+                self.lpyr = fvvdp_lpyr_dec(width, height, self.pix_per_deg, self.device)
+
+            if self.do_heatmap:
+                self.heatmap_pyr = fvvdp_lpyr_dec(width, height, self.pix_per_deg, self.device)
+
 
         #assert self.W == R_vid.shape[-1] and self.H == R_vid.shape[-2]
         #assert len(R_vid.shape)==5
@@ -255,7 +263,7 @@ class fvvdp:
             # Perform Laplacian decomposition
             # B = [None] * R.shape[1]
             # for rr in range(R.shape[1]):
-            #     B[rr] = hdrvdp_lpyr_dec( R[0,rr:(rr+1),0:1,:,:], self.pix_per_deg, self.device)
+            #     B[rr] = fvvdp_lpyr_dec( R[0,rr:(rr+1),0:1,:,:], self.pix_per_deg, self.device)
 
             B_bands, B_gbands = self.lpyr.decompose(R[0,...])
 
@@ -265,7 +273,7 @@ class fvvdp:
             N_nCSF = [[None, None] for i in range(self.lpyr.get_band_count()-1)]
 
             if self.do_heatmap:
-                Dmap_pyr_bands, Dmap_pyr_gbands = self.lpyr.decompose( torch.zeros([1,1,height,width], dtype=torch.float, device=self.device))
+                Dmap_pyr_bands, Dmap_pyr_gbands = self.heatmap_pyr.decompose( torch.zeros([1,1,height,width], dtype=torch.float, device=self.device))
 
             # L_bkg_bb = [None for i in range(self.lpyr.get_band_count()-1)]
 
@@ -289,8 +297,12 @@ class fvvdp:
                     T_f = self.lpyr.get_band(B_bands, bb)[cc*2+0,0,...]
                     R_f = self.lpyr.get_band(B_bands, bb)[cc*2+1,0,...]
 
-                    L_bkg, R_f, T_f = self.compute_local_contrast(R_f, T_f, 
-                        self.lpyr.get_gband(B_gbands, bb+1)[1:2,...], L_adapt)
+                    if self.local_adapt=="gpyr":
+                        L_bkg = self.lpyr.get_gband(B_gbands, bb)
+                    else:
+                        # 1:2 below is passing reference sustained
+                        L_bkg, R_f, T_f = self.compute_local_contrast(R_f, T_f, 
+                            self.lpyr.get_gband(B_gbands, bb+1)[1:2,...], L_adapt)
 
                     # temp_errs[ff] += torch.mean(torch.abs(R_f - T_f))
                     # continue
@@ -342,14 +354,15 @@ class fvvdp:
                         # if self.debug: self.tb.verify_against_matlab(N_nCSF[bb][cc], 'N_nCSF_data', self.device, file='N_nCSF_%d_%d_%d' % (ff+1,bb+1,cc+1), tolerance = 0.01, relative = True)
 
                     D = self.apply_masking_model(T_f, R_f, N_nCSF[bb][cc], cc)
+
                     if self.debug: self.tb.verify_against_matlab(D, 'D_data', self.device, file='D_%d_%d_%d' % (ff+1,bb+1,cc+1), tolerance = 0.1, relative = True, verbose=False)
 
                     if self.do_heatmap:
-                        if cc == 0: self.lpyr.set_band(Dmap_pyr_bands, bb, D)
-                        else:       self.lpyr.set_band(Dmap_pyr_bands, bb, self.lpyr.get_band(Dmap_pyr_bands, bb) + w_temp_ch[cc] * D)
+                        if cc == 0: self.heatmap_pyr.set_band(Dmap_pyr_bands, bb, D)
+                        else:       self.heatmap_pyr.set_band(Dmap_pyr_bands, bb, self.heatmap_pyr.get_band(Dmap_pyr_bands, bb) + w_temp_ch[cc] * D)
 
                     if Q_per_ch is None:
-                        Q_per_ch = torch.zeros((len(B_bands)-1, 2, N_frames), device=self.device)
+                        Q_per_ch = torch.zeros((self.lpyr.height, 2, N_frames), device=self.device)
 
                     Q_per_ch[bb,cc,ff] = w_temp_ch[cc] * self.lp_norm(D.flatten(), self.beta, 0, True)
 
@@ -357,7 +370,7 @@ class fvvdp:
             # break
             if self.do_heatmap:
                 beta_jod = np.power(10.0, self.log_jod_exp)
-                dmap = torch.pow(self.lpyr.reconstruct(Dmap_pyr_bands), beta_jod) * abs(self.jod_a)         
+                dmap = torch.pow(self.heatmap_pyr.reconstruct(Dmap_pyr_bands), beta_jod) * abs(self.jod_a)         
                 if self.heatmap == "raw":
                     heatmap[:,:,ff,...] = dmap 
                 else:
@@ -461,6 +474,7 @@ class fvvdp:
         if self.pu_dilate != 0:
             M_pu = imgaussfilt( M, self.pu_dilate ) * torch.pow(10.0, self.mask_c)
         else:
+            #M_pu = M * (10**self.mask_c); # * torch.pow(self.torch_scalar(10.0), self.torch_scalar(self.mask_c))
             M_pu = M * torch.pow(self.torch_scalar(10.0), self.torch_scalar(self.mask_c))
         return M_pu
 
