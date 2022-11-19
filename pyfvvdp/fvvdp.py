@@ -505,10 +505,7 @@ class fvvdp:
             D = self.mask_func_perc_norm( d, M )
         elif self.masking_model == 'min_mutual_masking_perc_norm2':
             p = self.mask_p
-            if cc==0:
-                q = self.mask_q_sust
-            else:
-                q = self.mask_q_trans     
+            q = self.mask_q_sust if cc==0 else self.mask_q_trans            
             T = torch.div(T, N)
             R = torch.div(R, N)
             M = self.phase_uncertainty( torch.min( torch.abs(T), torch.abs(R) ) )

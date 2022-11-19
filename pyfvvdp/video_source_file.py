@@ -89,13 +89,15 @@ class video_reader:
             stream = ffmpeg.filter(stream, 'scale', resize_width, resize_height, flags=resize_fn)
             self.width = resize_width
             self.height = resize_height
-        stream = ffmpeg.output(stream, 'pipe:', format='rawvideo', pix_fmt=self.out_pix_fmt)
+        stream = ffmpeg.output(stream, 'pipe:', format='rawvideo', pix_fmt=self.out_pix_fmt).global_args( '-loglevel', 'info' )
         self.process = ffmpeg.run_async(stream, pipe_stderr=True, quiet=True)
 
         self.curr_frame = -1
 
     def get_frame(self):
         in_bytes = self.process.stdout.read(self.width * self.height * self.bpp )
+        total_mbytes = (self.curr_frame+1)*self.width * self.height * self.bpp / 1000000
+        print( f"Read total: {total_mbytes} MB")
         if not in_bytes or self.curr_frame == self.frames:
             return None
         in_frame = (
