@@ -20,7 +20,7 @@ tst_fname = 'S:\\Datasets\\LIVEHDR\\test\\4k_6M_Bonfire.mp4'
 
 fv = pyfvvdp.fvvdp(display_name=display_name, heatmap=None)
 
-frames = 10;
+frames = 20
 
 vs_file = pyfvvdp.fvvdp_video_source_file( tst_fname, ref_fname, display_photometry=display_name, frames=frames )
 
@@ -28,7 +28,7 @@ H, W, N = vs_file.get_video_size()
 tst_frames = torch.zeros( [1, 1, frames, H, W], dtype=torch.float32, device=fv.device )
 ref_frames = torch.zeros( [1, 1, frames, H, W], dtype=torch.float32, device=fv.device )
 
-print( "Pre-loading frames" )
+print( "Pre-loading frames..." )
 start = time.time()
 for ff in range(frames):
     tst_frames[:,:,ff,:,:] = vs_file.get_test_frame( ff, fv.device )
@@ -39,6 +39,9 @@ print( 'Loading frames took {:.4f} secs'.format(end-start) )
 # Using fvvdp_display_photo_absolute as display model has been already applied
 vs = fvvdp_video_source_array( tst_frames, ref_frames, vs_file.get_frames_per_second(), display_photometry=fvvdp_display_photo_absolute() )
 
+del vs_file # Explicitly close video reading processes
+
+print( "Running the metric..." )
 with profile(activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA], record_shapes=True) as prof:
     with record_function("model_inference"):
         start = time.time()

@@ -78,26 +78,19 @@ class video_reader:
                 raise RuntimeError( err_str )
             self.frames = frames
 
-        # self.process = (
-        #     ffmpeg
-        #     .input(vidfile)
-        #     .output('pipe:', format='rawvideo', pix_fmt='rgb24')
-        #     .run_async(pipe_stdout=True, quiet=True)
-        # )
         stream = ffmpeg.input(vidfile)
         if (resize_fn is not None) and (resize_width!=self.width or resize_height!=self.height):
             stream = ffmpeg.filter(stream, 'scale', resize_width, resize_height, flags=resize_fn)
             self.width = resize_width
             self.height = resize_height
-        stream = ffmpeg.output(stream, 'pipe:', format='rawvideo', pix_fmt=self.out_pix_fmt).global_args( '-loglevel', 'info' )
-        self.process = ffmpeg.run_async(stream, pipe_stderr=True, quiet=True)
+        stream = ffmpeg.output(stream, 'pipe:', format='rawvideo', pix_fmt=self.out_pix_fmt)
+        #.global_args( '-loglevel', 'info' )
+        self.process = ffmpeg.run_async(stream, pipe_stdout=True, quiet=True)
 
         self.curr_frame = -1
 
     def get_frame(self):
         in_bytes = self.process.stdout.read(self.width * self.height * self.bpp )
-        total_mbytes = (self.curr_frame+1)*self.width * self.height * self.bpp / 1000000
-        print( f"Read total: {total_mbytes} MB")
         if not in_bytes or self.curr_frame == self.frames:
             return None
         in_frame = (
@@ -107,6 +100,22 @@ class video_reader:
         ) 
         self.curr_frame += 1
         return in_frame       
+
+    # Delete or close if program was interrupted
+    def __del__(self):
+        self.close()        
+
+    def close(self):
+        if not self.process is None:
+            self.process.stdout.close()
+            self.process.kill() # We may wait forever if we do not read all the frames
+            self.process = None
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, type, value, tb):
+        self.close()
 
 
 '''
