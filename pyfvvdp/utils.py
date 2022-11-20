@@ -3,7 +3,7 @@ import torch
 import numpy as np
 import json
 import torch.nn.functional as Func
-from PIL import Image
+#from PIL import Image
 
 from pyfvvdp.third_party.loadmat import loadmat
 
@@ -36,8 +36,8 @@ def srgb2linear_torch(srgb):
 def img2np(img):
     return np.array(img, dtype="float32") * 1.0/255.0
 
-def np2img(nparr):
-    return Image.fromarray(np.clip(nparr * 255.0, 0.0, 255.0).astype('uint8'))
+# def np2img(nparr):
+#     return Image.fromarray(np.clip(nparr * 255.0, 0.0, 255.0).astype('uint8'))
 
 def l2rgb(x):
     return np.concatenate([x,x,x], -1)

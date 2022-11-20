@@ -12,7 +12,8 @@ import logging
 from video_source import *
 
 # for debugging only
-#from gfxdisp.pfs import pfs
+# from gfxdisp.pfs import pfs
+# from gfxdisp.pfs.pfs_torch import pfs_torch
 
 try:
     # This may fail if OpenEXR is not installed. To install,
