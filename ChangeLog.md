@@ -6,6 +6,8 @@
  - [Python] Added --full-screen-resize to enlarge videos to the full screen resolution.
  - [Python] Now GPU 0 is used by default (if available).
  - [Python] Added --metrics parameter, with an option to compute PU-PSNR.
+ - [Python] Added --temp-padding parameter.
+ - [Python] Minor performance improvements.
  
 # v1.1.3 - 18/10/2022
  - [Python] Added "raw" heatmap type to the command line

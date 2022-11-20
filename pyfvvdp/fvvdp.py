@@ -34,11 +34,12 @@ from pyfvvdp.fvvdp_display_model import fvvdp_display_photometry, fvvdp_display_
 FovVideoVDP metric. Refer to pytorch_examples for examples on how to use this class. 
 """
 class fvvdp:
-    def __init__(self, display_name="standard_4k", display_photometry=None, display_geometry=None, color_space="sRGB", foveated=False, heatmap=None, quiet=False, device=None, display_models=None):
+    def __init__(self, display_name="standard_4k", display_photometry=None, display_geometry=None, color_space="sRGB", foveated=False, heatmap=None, quiet=False, device=None, display_models=None, temp_padding="replicate"):
         self.quiet = quiet
         self.foveated = foveated
         self.heatmap = heatmap
         self.color_space = color_space
+        self.temp_padding = temp_padding
 
         if display_photometry is None:
             self.display_photometry = fvvdp_display_photometry.load(display_name, models_file=display_models)
@@ -137,16 +138,16 @@ class fvvdp:
           'circular'  - tile the video in the front, so that the last frame is used for frame 0.
           'pingpong'  - the video frames are mirrored so that frames -1, -2, ... correspond to frames 0, 1, ...
     '''
-    def predict(self, test_cont, reference_cont, dim_order="BCFHW", frames_per_second=0, fixation_point=None, frame_padding="replicate"):
+    def predict(self, test_cont, reference_cont, dim_order="BCFHW", frames_per_second=0, fixation_point=None):
 
         test_vs = fvvdp_video_source_array( test_cont, reference_cont, frames_per_second, dim_order=dim_order, display_photometry=self.display_photometry, color_space_name=self.color_space )
 
-        return self.predict_video_source(test_vs, fixation_point=fixation_point, frame_padding=frame_padding)
+        return self.predict_video_source(test_vs, fixation_point=fixation_point)
 
     '''
     The same as `predict` but takes as input fvvdp_video_source_* object instead of Numpy/Pytorch arrays.
     '''
-    def predict_video_source(self, vid_source, fixation_point=None, frame_padding="replicate"):
+    def predict_video_source(self, vid_source, fixation_point=None):
 
         # T_vid and R_vid are the tensors of the size (1,1,N,H,W)
         # where:
@@ -215,18 +216,18 @@ class fvvdp:
                 if self.debug: print("Frame %d:\n----" % ff)
 
                 if ff == 0: # First frame
-                    if frame_padding == "replicate":
+                    if self.temp_padding == "replicate":
                         # TODO: proper handling of batches
                         sw_buf[0] = vid_source.get_test_frame(0, device=self.device).expand([1, 1, fl, height, width])
                         sw_buf[1] = vid_source.get_reference_frame(0, device=self.device).expand([1, 1, fl, height, width])
-                    elif frame_padding == "circular":
+                    elif self.temp_padding == "circular":
                         sw_buf[0] = torch.zeros([1, 1, fl, height, width], device=self.device)
                         sw_buf[1] = torch.zeros([1, 1, fl, height, width], device=self.device)
                         for kk in range(fl):
                             fidx = (N_frames - 1 - fl + kk) % N_frames
                             sw_buf[0][:,:,kk,...] = vid_source.get_test_frame(fidx, device=self.device)
                             sw_buf[1][:,:,kk,...] = vid_source.get_reference_frame(fidx, device=self.device)
-                    elif frame_padding == "pingpong":
+                    elif self.temp_padding == "pingpong":
                         sw_buf[0] = torch.zeros([1, 1, fl, height, width], device=self.device)
                         sw_buf[1] = torch.zeros([1, 1, fl, height, width], device=self.device)
 
@@ -241,7 +242,7 @@ class fvvdp:
                             sw_buf[0][:,:,kk,...] = vid_source.get_test_frame(fidx,device=self.device)
                             sw_buf[1][:,:,kk,...] = vid_source.get_reference_frame(fidx,device=self.device)
                     else:
-                        raise RuntimeError( 'Unknown padding method "{}"'.format(frame_padding) )
+                        raise RuntimeError( 'Unknown padding method "{}"'.format(self.temp_padding) )
                 else:
                     cur_tframe = vid_source.get_test_frame(ff, device=self.device)
                     cur_rframe = vid_source.get_reference_frame(ff, device=self.device)
