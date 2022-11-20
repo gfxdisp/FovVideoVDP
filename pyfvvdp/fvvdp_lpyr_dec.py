@@ -1,3 +1,4 @@
+# Decimated Laplacian Pyramid
 import torch
 import torch.nn.functional as Func
 import numpy as np 
@@ -9,7 +10,7 @@ import sys
 def ceildiv(a, b):
     return -(-a // b)
 
-class hdrvdp_lpyr_dec():
+class fvvdp_lpyr_dec():
 
     def __init__(self, W, H, ppd, device):
         self.device = device
@@ -240,6 +241,39 @@ class hdrvdp_lpyr_dec():
         elif dim==3:
             return torch.cat([x.permute(0,1,3,2),z.permute(0,1,3,2)],dim=3).view(x.shape[0], x.shape[1], 2*x.shape[3],x.shape[2]).permute(0,1,3,2)
 
+
+# This pyramid computes and stores contrast during decomposition, improving performance and reducing memory consumption
+class fvvdp_contrast_pyr(fvvdp_lpyr_dec):
+
+    def decompose(self, image):
+        levels = self.height+1
+        kernel_a = 0.4
+        gpyr = self.gaussian_pyramid_dec(image, levels, kernel_a)
+
+        height = len(gpyr)
+        if height == 0:
+            return []
+
+        lpyr = []
+        L_bkg_pyr = []
+        for i in range(height-1):
+            glayer_ex = self.gausspyr_expand(gpyr[i+1], [gpyr[i].shape[-2], gpyr[i].shape[-1]], kernel_a)
+            layer = gpyr[i] - glayer_ex 
+
+            # Order: test-sustained, ref-sustained, test-transient, ref-transient
+            # L_bkg is set to ref-sustained 
+            L_bkg = torch.clamp(glayer_ex[...,1:2,:,:,:], min=0.1)
+            contrast = torch.clamp(torch.div(layer, L_bkg), max=1000.0)
+
+            lpyr.append(contrast)
+            L_bkg_pyr.append(L_bkg)
+
+        lpyr.append(gpyr[height-1]) 
+        
+        return lpyr, L_bkg_pyr
+
+
+
     # def gausspyr_expand(self, x, sz = None, kernel_a = 0.4):
     #     if sz is None:
     #         sz = [x.shape[-2]*2, x.shape[-1]*2]
@@ -283,8 +317,8 @@ class hdrvdp_lpyr_dec():
 
 #     im_tensor = image.view(1, 1, image.shape[-2], image.shape[-1])
 
-#     lp = hdrvdp_lpyr_dec_fast(im_tensor.shape[-2], im_tensor.shape[-1], ppd, device)
-#     lp_old = hdrvdp_lpyr_dec(im_tensor.shape[-2], im_tensor.shape[-1], ppd, device)
+#     lp = fvvdp_lpyr_dec_fast(im_tensor.shape[-2], im_tensor.shape[-1], ppd, device)
+#     lp_old = fvvdp_lpyr_dec(im_tensor.shape[-2], im_tensor.shape[-1], ppd, device)
 
 #     lpyr, gpyr = lp.decompose( im_tensor )
 #     lpyr_2, gpyr_2 = lp_old.decompose( im_tensor )

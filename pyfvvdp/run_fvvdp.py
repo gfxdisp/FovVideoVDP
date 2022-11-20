@@ -80,10 +80,11 @@ def parse_args():
     parser.add_argument("--display", type=str, default="standard_4k", help="display name, e.g. 'HTC Vive', or ? to print the list of models.")
     parser.add_argument("--display-models", type=str, default=None, help="A path to the JSON file with a list of display models")
     parser.add_argument("--nframes", type=int, default=-1, help="the number of video frames you want to compare")
-    parser.add_argument("--quiet", action='store_true', default=False, help="Do not print any information but the final JOD value. Warning message will be still printed.")
-    parser.add_argument("--verbose", action='store_true', default=False, help="Print out extra information.")
     parser.add_argument("--full-screen-resize", choices=['fast_bilinear', 'bilinear', 'bicubic', 'lanczos'], help="Both test and reference videos will be resized to match the full resolution of the display. Currently works only with videos.")
     parser.add_argument("--metrics", choices=['fvvdp', 'pu-psnr'], nargs='+', default=['fvvdp'], help='Select which metric(s) to run')
+    parser.add_argument("--temp-padding", choices=['replicate', 'circular', 'pingpong'], default='replicate', help='How to pad the video in the time domain (for the temporal filters). "replicate" - repeat the first frame. "pingpong" - mirror the first frames. "circular" - take the last frames.')
+    parser.add_argument("--quiet", action='store_true', default=False, help="Do not print any information but the final JOD value. Warning message will be still printed.")
+    parser.add_argument("--verbose", action='store_true', default=False, help="Print out extra information.")
     args = parser.parse_args()
     return args
 
@@ -149,14 +150,20 @@ def main():
         sys.exit()
 
     metrics = []
-    display_photometry = None
-    display_geometry = None
+    display_photometry = fvvdp_display_photometry.load(args.display, models_file=args.display_models)
+    display_geometry = fvvdp_display_geometry.load(args.display, models_file=args.display_models)
+    if args.verbose:
+        display_photometry.print()
+
     for mm in args.metrics:
         if mm == 'fvvdp':
-            fv = pyfvvdp.fvvdp( display_name=args.display, foveated=args.foveated, heatmap=args.heatmap, device=device, display_models=args.display_models )
+            fv = pyfvvdp.fvvdp( display_photometry=display_photometry, 
+                                display_geometry=display_geometry, 
+                                foveated=args.foveated, 
+                                heatmap=args.heatmap, 
+                                device=device,
+                                temp_padding=args.temp_padding )
             metrics.append( fv )
-            display_photometry = fv.display_photometry
-            display_geometry = fv.display_geometry
         elif mm == 'pu-psnr':
             if args.heatmap:
                 logging.warning( f'Skipping heatmap as it is not supported by {mm}' )
@@ -171,21 +178,18 @@ def main():
             logging.info( 'When reporting metric results, please include the following information:' )
             logging.info( info_str )
 
-    # If none of the metrics requires display geometry/photometry, we still need those for video source
-    if display_geometry is None:
-        display_geometry = fvvdp_display_geometry.load(args.display, models_file=args.display_models)
-    if display_photometry is None:
-        display_photometry = fvvdp_display_photometry.load(args.display, models_file=args.display_models)
-
-    if args.verbose:
-        display_photometry.print()
-
     for kk in range( max(N_test, N_ref) ): # For each test and reference pair
         test_file = args.test[min(kk,N_test-1)]
         ref_file = args.ref[min(kk,N_ref-1)]
         logging.info(f"Predicting the quality of '{test_file}' compared to '{ref_file}'")
         for mm in metrics:
-            vs = pyfvvdp.fvvdp_video_source_file( test_file, ref_file, display_photometry=display_photometry, full_screen_resize=args.full_screen_resize, resize_resolution=display_geometry.resolution, frames=args.nframes )
+            preload = False if args.temp_padding == 'replicate' else True
+            vs = pyfvvdp.fvvdp_video_source_file( test_file, ref_file, 
+                                                  display_photometry=display_photometry, 
+                                                  full_screen_resize=args.full_screen_resize, 
+                                                  resize_resolution=display_geometry.resolution, 
+                                                  frames=args.nframes,
+                                                  preload=preload )
             Q_pred, stats = mm.predict_video_source(vs)
             if args.quiet:
                 print( "{Q:0.4f}".format(Q=Q_pred) )

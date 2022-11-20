@@ -12,7 +12,8 @@ import logging
 from video_source import *
 
 # for debugging only
-#from gfxdisp.pfs import pfs
+# from gfxdisp.pfs import pfs
+# from gfxdisp.pfs.pfs_torch import pfs_torch
 
 try:
     # This may fail if OpenEXR is not installed. To install,
@@ -78,19 +79,15 @@ class video_reader:
                 raise RuntimeError( err_str )
             self.frames = frames
 
-        # self.process = (
-        #     ffmpeg
-        #     .input(vidfile)
-        #     .output('pipe:', format='rawvideo', pix_fmt='rgb24')
-        #     .run_async(pipe_stdout=True, quiet=True)
-        # )
         stream = ffmpeg.input(vidfile)
         if (resize_fn is not None) and (resize_width!=self.width or resize_height!=self.height):
             stream = ffmpeg.filter(stream, 'scale', resize_width, resize_height, flags=resize_fn)
             self.width = resize_width
             self.height = resize_height
         stream = ffmpeg.output(stream, 'pipe:', format='rawvideo', pix_fmt=self.out_pix_fmt)
-        self.process = ffmpeg.run_async(stream, pipe_stderr=True, quiet=True)
+        #.global_args('-hwaccel', 'cuda', '-hwaccel_output_format', 'cuda') - no effect on decoding speed
+        #.global_args( '-loglevel', 'info' )
+        self.process = ffmpeg.run_async(stream, pipe_stdout=True, quiet=True)
 
         self.curr_frame = -1
 
@@ -105,6 +102,22 @@ class video_reader:
         ) 
         self.curr_frame += 1
         return in_frame       
+
+    # Delete or close if program was interrupted
+    def __del__(self):
+        self.close()        
+
+    def close(self):
+        if not self.process is None:
+            self.process.stdout.close()
+            self.process.kill() # We may wait forever if we do not read all the frames
+            self.process = None
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, type, value, tb):
+        self.close()
 
 
 '''
@@ -186,6 +199,10 @@ class fvvdp_video_source_video_file(fvvdp_video_source_dm):
         if frame_np is None:
             raise RuntimeError( 'Could not read frame {}'.format(frame) )
 
+        return self._prepare_frame(frame_np, device)
+
+    def _prepare_frame( self, frame_np, device ):        
+
         if frame_np.dtype == np.uint16:
             # Torch does not natively support uint16. A workaround is to pack uint16 values into int16.
             # This will be efficiently transferred and unpacked on the GPU.
@@ -211,6 +228,40 @@ class fvvdp_video_source_video_file(fvvdp_video_source_dm):
         return L
 
 
+'''
+The same functionality as to fvvdp_video_source_video_file, but preloads all the frames and stores in the CPU memory - allows for random access.
+'''
+class fvvdp_video_source_video_file_preload(fvvdp_video_source_video_file):
+    
+    def _get_frame( self, vid_reader, frame, device ):        
+
+        if not hasattr( self, "frame_array_tst" ):
+
+            # Preload on the first frame
+            self.frame_array_tst = [None] * self.frames
+            for ff in range(self.frames):
+                frame_np = self.test_vidr.get_frame()
+                self.frame_array_tst[ff] = frame_np
+                if ff==0:
+                    mb_used = self.frame_array_tst[0].size * self.frame_array_tst[0].itemsize * self.frames * 2 / 1e6
+                    logging.debug( f"Allocating {mb_used}MB in the CPU memory to store videos ({self.frames} frames)." )
+
+
+            self.frame_array_ref = [None] * self.frames
+            for ff in range(self.frames):
+                frame_np = self.reference_vidr.get_frame()
+                self.frame_array_ref[ff] = frame_np
+
+
+        if vid_reader is self.test_vidr:
+            frame_np = self.frame_array_tst[frame]
+        else:
+            frame_np = self.frame_array_ref[frame]
+
+        if frame_np is None:
+            raise RuntimeError( 'Could not read frame {}'.format(frame) )
+
+        return self._prepare_frame(frame_np, device)
 
 
 '''
@@ -218,7 +269,7 @@ Recognize whether the file is an image of video and wraps an appropriate video_s
 '''
 class fvvdp_video_source_file(fvvdp_video_source):
 
-    def __init__( self, test_fname, reference_fname, display_photometry='sdr_4k_30', color_space_name='auto', frames=-1, display_models=None, full_screen_resize=None, resize_resolution=None ):
+    def __init__( self, test_fname, reference_fname, display_photometry='sdr_4k_30', color_space_name='auto', frames=-1, display_models=None, full_screen_resize=None, resize_resolution=None, preload=False ):
         # these extensions switch mode to images instead
         image_extensions = [".png", ".jpg", ".gif", ".bmp", ".jpeg", ".ppm", ".tiff", ".dds", ".exr", ".hdr"]
 
@@ -236,8 +287,10 @@ class fvvdp_video_source_file(fvvdp_video_source):
             self.vs = fvvdp_video_source_array( img_test, img_reference, 0, dim_order='HWC', display_photometry=display_photometry, color_space_name=color_space_name, display_models=display_models )            
         else:
             assert os.path.splitext(reference_fname)[1].lower() not in image_extensions, 'Test is a video, but reference is an image'
-            self.vs = fvvdp_video_source_video_file( test_fname, reference_fname, display_photometry=display_photometry, color_space_name=color_space_name, frames=frames, display_models=display_models, full_screen_resize=full_screen_resize, resize_resolution=resize_resolution )
-
+            if preload:
+                self.vs = fvvdp_video_source_video_file_preload( test_fname, reference_fname, display_photometry=display_photometry, color_space_name=color_space_name, frames=frames, display_models=display_models, full_screen_resize=full_screen_resize, resize_resolution=resize_resolution )
+            else:
+                self.vs = fvvdp_video_source_video_file( test_fname, reference_fname, display_photometry=display_photometry, color_space_name=color_space_name, frames=frames, display_models=display_models, full_screen_resize=full_screen_resize, resize_resolution=resize_resolution )
 
     # Return (height, width, frames) touple with the resolution and
     # the length of the video clip.
