@@ -85,6 +85,7 @@ class video_reader:
             self.width = resize_width
             self.height = resize_height
         stream = ffmpeg.output(stream, 'pipe:', format='rawvideo', pix_fmt=self.out_pix_fmt)
+        #.global_args('-hwaccel', 'cuda', '-hwaccel_output_format', 'cuda') - no effect on decoding speed
         #.global_args( '-loglevel', 'info' )
         self.process = ffmpeg.run_async(stream, pipe_stdout=True, quiet=True)
 
