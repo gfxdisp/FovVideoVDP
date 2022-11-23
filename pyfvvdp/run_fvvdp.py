@@ -74,8 +74,9 @@ def parse_args():
     parser.add_argument("--test", type=str, nargs='+', required = False, help="list of test images/videos")
     parser.add_argument("--ref", type=str, nargs='+', required = False, help="list of reference images/videos")
     parser.add_argument("--gpu", type=int,  default=0, help="select which GPU to use (e.g. 0), default is GPU 0. Pass -1 to run on the CPU.")
-    parser.add_argument("--heatmap", type=str, default="none", help="type of difference map (none, raw, threshold, supra-threshold)")
-    parser.add_argument("--heatmap-dir", type=str, default=None, help="in which directory heatmaps should be stored (the default is the current directory)")
+    parser.add_argument("--heatmap", type=str, default="none", help="type of difference map (none, raw, threshold, supra-threshold).")
+    parser.add_argument("--features", action='store_true', default=False, help="generate JSON files with extracted features. Useful for retraining the metric.")
+    parser.add_argument("--output-dir", type=str, default=None, help="in which directory heatmaps and feature files should be stored (the default is the current directory)")
     parser.add_argument("--foveated", action='store_true', default=False, help="Run in a foveated mode (non-foveated is the default)")
     parser.add_argument("--display", type=str, default="standard_4k", help="display name, e.g. 'HTC Vive', or ? to print the list of models.")
     parser.add_argument("--display-models", type=str, default=None, help="A path to the JSON file with a list of display models")
@@ -179,6 +180,9 @@ def main():
             logging.info( 'When reporting metric results, please include the following information:' )
             logging.info( info_str )
 
+    out_dir = "." if args.output_dir is None else args.output_dir
+    os.makedirs(out_dir, exist_ok=True)
+
     for kk in range( max(N_test, N_ref) ): # For each test and reference pair
         test_file = args.test[min(kk,N_test-1)]
         ref_file = args.ref[min(kk,N_ref-1)]
@@ -191,7 +195,8 @@ def main():
                                                   resize_resolution=display_geometry.resolution, 
                                                   frames=args.nframes,
                                                   preload=preload,
-                                                  gpu_decode=args.gpu_decode )
+                                                  gpu_decode=args.gpu_decode,
+                                                  verbose=args.verbose )
             Q_pred, stats = mm.predict_video_source(vs)
             if args.quiet:
                 print( "{Q:0.4f}".format(Q=Q_pred) )
@@ -199,13 +204,17 @@ def main():
                 units_str = f" [{mm.quality_unit()}]"
                 print( "{met_name}={Q:0.4f}{units}".format(met_name=mm.short_name(), Q=Q_pred, units=units_str) )
 
+            base, ext = os.path.splitext(os.path.basename(test_file))            
+
+            if args.features and not stats is None:
+                dest_name = os.path.join(out_dir, base + "_fmap.json")
+                logging.info("Writing feature map '" + dest_name + "' ...")
+                mm.write_features_to_json(stats, dest_name)
+
             if do_heatmap and not stats is None:
                 # diff_type = heatmap_types[args.heatmap]
                 # heatmap = stats["heatmap"] * diff_type["scale"]
                 # diff_map_viz = visualize_diff_map(heatmap, context_image=ref_vid_luminance, colormap_type=diff_type["colormap_type"])
-                out_dir = "." if args.heatmap_dir is None else args.heatmap_dir
-                os.makedirs(out_dir, exist_ok=True)
-                base, ext = os.path.splitext(os.path.basename(test_file))            
                 if stats["heatmap"].shape[2]>1: # if it is a video
                     dest_name = os.path.join(out_dir, base + "_heatmap.mp4")
                     logging.info("Writing heat map '" + dest_name + "' ...")

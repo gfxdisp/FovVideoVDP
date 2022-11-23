@@ -40,7 +40,8 @@ def load_image_as_array(imgfile):
 
 
 class video_reader:
-    def __init__(self, vidfile, frames=-1, resize_fn=None, resize_height=-1, resize_width=-1):
+
+    def __init__(self, vidfile, frames=-1, resize_fn=None, resize_height=-1, resize_width=-1, verbose=False):
         try:
             probe = ffmpeg.probe(vidfile)
         except:
@@ -68,10 +69,10 @@ class video_reader:
                 raise RuntimeError( err_str )
             self.frames = frames
 
-        self._setup_ffmpeg(vidfile, resize_fn, resize_height, resize_width)
+        self._setup_ffmpeg(vidfile, resize_fn, resize_height, resize_width, verbose)
         self.curr_frame = -1
 
-    def _setup_ffmpeg(self, vidfile, resize_fn, resize_height, resize_width):
+    def _setup_ffmpeg(self, vidfile, resize_fn, resize_height, resize_width, verbose):
         if any(f'p{bit_depth}' in self.in_pix_fmt for bit_depth in [10, 12, 14, 16]): # >8 bit
             out_pix_fmt = 'rgb48le'
             self.bpp = 6 # bytes per pixel
@@ -92,8 +93,7 @@ class video_reader:
         stream = ffmpeg.output(stream, 'pipe:', format='rawvideo', pix_fmt=out_pix_fmt)
         #.global_args('-hwaccel', 'cuda', '-hwaccel_output_format', 'cuda') - no effect on decoding speed
         #.global_args( '-loglevel', 'info' )
-
-        self.process = ffmpeg.run_async(stream, pipe_stdout=True, quiet=True)
+        self.process = ffmpeg.run_async(stream, pipe_stdout=True, quiet=not verbose)
 
     def get_frame(self):
         in_bytes = self.process.stdout.read(self.frame_bytes )
@@ -148,8 +148,8 @@ class video_reader:
 Unpack frames frames on the GPU
 '''
 class video_reader_gpu_decode(video_reader):
-    def __init__(self, vidfile, frames=-1, resize_fn=None, resize_height=-1, resize_width=-1):
-        super().__init__(vidfile, frames, resize_fn, resize_height, resize_width)
+    def __init__(self, vidfile, frames=-1, resize_fn=None, resize_height=-1, resize_width=-1, verbose=False):
+        super().__init__(vidfile, frames, resize_fn, resize_height, resize_width, verbose)
 
         self.frame_bytes = int(self.width*self.height)
         self.y_pixels = int(self.frame_bytes)
@@ -162,7 +162,7 @@ class video_reader_gpu_decode(video_reader):
         if self.bit_depth > 8:
             self.frame_bytes *= 2
 
-    def _setup_ffmpeg(self, vidfile, resize_fn, resize_height, resize_width):
+    def _setup_ffmpeg(self, vidfile, resize_fn, resize_height, resize_width, verbose):
         if not any(f'p{bit_depth}' in self.in_pix_fmt for bit_depth in [10, 12, 14, 16]): # 8 bit
             raise RuntimeError('GPU decoding not implemented for bit-depth 8')
 
@@ -173,7 +173,7 @@ class video_reader_gpu_decode(video_reader):
         self.chroma_ss = '420'
 
         # Resize later on the GPU
-        if self.resize_fn is not None:
+        if resize_fn is not None:
             self.resize_fn = resize_fn
             self.resize_height = resize_height
             self.resize_width = resize_width
@@ -237,13 +237,13 @@ Use ffmpeg to read video frames, one by one.
 '''
 class fvvdp_video_source_video_file(fvvdp_video_source_dm):
 
-    def __init__( self, test_fname, reference_fname, display_photometry='sdr_4k_30', color_space_name='auto', frames=-1, display_models=None, full_screen_resize=None, resize_resolution=None, gpu_decode=False ):
+    def __init__( self, test_fname, reference_fname, display_photometry='sdr_4k_30', color_space_name='auto', frames=-1, display_models=None, full_screen_resize=None, resize_resolution=None, gpu_decode=False, verbose=False ):
 
         fs_width = -1 if full_screen_resize is None else resize_resolution[0]
         fs_height = -1 if full_screen_resize is None else resize_resolution[1]
         self.reader = video_reader_gpu_decode if gpu_decode else video_reader
-        self.reference_vidr = self.reader(reference_fname, frames, resize_fn=full_screen_resize, resize_width=fs_width, resize_height=fs_height)
-        self.test_vidr = self.reader(test_fname, frames, resize_fn=full_screen_resize, resize_width=fs_width, resize_height=fs_height)
+        self.reference_vidr = self.reader(reference_fname, frames, resize_fn=full_screen_resize, resize_width=fs_width, resize_height=fs_height, verbose=verbose)
+        self.test_vidr = self.reader(test_fname, frames, resize_fn=full_screen_resize, resize_width=fs_width, resize_height=fs_height, verbose=verbose)
 
         self.frames = self.test_vidr.frames if frames==-1 else frames
 
@@ -369,7 +369,7 @@ Recognize whether the file is an image of video and wraps an appropriate video_s
 '''
 class fvvdp_video_source_file(fvvdp_video_source):
 
-    def __init__( self, test_fname, reference_fname, display_photometry='sdr_4k_30', color_space_name='auto', frames=-1, display_models=None, full_screen_resize=None, resize_resolution=None, preload=False, gpu_decode=False ):
+    def __init__( self, test_fname, reference_fname, display_photometry='sdr_4k_30', color_space_name='auto', frames=-1, display_models=None, full_screen_resize=None, resize_resolution=None, preload=False, gpu_decode=False, verbose=False ):
         # these extensions switch mode to images instead
         image_extensions = [".png", ".jpg", ".gif", ".bmp", ".jpeg", ".ppm", ".tiff", ".dds", ".exr", ".hdr"]
 
@@ -388,9 +388,9 @@ class fvvdp_video_source_file(fvvdp_video_source):
         else:
             assert os.path.splitext(reference_fname)[1].lower() not in image_extensions, 'Test is a video, but reference is an image'
             if preload:
-                self.vs = fvvdp_video_source_video_file_preload( test_fname, reference_fname, display_photometry=display_photometry, color_space_name=color_space_name, frames=frames, display_models=display_models, full_screen_resize=full_screen_resize, resize_resolution=resize_resolution, gpu_decode=gpu_decode )
+                self.vs = fvvdp_video_source_video_file_preload( test_fname, reference_fname, display_photometry=display_photometry, color_space_name=color_space_name, frames=frames, display_models=display_models, full_screen_resize=full_screen_resize, resize_resolution=resize_resolution, gpu_decode=gpu_decode, verbose=verbose )
             else:
-                self.vs = fvvdp_video_source_video_file( test_fname, reference_fname, display_photometry=display_photometry, color_space_name=color_space_name, frames=frames, display_models=display_models, full_screen_resize=full_screen_resize, resize_resolution=resize_resolution, gpu_decode=gpu_decode )
+                self.vs = fvvdp_video_source_video_file( test_fname, reference_fname, display_photometry=display_photometry, color_space_name=color_space_name, frames=frames, display_models=display_models, full_screen_resize=full_screen_resize, resize_resolution=resize_resolution, gpu_decode=gpu_decode, verbose=verbose )
 
     # Return (height, width, frames) touple with the resolution and
     # the length of the video clip.
