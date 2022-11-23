@@ -1,12 +1,12 @@
 # Classes for reading images or videos from files so that they can be passed to FovVideoVDP frame-by-frame
 
-from fnmatch import fnmatchcase
 import os
 import imageio.v2 as io
 import numpy as np
 from torch.functional import Tensor
 import torch
 import ffmpeg
+import re
 
 import logging
 from video_source import *
@@ -40,7 +40,6 @@ def load_image_as_array(imgfile):
 
 
 class video_reader:
-
     def __init__(self, vidfile, frames=-1, resize_fn=None, resize_height=-1, resize_width=-1):
         try:
             probe = ffmpeg.probe(vidfile)
@@ -56,17 +55,7 @@ class video_reader:
         self.src_height = self.height
         self.color_space = video_stream['color_space'] if ('color_space' in video_stream) else 'unknown'
         self.color_transfer = video_stream['color_transfer'] if ('color_transfer' in video_stream) else 'unknown'
-        in_pix_fmt=video_stream['pix_fmt']
-        self.in_pix_fmt = in_pix_fmt
-        if ('p10' in in_pix_fmt) or ('p12' in in_pix_fmt) or ('p14' in in_pix_fmt) or ('p16' in in_pix_fmt): # >8 bit
-            self.out_pix_fmt='rgb48le'
-            self.bpp = 6 # bytes per pixel
-            self.dtype = np.uint16
-        else:
-            self.out_pix_fmt='rgb24' # 8 bit
-            self.bpp = 3 # bytes per pixel
-            self.dtype = np.uint8
-
+        self.in_pix_fmt = video_stream['pix_fmt']
         num_frames = int(video_stream['nb_frames'])
         avg_fps_num, avg_fps_denom = [float(x) for x in video_stream['r_frame_rate'].split("/")]
         self.avg_fps = avg_fps_num/avg_fps_denom
@@ -79,33 +68,68 @@ class video_reader:
                 raise RuntimeError( err_str )
             self.frames = frames
 
+        self._setup_ffmpeg(vidfile, resize_fn, resize_height, resize_width)
+        self.curr_frame = -1
+
+    def _setup_ffmpeg(self, vidfile, resize_fn, resize_height, resize_width):
+        if any(f'p{bit_depth}' in self.in_pix_fmt for bit_depth in [10, 12, 14, 16]): # >8 bit
+            out_pix_fmt = 'rgb48le'
+            self.bpp = 6 # bytes per pixel
+            self.dtype = np.uint16
+        else:
+            out_pix_fmt='rgb24' # 8 bit
+            self.bpp = 3 # bytes per pixel
+            self.dtype = np.uint8
+
         stream = ffmpeg.input(vidfile)
         if (resize_fn is not None) and (resize_width!=self.width or resize_height!=self.height):
             stream = ffmpeg.filter(stream, 'scale', resize_width, resize_height, flags=resize_fn)
             self.width = resize_width
             self.height = resize_height
-        stream = ffmpeg.output(stream, 'pipe:', format='rawvideo', pix_fmt=self.out_pix_fmt)
+
+        self.frame_bytes = int(self.width * self.height * self.bpp)
+
+        stream = ffmpeg.output(stream, 'pipe:', format='rawvideo', pix_fmt=out_pix_fmt)
         #.global_args('-hwaccel', 'cuda', '-hwaccel_output_format', 'cuda') - no effect on decoding speed
         #.global_args( '-loglevel', 'info' )
+
         self.process = ffmpeg.run_async(stream, pipe_stdout=True, quiet=True)
 
-        self.curr_frame = -1
-
     def get_frame(self):
-        in_bytes = self.process.stdout.read(self.width * self.height * self.bpp )
+        in_bytes = self.process.stdout.read(self.frame_bytes )
         if not in_bytes or self.curr_frame == self.frames:
             return None
-        in_frame = (
-            np
-            .frombuffer(in_bytes, self.dtype)
-            .reshape([self.height, self.width, 3])
-        ) 
+        in_frame = np.frombuffer(in_bytes, self.dtype)
         self.curr_frame += 1
         return in_frame       
 
+    def unpack(self, frame_np, device):
+        if self.dtype == np.uint8:
+            assert frame_np.dtype == np.uint8
+            frame_t_hwc = torch.tensor(frame_np, dtype=torch.uint8)
+            max_value = 2**8 - 1
+            frame_fp32 = frame_t_hwc.to(device).to(torch.float32)
+        elif self.dtype == np.uint16:
+            max_value = 2**16 - 1
+            frame_fp32 = self._npuint16_to_torchfp32(frame_np, device)
+
+        return frame_fp32.reshape(self.height, self.width, 3) / max_value
+
+    # Torch does not natively support uint16. A workaround is to pack uint16 values into int16.
+    # This will be efficiently transferred and unpacked on the GPU.
+    # logging.info('Test has datatype uint16, packing into int16')
+    def _npuint16_to_torchfp32(self, np_x_uint16, device):
+        max_value = 2**16 - 1
+        assert np_x_uint16.dtype == np.uint16
+        np_x_int16 = torch.tensor(np_x_uint16.astype(np.int16), dtype=torch.int16)
+        torch_x_int32 = np_x_int16.to(device).to(torch.int32)
+        torch_x_uint16 = torch_x_int32 & max_value
+        torch_x_fp32 = torch_x_uint16.to(torch.float32)
+        return torch_x_fp32
+
     # Delete or close if program was interrupted
     def __del__(self):
-        self.close()        
+        self.close()
 
     def close(self):
         if not self.process is None:
@@ -121,17 +145,105 @@ class video_reader:
 
 
 '''
+Unpack frames frames on the GPU
+'''
+class video_reader_gpu_decode(video_reader):
+    def __init__(self, vidfile, frames=-1, resize_fn=None, resize_height=-1, resize_width=-1):
+        super().__init__(vidfile, frames, resize_fn, resize_height, resize_width)
+
+        self.frame_bytes = int(self.width*self.height)
+        self.y_pixels = int(self.frame_bytes)
+        self.y_shape = (self.height, self.width)
+
+        self.frame_bytes = self.frame_bytes*3//2
+        self.uv_pixels = int(self.y_pixels/4)
+        self.uv_shape = (int(self.y_shape[0]/2), int(self.y_shape[1]/2))
+
+        if self.bit_depth > 8:
+            self.frame_bytes *= 2
+
+    def _setup_ffmpeg(self, vidfile, resize_fn, resize_height, resize_width):
+        if not any(f'p{bit_depth}' in self.in_pix_fmt for bit_depth in [10, 12, 14, 16]): # 8 bit
+            raise RuntimeError('GPU decoding not implemented for bit-depth 8')
+
+        self.bit_depth = int(re.search('p\d\d', self.in_pix_fmt).group().strip('p'))
+        out_pix_fmt = f'yuv420p{self.bit_depth}le'
+        self.dtype = np.uint16
+        # TODO: make chroma subsampling optional?
+        self.chroma_ss = '420'
+
+        # Resize later on the GPU
+        if self.resize_fn is not None:
+            self.resize_fn = resize_fn
+            self.resize_height = resize_height
+            self.resize_width = resize_width
+
+        stream = ffmpeg.input(vidfile)
+        stream = ffmpeg.output(stream, 'pipe:', format='rawvideo', pix_fmt=out_pix_fmt)
+        self.process = ffmpeg.run_async(stream, pipe_stdout=True, quiet=True)
+
+    def unpack(self, x, device):
+        Y = x[:self.y_pixels]
+        u = x[self.y_pixels:self.y_pixels+self.uv_pixels]
+        v = x[self.y_pixels+self.uv_pixels:]
+
+        Yuv_float = self._fixed2float(Y, u, v, device)
+
+        # Convert to display-encoded (sRBG) BT.709 RGB image
+        ycbcr2rgb = torch.tensor([[1, 0, 1.5748],
+                                  [1, -0.18733, -0.46813],
+                                  [1, 1.85563, 0]], device=device)
+        # TODO: option for other output colour spaces
+        # elif self.color_space == 'BT.2020':
+        #     # Convert to display-encoded (PQ) BT.2020 RGB image
+        #     ycbcr2rgb = torch.tensor([[1, 0, 1.47460],
+        #                               [1, -0.16455, -0.57135],
+        #                               [1, 1.88140, 0]], device=device)
+        # else:
+        #     raise RuntimeError(f'Unknown color space: {self.color_space}')
+
+        RGB = Yuv_float @ ycbcr2rgb.transpose(1, 0)
+        if (self.resize_fn is not None) and (self.height != self.resize_height or self.width != self.resize_width):
+            RGB = torch.nn.functional.interpolate(RGB.permute(2,0,1)[None],
+                                                  size=(self.resize_height, self.resize_width),
+                                                  mode=self.resize_fn)
+            RGB = RGB.squeeze().permute(1,2,0)
+        return RGB.clip(0, 1)
+
+    def _fixed2float(self, Y, u, v, device):
+        offset = 16/219
+        weight = 1/(2**(self.bit_depth-8)*219)
+        Yuv = torch.empty(self.height, self.width, 3, device=device)
+
+        Y = self._npuint16_to_torchfp32(Y, device)
+        Yuv[..., 0] = torch.clip(weight*Y - offset, 0, 1).reshape(self.height, self.width)
+
+        offset = 128/224
+        weight = 1/(2**(self.bit_depth-8)*224)
+
+        uv = np.stack((u, v))
+        uv = self._npuint16_to_torchfp32(uv, device)
+        uv = torch.clip(weight*uv - offset, -0.5, 0.5).reshape(1, 2, self.height//2, self.width//2)
+
+        # TODO: Replace with a proper filter.
+        uv_upscaled = torch.nn.functional.interpolate(uv, scale_factor=2, mode='bilinear')
+        Yuv[...,1:] = uv_upscaled.squeeze().permute(1,2,0)
+
+        return Yuv
+
+
+'''
 Use ffmpeg to read video frames, one by one.
 '''
 class fvvdp_video_source_video_file(fvvdp_video_source_dm):
 
-    #   
-    def __init__( self, test_fname, reference_fname, display_photometry='sdr_4k_30', color_space_name='auto', frames=-1, display_models=None, full_screen_resize=None, resize_resolution=None ):
+    def __init__( self, test_fname, reference_fname, display_photometry='sdr_4k_30', color_space_name='auto', frames=-1, display_models=None, full_screen_resize=None, resize_resolution=None, gpu_decode=False ):
 
         fs_width = -1 if full_screen_resize is None else resize_resolution[0]
         fs_height = -1 if full_screen_resize is None else resize_resolution[1]
-        self.reference_vidr = video_reader(reference_fname, frames, resize_fn=full_screen_resize, resize_width=fs_width, resize_height=fs_height)
-        self.test_vidr = video_reader(test_fname, frames, resize_fn=full_screen_resize, resize_width=fs_width, resize_height=fs_height)
+        self.reader = video_reader_gpu_decode if gpu_decode else video_reader
+        self.reference_vidr = self.reader(reference_fname, frames, resize_fn=full_screen_resize, resize_width=fs_width, resize_height=fs_height)
+        self.test_vidr = self.reader(test_fname, frames, resize_fn=full_screen_resize, resize_width=fs_width, resize_height=fs_height)
 
         self.frames = self.test_vidr.frames if frames==-1 else frames
 
@@ -157,8 +269,9 @@ class fvvdp_video_source_video_file(fvvdp_video_source_dm):
         if self.test_vidr.color_transfer=="smpte2084" and self.dm_photometry.EOTF!="PQ":
             logging.warning( f"Video color transfer function ({self.test_vidr.color_transfer}) inconsistent with EOTF of the display model ({self.dm_photometry.EOTF})" )
 
-        if self.test_vidr.height != self.reference_vidr.height or self.test_vidr.width != self.reference_vidr.width:
-            raise RuntimeError( f'Test and reference video sequences must have the same resolutions. Found: test {self.test_vidr.width}x{self.test_vidr.height}, reference {self.reference_vidr.width}x{self.reference_vidr.height}' )
+        # Resolutions may be different here because upscaling may happen on the GPU
+        # if self.test_vidr.height != self.reference_vidr.height or self.test_vidr.width != self.reference_vidr.width:
+        #     raise RuntimeError( f'Test and reference video sequences must have the same resolutions. Found: test {self.test_vidr.width}x{self.test_vidr.height}, reference {self.reference_vidr.width}x{self.reference_vidr.height}' )
 
         # self.last_test_frame = None
         # self.last_reference_frame = None
@@ -166,7 +279,10 @@ class fvvdp_video_source_video_file(fvvdp_video_source_dm):
     # Return (height, width, frames) touple with the resolution and
     # the length of the video clip.
     def get_video_size(self):
-        return (self.test_vidr.height, self.test_vidr.width, self.frames )
+        if hasattr(self.test_vidr, 'resize_fn') and self.test_vidr.resize_fn is not None:
+            return (self.test_vidr.resize_height, self.test_vidr.resize_width, self.frames )
+        else:
+            return (self.test_vidr.height, self.test_vidr.width, self.frames )
 
     # Return the frame rate of the video
     def get_frames_per_second(self) -> int:
@@ -199,27 +315,11 @@ class fvvdp_video_source_video_file(fvvdp_video_source_dm):
         if frame_np is None:
             raise RuntimeError( 'Could not read frame {}'.format(frame) )
 
-        return self._prepare_frame(frame_np, device)
+        return self._prepare_frame(frame_np, device, vid_reader.unpack)
 
-    def _prepare_frame( self, frame_np, device ):        
-
-        if frame_np.dtype == np.uint16:
-            # Torch does not natively support uint16. A workaround is to pack uint16 values into int16.
-            # This will be efficiently transferred and unpacked on the GPU.
-            # logging.info('Test has datatype uint16, packing into int16')
-            frame_t_hwc = torch.tensor(frame_np.astype(np.int16))
-            assert frame_t_hwc.dtype is torch.int16
-            frame_t = reshuffle_dims( frame_t_hwc, in_dims='HWC', out_dims="BCFHW" )
-            max_value = 2**16 - 1
-            frame_int32 = frame_t.to(device).to(torch.int32)
-            frame_uint16 = frame_int32 & max_value
-            frame_t = frame_uint16.to(torch.float32)/max_value
-        else:
-            frame_t_hwc = torch.tensor(frame_np)
-            assert frame_t_hwc.dtype is torch.uint8
-            frame_t = reshuffle_dims( frame_t_hwc, in_dims='HWC', out_dims="BCFHW" )
-            frame_t = frame_t.to(device).to(torch.float32)/255
-
+    def _prepare_frame( self, frame_np, device, unpack_fn ):
+        frame_t_hwc = unpack_fn(frame_np, device)
+        frame_t = reshuffle_dims( frame_t_hwc, in_dims='HWC', out_dims="BCFHW" )
         L = self.dm_photometry.forward( frame_t )
 
         # Convert to grayscale
@@ -269,7 +369,7 @@ Recognize whether the file is an image of video and wraps an appropriate video_s
 '''
 class fvvdp_video_source_file(fvvdp_video_source):
 
-    def __init__( self, test_fname, reference_fname, display_photometry='sdr_4k_30', color_space_name='auto', frames=-1, display_models=None, full_screen_resize=None, resize_resolution=None, preload=False ):
+    def __init__( self, test_fname, reference_fname, display_photometry='sdr_4k_30', color_space_name='auto', frames=-1, display_models=None, full_screen_resize=None, resize_resolution=None, preload=False, gpu_decode=False ):
         # these extensions switch mode to images instead
         image_extensions = [".png", ".jpg", ".gif", ".bmp", ".jpeg", ".ppm", ".tiff", ".dds", ".exr", ".hdr"]
 
@@ -288,9 +388,9 @@ class fvvdp_video_source_file(fvvdp_video_source):
         else:
             assert os.path.splitext(reference_fname)[1].lower() not in image_extensions, 'Test is a video, but reference is an image'
             if preload:
-                self.vs = fvvdp_video_source_video_file_preload( test_fname, reference_fname, display_photometry=display_photometry, color_space_name=color_space_name, frames=frames, display_models=display_models, full_screen_resize=full_screen_resize, resize_resolution=resize_resolution )
+                self.vs = fvvdp_video_source_video_file_preload( test_fname, reference_fname, display_photometry=display_photometry, color_space_name=color_space_name, frames=frames, display_models=display_models, full_screen_resize=full_screen_resize, resize_resolution=resize_resolution, gpu_decode=gpu_decode )
             else:
-                self.vs = fvvdp_video_source_video_file( test_fname, reference_fname, display_photometry=display_photometry, color_space_name=color_space_name, frames=frames, display_models=display_models, full_screen_resize=full_screen_resize, resize_resolution=resize_resolution )
+                self.vs = fvvdp_video_source_video_file( test_fname, reference_fname, display_photometry=display_photometry, color_space_name=color_space_name, frames=frames, display_models=display_models, full_screen_resize=full_screen_resize, resize_resolution=resize_resolution, gpu_decode=gpu_decode )
 
     # Return (height, width, frames) touple with the resolution and
     # the length of the video clip.

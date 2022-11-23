@@ -80,11 +80,12 @@ def parse_args():
     parser.add_argument("--display", type=str, default="standard_4k", help="display name, e.g. 'HTC Vive', or ? to print the list of models.")
     parser.add_argument("--display-models", type=str, default=None, help="A path to the JSON file with a list of display models")
     parser.add_argument("--nframes", type=int, default=-1, help="the number of video frames you want to compare")
-    parser.add_argument("--full-screen-resize", choices=['fast_bilinear', 'bilinear', 'bicubic', 'lanczos'], help="Both test and reference videos will be resized to match the full resolution of the display. Currently works only with videos.")
+    parser.add_argument("--full-screen-resize", type=str, help="Both test and reference videos will be resized to match the full resolution of the display. Currently works only with videos.")
     parser.add_argument("--metrics", choices=['fvvdp', 'pu-psnr'], nargs='+', default=['fvvdp'], help='Select which metric(s) to run')
     parser.add_argument("--temp-padding", choices=['replicate', 'circular', 'pingpong'], default='replicate', help='How to pad the video in the time domain (for the temporal filters). "replicate" - repeat the first frame. "pingpong" - mirror the first frames. "circular" - take the last frames.')
     parser.add_argument("--quiet", action='store_true', default=False, help="Do not print any information but the final JOD value. Warning message will be still printed.")
     parser.add_argument("--verbose", action='store_true', default=False, help="Print out extra information.")
+    parser.add_argument("--gpu-decode", action='store_true', default=False, help="Decode video frames on the device.")
     args = parser.parse_args()
     return args
 
@@ -189,7 +190,8 @@ def main():
                                                   full_screen_resize=args.full_screen_resize, 
                                                   resize_resolution=display_geometry.resolution, 
                                                   frames=args.nframes,
-                                                  preload=preload )
+                                                  preload=preload,
+                                                  gpu_decode=args.gpu_decode )
             Q_pred, stats = mm.predict_video_source(vs)
             if args.quiet:
                 print( "{Q:0.4f}".format(Q=Q_pred) )
