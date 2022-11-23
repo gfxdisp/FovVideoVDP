@@ -133,6 +133,17 @@ def main():
     else:
         do_heatmap = False
 
+    # Chack for valid resizing methods
+    if args.gpu_decode:
+        # Doc: https://pytorch.org/docs/stable/generated/torch.nn.functional.interpolate.html
+        valid_methods = ['nearest', 'bilinear', 'bicubic', 'area', 'nearest-exact']
+    else:
+        # Doc: https://ffmpeg.org/ffmpeg-scaler.html
+        valid_methods = ['fast_bilinear', 'bilinear', 'bicubic', 'experimental', 'neighbor', 'area', 'bicublin', 'gauss', 'lanczos', 'spline']
+    if args.full_screen_size not in valid_methods:
+        logging.error(f'The resizing method supplied is invalid. Please pick from {valid_methods}.')
+        sys.exit()
+
     args.test = expand_wildcards(args.test)
     args.ref = expand_wildcards(args.ref)    
 
