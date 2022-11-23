@@ -389,6 +389,12 @@ class fvvdp:
         Q_jod = np.sign(self.jod_a) * torch.pow(torch.tensor(np.power(np.abs(self.jod_a),(1.0/beta_jod)), device=self.device)* Q, beta_jod) + 10.0 # This one can help with very large numbers
 
         stats = {}
+        stats['Q_per_ch'] = Q_per_ch.detach().cpu().numpy() # the quality per channel and per frame
+        stats['rho_band'] = rho_band # Thespatial frequency per band
+        stats['frames_per_second'] = vid_source.get_frames_per_second()
+        stats['width'] = width
+        stats['height'] = height
+        stats['N_frames'] = N_frames
 
         if self.do_heatmap:            
             stats['heatmap'] = heatmap
@@ -569,6 +575,22 @@ class fvvdp:
         fv_mode = 'foveated' if self.foveated else 'non-foveated'
         return '"FovVideoVDP v{}, {:.4g} [pix/deg], Lpeak={:.5g}, Lblack={:.4g} [cd/m^2], {}{}"'.format(self.version, self.pix_per_deg, self.display_photometry.get_peak_luminance(), self.display_photometry.get_black_level(), fv_mode, standard_str)
 
+    def write_features_to_json(self, stats, dest_fname):
+        Q_per_ch = stats['Q_per_ch'] # quality per channel [bb,cc,ff]
+        fmap = {}
+        for key, value in stats.items():
+            if not key in ["Q_per_ch", "heatmap"]:
+                if isinstance(value, np.ndarray):
+                    fmap[key] = value.tolist()
+                else:
+                    fmap[key] = value
+
+        for cc in range(Q_per_ch.shape[1]): # for each temporal channel
+            for bb in range(Q_per_ch.shape[0]): # for each band
+                fmap[f"t{cc}_b{bb}"] = Q_per_ch[bb,cc,:].tolist()
+
+        with open(dest_fname, 'w', encoding='utf-8') as f:
+            json.dump(fmap, f, ensure_ascii=False, indent=4)
 
 
 
