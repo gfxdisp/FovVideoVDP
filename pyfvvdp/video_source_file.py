@@ -203,7 +203,8 @@ class video_reader_gpu_decode(video_reader):
         #     raise RuntimeError(f'Unknown color space: {self.color_space}')
 
         RGB = Yuv_float @ ycbcr2rgb.transpose(1, 0)
-        if (self.resize_fn is not None) and (self.height != self.resize_height or self.width != self.resize_width):
+        if (hasattr(self, 'resize_fn')) and (self.resize_fn is not None) \
+            and (self.height != self.resize_height or self.width != self.resize_width):
             RGB = torch.nn.functional.interpolate(RGB.permute(2,0,1)[None],
                                                   size=(self.resize_height, self.resize_width),
                                                   mode=self.resize_fn)
@@ -361,7 +362,7 @@ class fvvdp_video_source_video_file_preload(fvvdp_video_source_video_file):
         if frame_np is None:
             raise RuntimeError( 'Could not read frame {}'.format(frame) )
 
-        return self._prepare_frame(frame_np, device)
+        return self._prepare_frame(frame_np, device, vid_reader.unpack)
 
 
 '''
