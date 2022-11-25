@@ -114,7 +114,8 @@ class video_reader:
             max_value = 2**16 - 1
             frame_fp32 = self._npuint16_to_torchfp32(frame_np, device)
 
-        return frame_fp32.reshape(self.height, self.width, 3) / max_value
+        RGB = frame_fp32.reshape(self.height, self.width, 3) / max_value
+        return RGB
 
     # Torch does not natively support uint16. A workaround is to pack uint16 values into int16.
     # This will be efficiently transferred and unpacked on the GPU.
@@ -133,7 +134,7 @@ class video_reader:
         self.close()
 
     def close(self):
-        if not self.process is None:
+        if hasattr(self, "process") and not self.process is None:
             self.process.stdout.close()
             self.process.kill() # We may wait forever if we do not read all the frames
             self.process = None
@@ -171,17 +172,24 @@ class video_reader_yuv_pytorch(video_reader):
             self.frame_bytes *= 2
 
     def _setup_ffmpeg(self, vidfile, resize_fn, resize_height, resize_width, verbose):
-        if not any(f'p{bit_depth}' in self.in_pix_fmt for bit_depth in [10, 12, 14, 16]): # 8 bit
-            raise RuntimeError('GPU decoding not implemented for bit-depth 8')
 
-        self.bit_depth = int(re.search('p\d\d', self.in_pix_fmt).group().strip('p'))
-        self.dtype = np.uint16
+        # if not any(f'p{bit_depth}' in self.in_pix_fmt for bit_depth in [10, 12, 14, 16]): # 8 bit
+        #     raise RuntimeError('GPU decoding not implemented for bit-depth 8')
+
+        re_grp = re.search('p\d+', self.in_pix_fmt)
+        self.bit_depth = 8 if re_grp is None else int(re_grp.group().strip('p'))
+
 
         self.chroma_ss = self.in_pix_fmt[3:6]
         if not self.chroma_ss in ['444', '420']: # TODO: implement and test 422
             raise RuntimeError(f"Unrecognized chroma subsampling {self.chroma_ss}")
 
-        out_pix_fmt = f'yuv{self.chroma_ss}p{self.bit_depth}le'
+        if self.bit_depth>8: 
+            self.dtype = np.uint16
+            out_pix_fmt = f'yuv{self.chroma_ss}p{self.bit_depth}le'
+        else:
+            self.dtype = np.uint8
+            out_pix_fmt = f'yuv{self.chroma_ss}p'
 
         # Resize later on the GPU
         if resize_fn is not None:
@@ -220,19 +228,26 @@ class video_reader_yuv_pytorch(video_reader):
             RGB = RGB.squeeze().permute(1,2,0)
         return RGB.clip(0, 1)
 
+    def _np_to_torchfp32(self, X, device):
+        if X.dtype == np.uint8:
+            return torch.tensor(X, dtype=torch.uint8).to(device).to(torch.float32)
+        elif X.dtype == np.uint16:
+            return self._npuint16_to_torchfp32(X, device)
+
+
     def _fixed2float_upscale(self, Y, u, v, device):
         offset = 16/219
         weight = 1/(2**(self.bit_depth-8)*219)
         Yuv = torch.empty(self.height, self.width, 3, device=device)
 
-        Y = self._npuint16_to_torchfp32(Y, device)
+        Y = self._np_to_torchfp32(Y, device)
         Yuv[..., 0] = torch.clip(weight*Y - offset, 0, 1).reshape(self.height, self.width)
 
         offset = 128/224
         weight = 1/(2**(self.bit_depth-8)*224)
 
         uv = np.stack((u, v))
-        uv = self._npuint16_to_torchfp32(uv, device)
+        uv = self._np_to_torchfp32(uv, device)
         uv = torch.clip(weight*uv - offset, -0.5, 0.5).reshape(1, 2, self.uv_shape[0], self.uv_shape[1])
 
         if self.chroma_ss=="420":

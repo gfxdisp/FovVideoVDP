@@ -18,10 +18,10 @@ media_folder = os.path.join(os.path.dirname(__file__), '..',
 #tst_fname = 'S:\\Datasets\\LIVEHDR\\test\\4k_6M_Bonfire.mp4'
 # tst_fname = 'S:\\Datasets\\LIVEHDR\\test\\720p_4.6M_Bonfire.mp4'
 # ref_fname = 'S:\\Datasets\\LIVEHDR\\test\\4k_ref_Bonfire.mp4'
-# tst_fname = 'example_media/aliasing/ferris-bicubic-bicubic.mp4'
-# ref_fname = 'example_media/aliasing/ferris-ref.mp4'
-tst_fname = 'S:\\Datasets\\color_display_quality\\Bonfire_Blur_Level003.mp4'
-ref_fname = 'S:\\Datasets\\color_display_quality\\Bonfire_reference_Level001.mp4'
+tst_fname = 'example_media/aliasing/ferris-bicubic-bicubic.mp4'
+ref_fname = 'example_media/aliasing/ferris-ref.mp4'
+# tst_fname = 'S:\\Datasets\\color_display_quality\\Bonfire_Blur_Level003.mp4'
+# ref_fname = 'S:\\Datasets\\color_display_quality\\Bonfire_reference_Level001.mp4'
 
 # tst_fname = 'S:\\Datasets\\color_display_quality\\Business_ColorFringes_Level003.mp4'
 # ref_fname = 'S:\\Datasets\\color_display_quality\\Business_reference_Level001.mp4'
@@ -32,7 +32,7 @@ fv = pyfvvdp.fvvdp(display_name=display_name, heatmap=None)
 
 frames = 10
 
-vs_file = pyfvvdp.fvvdp_video_source_file( tst_fname, ref_fname, display_photometry=display_name, frames=frames, preload=True, gpu_decode=False )
+vs_file = pyfvvdp.fvvdp_video_source_file( tst_fname, ref_fname, display_photometry=display_name, frames=frames, preload=True, gpu_decode=True )
 #, full_screen_resize='nearest', resize_resolution=[1920*2, 1080*2]
 
 print( f"Pre-loading {frames} frames..." )
