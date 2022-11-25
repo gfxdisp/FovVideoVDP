@@ -16,7 +16,7 @@ import pyfvvdp
 from pyfvvdp.fvvdp_display_model import fvvdp_display_photometry, fvvdp_display_geometry
 # from pyfvvdp.visualize_diff_map import visualize_diff_map
 #from pytorch_msssim import SSIM
-from utils import *
+import pyfvvdp.utils as utils
 
 def expand_wildcards(filestrs):
     if not isinstance(filestrs, list):
@@ -79,7 +79,7 @@ def parse_args():
     parser.add_argument("--output-dir", type=str, default=None, help="in which directory heatmaps and feature files should be stored (the default is the current directory)")
     parser.add_argument("--foveated", action='store_true', default=False, help="Run in a foveated mode (non-foveated is the default)")
     parser.add_argument("--display", type=str, default="standard_4k", help="display name, e.g. 'HTC Vive', or ? to print the list of models.")
-    parser.add_argument("--display-models", type=str, default=None, help="A path to the JSON file with a list of display models")
+    parser.add_argument("--config-dir", type=str, default=None, help="A path to fvvdp configuration files: display_models.json, fvvdp_parameters.json and others.")
     parser.add_argument("--nframes", type=int, default=-1, help="the number of video frames you want to compare")
     parser.add_argument("--full-screen-resize", choices=['bilinear', 'bicubic', 'nearest', 'area'], default=None, help="Both test and reference videos will be resized to match the full resolution of the display. Currently works only with videos.")
     parser.add_argument("--metrics", choices=['fvvdp', 'pu-psnr'], nargs='+', default=['fvvdp'], help='Select which metric(s) to run')
@@ -100,13 +100,17 @@ def main():
         
     logging.basicConfig(format='[%(levelname)s] %(message)s', level=log_level)
 
+    if not args.config_dir is None:
+        utils.config_files.set_config_dir(args.config_dir)
+
     if args.display == "?":
-        fvvdp_display_photometry.list_displays(args.display_models)
+        fvvdp_display_photometry.list_displays()
         return
 
     if args.test is None or args.ref is None:
         logging.error( "Paths to both test and reference content needs to be specified.")
         return
+
 
     if args.gpu >= 0 and torch.cuda.is_available():
         device = torch.device('cuda:' + str(args.gpu))
@@ -163,8 +167,8 @@ def main():
         sys.exit()
 
     metrics = []
-    display_photometry = fvvdp_display_photometry.load(args.display, models_file=args.display_models)
-    display_geometry = fvvdp_display_geometry.load(args.display, models_file=args.display_models)
+    display_photometry = fvvdp_display_photometry.load(args.display)
+    display_geometry = fvvdp_display_geometry.load(args.display)
     if args.verbose:
         display_photometry.print()
 

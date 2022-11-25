@@ -6,7 +6,7 @@ import math
 import logging
 import os
 
-from pyfvvdp.utils import json2dict
+import pyfvvdp.utils as utils
 
 # Convert pixel values to linear RGB using sRGB non-linearity
 # 
@@ -32,31 +32,27 @@ class fvvdp_display_photometry:
     def print( self ):
         pass
 
-    @classmethod
-    def default_model_file( cls ):
-        return os.path.join(os.path.dirname(__file__), "fvvdp_data/display_models.json")
+    # @classmethod
+    # def default_model_file( cls ):
+    #     return os.path.join(os.path.dirname(__file__), "fvvdp_data/display_models.json")
 
     @classmethod
-    def list_displays( cls, models_file=None ):
-
-        if models_file is None:
-            models_file = fvvdp_display_photometry.default_model_file()
+    def list_displays( cls ):
+        models_file = utils.config_files.find( "display_models.json" )
 
         logging.info( f"JSON file with display models: {models_file}" )
 
-        models = json2dict(models_file)
+        models = utils.json2dict(models_file)
 
         for display_name in models:
-            dm = fvvdp_display_photometry.load(display_name, models_file=models_file)
+            dm = fvvdp_display_photometry.load(display_name)
             dm.print()
 
     @classmethod
-    def load( cls, display_name, models_file=None ):
+    def load( cls, display_name ):
+        models_file = utils.config_files.find( "display_models.json" )
 
-        if models_file is None:
-            models_file = fvvdp_display_photometry.default_model_file()
-
-        models = json2dict(models_file)
+        models = utils.json2dict(models_file)
 
         if not display_name in models:
             raise RuntimeError( "Unknown display model: \"" + display_name + "\"" )
@@ -530,12 +526,10 @@ class fvvdp_display_geometry:
             logging.info( '  Pixels-per-degree (center): {ppd:.2f}'.format(ppd=self.get_ppd()) )
 
     @classmethod
-    def load( cls, display_name, models_file=None ):
+    def load( cls, display_name ):
 
-        if models_file is None:
-            models_file = fvvdp_display_photometry.default_model_file()
-
-        models = json2dict(models_file)
+        models_file = utils.config_files.find( "display_models.json" )
+        models = utils.json2dict(models_file)
 
         for mk in models:
             if mk == display_name:

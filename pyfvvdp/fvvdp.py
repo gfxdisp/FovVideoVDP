@@ -7,6 +7,7 @@ import torch.nn.functional as Func
 import numpy as np 
 import os
 import sys
+import json
 #import argparse
 #import time
 #import math
@@ -24,7 +25,10 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from third_party.cpuinfo import cpuinfo
 from pyfvvdp.fvvdp_lpyr_dec import fvvdp_lpyr_dec, fvvdp_contrast_pyr
 from interp import interp1, interp3
-from utils import *
+
+import pyfvvdp.utils as utils
+
+#from utils import *
 from fvvdp_test import FovVideoVDP_Testbench
 
 from pyfvvdp.fvvdp_display_model import fvvdp_display_photometry, fvvdp_display_geometry
@@ -82,14 +86,15 @@ class fvvdp:
             self.preload_cache(oo, self.csf_sigma)
 
         self.lpyr = None
-        self.imgaussfilt = ImGaussFilt(0.5 * self.pix_per_deg, self.device)
+        self.imgaussfilt = utils.ImGaussFilt(0.5 * self.pix_per_deg, self.device)
         self.heatmap_pyr = None
 
 
     def load_config( self ):
 
-        parameters_file = os.path.join(os.path.dirname(__file__), "fvvdp_data/fvvdp_parameters.json")
-        parameters = json2dict(parameters_file)
+        #parameters_file = os.path.join(os.path.dirname(__file__), "fvvdp_data/fvvdp_parameters.json")
+        self.parameters_file = utils.config_files.find( "fvvdp_parameters.json" )
+        parameters = utils.json2dict(self.parameters_file)
 
         #all common parameters between Matlab and Pytorch, loaded from the .json file
         self.mask_p = parameters['mask_p']
@@ -436,7 +441,7 @@ class fvvdp:
             fname = os.path.join(csf_cache_dir, key + '_gpu0.mat')
             if os.path.isfile(fname):
                 #lut = load_mat_dict(fname, "lut_cpu", self.device)
-                lut = load_mat_dict(fname, "lut", self.device)
+                lut = utils.load_mat_dict(fname, "lut", self.device)
                 for k in lut:
                     lut[k] = torch.tensor(lut[k], device=self.device, requires_grad=False)
                 self.csf_cache[key] = {"lut" : lut}
@@ -476,22 +481,22 @@ class fvvdp:
 
     def phase_uncertainty(self, M):
         if self.pu_dilate != 0:
-            M_pu = imgaussfilt( M, self.pu_dilate ) * torch.pow(10.0, self.mask_c)
+            M_pu = utils.imgaussfilt( M, self.pu_dilate ) * torch.pow(10.0, self.mask_c)
         else:
             #M_pu = M * (10**self.mask_c); # * torch.pow(self.torch_scalar(10.0), self.torch_scalar(self.mask_c))
             M_pu = M * torch.pow(self.torch_scalar(10.0), self.torch_scalar(self.mask_c))
         return M_pu
 
-    def mask_func_perc_norm(self, G, G_mask):
-        # Masking on perceptually normalized quantities (as in Daly's VDP)
+    # def mask_func_perc_norm(self, G, G_mask):
+    #     # Masking on perceptually normalized quantities (as in Daly's VDP)
         
-        p = self.mask_p
-        #q = self.mask_q
-        #k = self.k_mask_self
+    #     p = self.mask_p
+    #     #q = self.mask_q
+    #     #k = self.k_mask_self
         
-        R = torch.div(torch.pow(G,p), torch.sqrt( 1. + torch.pow(k * G_mask, 2*q)))
+    #     R = torch.div(torch.pow(G,p), torch.sqrt( 1. + torch.pow(k * G_mask, 2*q)))
 
-        return R
+    #     return R
 
     def mask_func_perc_norm2(self, G, G_mask, p, q ):
         # Masking on perceptually normalized quantities (as in Daly's VDP)        
@@ -500,22 +505,24 @@ class fvvdp:
 
     def apply_masking_model(self, T, R, N, cc):
         # cc - temporal channel: 0 - sustained, 1 - transient
-        if self.masking_model == "joint_mutual_masking_perc_norm":
-            T = torch.div(T, N)
-            R = torch.div(R, N)
-            M = self.phase_uncertainty( torch.min( torch.abs(T), torch.abs(R) ) )
-            d = torch.abs(T-R)
-            M = M + d
-            D = self.mask_func_perc_norm( d, M )
-        elif self.masking_model == 'min_mutual_masking_perc_norm2':
-            p = self.mask_p
-            q = self.mask_q_sust if cc==0 else self.mask_q_trans            
-            T = torch.div(T, N)
-            R = torch.div(R, N)
-            M = self.phase_uncertainty( torch.min( torch.abs(T), torch.abs(R) ) )
-            D = self.mask_func_perc_norm2( torch.abs(T-R), M, p, q )
-        else:
-            print("Error: Masking model" + self.masking_model + "not implemented")
+        # if self.masking_model == "joint_mutual_masking_perc_norm":
+        #     T = torch.div(T, N)
+        #     R = torch.div(R, N)
+        #     M = self.phase_uncertainty( torch.min( torch.abs(T), torch.abs(R) ) )
+        #     d = torch.abs(T-R)
+        #     M = M + d
+        #     D = self.mask_func_perc_norm( d, M )
+        # elif self.masking_model == 'min_mutual_masking_perc_norm2':
+
+        p = self.mask_p
+        q = self.mask_q_sust if cc==0 else self.mask_q_trans            
+        T = torch.div(T, N)
+        R = torch.div(R, N)
+        M = self.phase_uncertainty( torch.min( torch.abs(T), torch.abs(R) ) )
+        D = self.mask_func_perc_norm2( torch.abs(T-R), M, p, q )
+
+        # else:
+        #     print("Error: Masking model" + self.masking_model + "not implemented")
 
         D = torch.clamp( D, max=1e4)
         return D

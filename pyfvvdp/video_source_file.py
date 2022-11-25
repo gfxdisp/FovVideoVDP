@@ -266,7 +266,7 @@ Use ffmpeg to read video frames, one by one.
 '''
 class fvvdp_video_source_video_file(fvvdp_video_source_dm):
 
-    def __init__( self, test_fname, reference_fname, display_photometry='sdr_4k_30', color_space_name='auto', frames=-1, display_models=None, full_screen_resize=None, resize_resolution=None, ffmpeg_cc=False, verbose=False ):
+    def __init__( self, test_fname, reference_fname, display_photometry='sdr_4k_30', color_space_name='auto', frames=-1, full_screen_resize=None, resize_resolution=None, ffmpeg_cc=False, verbose=False ):
 
         fs_width = -1 if full_screen_resize is None else resize_resolution[0]
         fs_height = -1 if full_screen_resize is None else resize_resolution[1]
@@ -293,7 +293,7 @@ class fvvdp_video_source_video_file(fvvdp_video_source_dm):
             else:
                 color_space_name="sRGB"
 
-        super().__init__(display_photometry=display_photometry, color_space_name=color_space_name, display_models=display_models)        
+        super().__init__(display_photometry=display_photometry, color_space_name=color_space_name)        
 
         if self.test_vidr.color_transfer=="smpte2084" and self.dm_photometry.EOTF!="PQ":
             logging.warning( f"Video color transfer function ({self.test_vidr.color_transfer}) inconsistent with EOTF of the display model ({self.dm_photometry.EOTF})" )
@@ -398,7 +398,7 @@ Recognize whether the file is an image of video and wraps an appropriate video_s
 '''
 class fvvdp_video_source_file(fvvdp_video_source):
 
-    def __init__( self, test_fname, reference_fname, display_photometry='sdr_4k_30', color_space_name='auto', frames=-1, display_models=None, full_screen_resize=None, resize_resolution=None, preload=False, ffmpeg_cc=False, verbose=False ):
+    def __init__( self, test_fname, reference_fname, display_photometry='sdr_4k_30', color_space_name='auto', frames=-1, full_screen_resize=None, resize_resolution=None, preload=False, ffmpeg_cc=False, verbose=False ):
         # these extensions switch mode to images instead
         image_extensions = [".png", ".jpg", ".gif", ".bmp", ".jpeg", ".ppm", ".tiff", ".dds", ".exr", ".hdr"]
 
@@ -413,7 +413,7 @@ class fvvdp_video_source_file(fvvdp_video_source):
             img_reference = load_image_as_array(reference_fname)
             if not full_screen_resize is None:
                 logging.error("full-screen-resize not implemented for images.")
-            self.vs = fvvdp_video_source_array( img_test, img_reference, 0, dim_order='HWC', display_photometry=display_photometry, color_space_name=color_space_name, display_models=display_models )            
+            self.vs = fvvdp_video_source_array( img_test, img_reference, 0, dim_order='HWC', display_photometry=display_photometry, color_space_name=color_space_name )            
         else:
             assert os.path.splitext(reference_fname)[1].lower() not in image_extensions, 'Test is a video, but reference is an image'
             vs_class = fvvdp_video_source_video_file_preload if preload else fvvdp_video_source_video_file
@@ -421,7 +421,6 @@ class fvvdp_video_source_file(fvvdp_video_source):
                                 display_photometry=display_photometry, 
                                 color_space_name=color_space_name, 
                                 frames=frames, 
-                                display_models=display_models, 
                                 full_screen_resize=full_screen_resize, 
                                 resize_resolution=resize_resolution, 
                                 ffmpeg_cc=ffmpeg_cc, 

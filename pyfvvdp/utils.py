@@ -126,6 +126,34 @@ class ImGaussFilt():
         return Func.conv2d(img_4d, self.K)[0,0]
 
 
+class config_files:
+    fvvdp_config_dir = None
+    
+    @classmethod
+    def set_config_dir( cls, path ):
+        cls.fvvdp_config_dir = path
+
+    @classmethod
+    def find(cls, fname):
+
+        if not cls.fvvdp_config_dir is None:
+            path = os.path.join( cls.fvvdp_config_dir, fname )
+            if os.path.isfile(path):
+                return path
+
+        ev_config_dir = os.getenv("FVVDP_PATH")
+        if not ev_config_dir is None:
+            path = os.path.join( ev_config_dir, fname )
+            if os.path.isfile(path):
+                return path
+
+        path = os.path.join(os.path.dirname(__file__), "fvvdp_data", fname)
+        if os.path.isfile(path):
+            return path
+
+        raise RuntimeError( f"The configuration file {fname} not found" )
+
+
 class PU():
     '''
     Transform absolute linear luminance values to/from the perceptually uniform space.
