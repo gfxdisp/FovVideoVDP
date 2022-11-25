@@ -12,8 +12,8 @@ import logging
 from video_source import *
 
 # for debugging only
-# from gfxdisp.pfs import pfs
-# from gfxdisp.pfs.pfs_torch import pfs_torch
+from gfxdisp.pfs import pfs
+from gfxdisp.pfs.pfs_torch import pfs_torch
 
 try:
     # This may fail if OpenEXR is not installed. To install,
@@ -145,19 +145,26 @@ class video_reader:
 
 
 '''
-Unpack frames frames on the GPU
+Decode frames to Yuv, perform upsampling and colour conversion with pytorch (on the GPU)
 '''
-class video_reader_gpu_decode(video_reader):
+class video_reader_yuv_pytorch(video_reader):
     def __init__(self, vidfile, frames=-1, resize_fn=None, resize_height=-1, resize_width=-1, verbose=False):
         super().__init__(vidfile, frames, resize_fn, resize_height, resize_width, verbose)
 
-        self.frame_bytes = int(self.width*self.height)
-        self.y_pixels = int(self.frame_bytes)
+        y_channel_pixels = int(self.width*self.height)
+        self.y_pixels = y_channel_pixels
         self.y_shape = (self.height, self.width)
 
-        self.frame_bytes = self.frame_bytes*3//2
-        self.uv_pixels = int(self.y_pixels/4)
-        self.uv_shape = (int(self.y_shape[0]/2), int(self.y_shape[1]/2))
+        if self.chroma_ss == "444":
+            self.frame_bytes = y_channel_pixels*3
+            self.uv_pixels = y_channel_pixels
+            self.uv_shape = self.y_shape
+        elif self.chroma_ss == "420":
+            self.frame_bytes = self.frame_bytes*3//2
+            self.uv_pixels = int(self.y_pixels/4)
+            self.uv_shape = (int(self.y_shape[0]/2), int(self.y_shape[1]/2))
+        else:
+            raise RuntimeError("Unrecognized chroma subsampling.")
 
         if self.bit_depth > 8:
             self.frame_bytes *= 2
@@ -167,10 +174,13 @@ class video_reader_gpu_decode(video_reader):
             raise RuntimeError('GPU decoding not implemented for bit-depth 8')
 
         self.bit_depth = int(re.search('p\d\d', self.in_pix_fmt).group().strip('p'))
-        out_pix_fmt = f'yuv420p{self.bit_depth}le'
         self.dtype = np.uint16
-        # TODO: make chroma subsampling optional?
-        self.chroma_ss = '420'
+
+        self.chroma_ss = self.in_pix_fmt[3:6]
+        if not self.chroma_ss in ['444', '420']: # TODO: implement and test 422
+            raise RuntimeError(f"Unrecognized chroma subsampling {self.chroma_ss}")
+
+        out_pix_fmt = f'yuv{self.chroma_ss}p{self.bit_depth}le'
 
         # Resize later on the GPU
         if resize_fn is not None:
@@ -187,7 +197,7 @@ class video_reader_gpu_decode(video_reader):
         u = x[self.y_pixels:self.y_pixels+self.uv_pixels]
         v = x[self.y_pixels+self.uv_pixels:]
 
-        Yuv_float = self._fixed2float(Y, u, v, device)
+        Yuv_float = self._fixed2float_upscale(Y, u, v, device)
 
         if self.color_space=='bt2020nc':
             # display-encoded (PQ) BT.2020 RGB image
@@ -195,10 +205,10 @@ class video_reader_gpu_decode(video_reader):
                                         [1, -0.16455, -0.57135],
                                         [1, 1.88140, 0]], device=device)
         else:
-            # display-encoded (sRBG) BT.709 RGB image
-            ycbcr2rgb = torch.tensor([[1, 0, 1.5748],
-                                    [1, -0.18733, -0.46813],
-                                    [1, 1.85563, 0]], device=device)
+            # display-encoded (sRGB) BT.709 RGB image
+            ycbcr2rgb = torch.tensor([[1, 0, 1.402],
+                                    [1, -0.344136, -0.714136],
+                                    [1, 1.772, 0]], device=device)
 
         RGB = Yuv_float @ ycbcr2rgb.transpose(1, 0)
         if (hasattr(self, 'resize_fn')) and (self.resize_fn is not None) \
@@ -209,7 +219,7 @@ class video_reader_gpu_decode(video_reader):
             RGB = RGB.squeeze().permute(1,2,0)
         return RGB.clip(0, 1)
 
-    def _fixed2float(self, Y, u, v, device):
+    def _fixed2float_upscale(self, Y, u, v, device):
         offset = 16/219
         weight = 1/(2**(self.bit_depth-8)*219)
         Yuv = torch.empty(self.height, self.width, 3, device=device)
@@ -222,10 +232,14 @@ class video_reader_gpu_decode(video_reader):
 
         uv = np.stack((u, v))
         uv = self._npuint16_to_torchfp32(uv, device)
-        uv = torch.clip(weight*uv - offset, -0.5, 0.5).reshape(1, 2, self.height//2, self.width//2)
+        uv = torch.clip(weight*uv - offset, -0.5, 0.5).reshape(1, 2, self.uv_shape[0], self.uv_shape[1])
 
-        # TODO: Replace with a proper filter.
-        uv_upscaled = torch.nn.functional.interpolate(uv, scale_factor=2, mode='bilinear')
+        if self.chroma_ss=="420":
+            # TODO: Replace with a proper filter.
+            uv_upscaled = torch.nn.functional.interpolate(uv, scale_factor=2, mode='bilinear')
+        else:
+            uv_upscaled = uv
+
         Yuv[...,1:] = uv_upscaled.squeeze().permute(1,2,0)
 
         return Yuv
@@ -240,7 +254,7 @@ class fvvdp_video_source_video_file(fvvdp_video_source_dm):
 
         fs_width = -1 if full_screen_resize is None else resize_resolution[0]
         fs_height = -1 if full_screen_resize is None else resize_resolution[1]
-        self.reader = video_reader_gpu_decode if gpu_decode else video_reader
+        self.reader = video_reader_yuv_pytorch if gpu_decode else video_reader
         self.reference_vidr = self.reader(reference_fname, frames, resize_fn=full_screen_resize, resize_width=fs_width, resize_height=fs_height, verbose=verbose)
         self.test_vidr = self.reader(test_fname, frames, resize_fn=full_screen_resize, resize_width=fs_width, resize_height=fs_height, verbose=verbose)
 

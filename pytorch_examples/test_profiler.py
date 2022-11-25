@@ -15,12 +15,16 @@ media_folder = os.path.join(os.path.dirname(__file__), '..',
                             'example_media', 'aliasing')
 
 # Add here paths to the test and reference videos
-tst_fname = 'S:\\Datasets\\LIVEHDR\\test\\4k_6M_Bonfire.mp4'
-ref_fname = 'S:\\Datasets\\LIVEHDR\\test\\4k_ref_Bonfire.mp4'
+# tst_fname = 'S:\\Datasets\\LIVEHDR\\test\\4k_6M_Bonfire.mp4'
+# ref_fname = 'S:\\Datasets\\LIVEHDR\\test\\4k_ref_Bonfire.mp4'
 # tst_fname = 'example_media/aliasing/ferris-bicubic-bicubic.mp4'
 # ref_fname = 'example_media/aliasing/ferris-ref.mp4'
 # tst_fname = 'S:\\Datasets\\color_display_quality\\Bonfire_Blur_Level003.mp4'
 # ref_fname = 'S:\\Datasets\\color_display_quality\\Bonfire_reference_Level001.mp4'
+
+
+tst_fname = 'S:\\Datasets\\color_display_quality\\Business_ColorFringes_Level003.mp4'
+ref_fname = 'S:\\Datasets\\color_display_quality\\Business_reference_Level001.mp4'
 
 
 fv = pyfvvdp.fvvdp(display_name=display_name, heatmap=None)
@@ -29,7 +33,7 @@ frames = 20
 
 vs_file = pyfvvdp.fvvdp_video_source_file( tst_fname, ref_fname, display_photometry=display_name, frames=frames, preload=True, gpu_decode=True )
 
-print( "Pre-loading frames..." )
+print( f"Pre-loading f{frames} frames..." )
 start = time.time()
 # Getting a single frame should trigger pre-load
 vs_file.get_test_frame( 0, fv.device )
@@ -60,7 +64,8 @@ with profile(activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA], record_sh
         Q_JOD_static, stats_static = fv.predict_video_source( vs )
         end = time.time()
 
-print(prof.key_averages(group_by_input_shape=True).table(sort_by="self_cuda_time_total", row_limit=20))
+#print(prof.key_averages(group_by_input_shape=True).table(sort_by="self_cuda_time_total", row_limit=20))
+print(prof.key_averages().table(sort_by="self_cuda_time_total", row_limit=20))
 #print(prof.key_averages().table(sort_by="self_cuda_memory_usage", row_limit=20))
 prof.export_chrome_trace("trace.json")
 

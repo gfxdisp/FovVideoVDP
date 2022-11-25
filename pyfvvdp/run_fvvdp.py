@@ -81,7 +81,7 @@ def parse_args():
     parser.add_argument("--display", type=str, default="standard_4k", help="display name, e.g. 'HTC Vive', or ? to print the list of models.")
     parser.add_argument("--display-models", type=str, default=None, help="A path to the JSON file with a list of display models")
     parser.add_argument("--nframes", type=int, default=-1, help="the number of video frames you want to compare")
-    parser.add_argument("--full-screen-resize", type=str, help="Both test and reference videos will be resized to match the full resolution of the display. Currently works only with videos.")
+    parser.add_argument("--full-screen-resize", choices=['bilinear', 'bicubic', 'nearest', 'area'], default=None, help="Both test and reference videos will be resized to match the full resolution of the display. Currently works only with videos.")
     parser.add_argument("--metrics", choices=['fvvdp', 'pu-psnr'], nargs='+', default=['fvvdp'], help='Select which metric(s) to run')
     parser.add_argument("--temp-padding", choices=['replicate', 'circular', 'pingpong'], default='replicate', help='How to pad the video in the time domain (for the temporal filters). "replicate" - repeat the first frame. "pingpong" - mirror the first frames. "circular" - take the last frames.')
     parser.add_argument("--quiet", action='store_true', default=False, help="Do not print any information but the final JOD value. Warning message will be still printed.")
@@ -132,17 +132,17 @@ def main():
         do_heatmap = True
     else:
         do_heatmap = False
-
-    # Chack for valid resizing methods
-    if args.gpu_decode:
+        
+    # Check for valid resizing methods
+    #if args.gpu_decode:
         # Doc: https://pytorch.org/docs/stable/generated/torch.nn.functional.interpolate.html
-        valid_methods = ['nearest', 'bilinear', 'bicubic', 'area', 'nearest-exact']
-    else:
+        #valid_methods = ['nearest', 'bilinear', 'bicubic', 'area', 'nearest-exact']
+    #else:
         # Doc: https://ffmpeg.org/ffmpeg-scaler.html
-        valid_methods = ['fast_bilinear', 'bilinear', 'bicubic', 'experimental', 'neighbor', 'area', 'bicublin', 'gauss', 'lanczos', 'spline']
-    if args.full_screen_size not in valid_methods:
-        logging.error(f'The resizing method supplied is invalid. Please pick from {valid_methods}.')
-        sys.exit()
+        #valid_methods = ['fast_bilinear', 'bilinear', 'bicubic', 'experimental', 'neighbor', 'area', 'bicublin', 'gauss', 'lanczos', 'spline']
+    #if args.full_screen_size not in valid_methods:
+    #    logging.error(f'The resizing method supplied is invalid. Please pick from {valid_methods}.')
+    #    sys.exit()
 
     args.test = expand_wildcards(args.test)
     args.ref = expand_wildcards(args.ref)    
