@@ -11,6 +11,7 @@
  - [Python] --heatmap-dir argument renamed to --output-dir. Now used for both heatmaps and features
  - [Python] Minor performance improvements.
  - [Python] --verbose will report much more information now.
+ - [Python] It can create much larger heatmaps now (stores them in the CPU memory as float16)
  
 # v1.1.3 - 18/10/2022
  - [Python] Added "raw" heatmap type to the command line

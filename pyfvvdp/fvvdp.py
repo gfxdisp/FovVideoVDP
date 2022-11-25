@@ -194,7 +194,7 @@ class fvvdp:
 
         if self.do_heatmap:
             dmap_channels = 1 if self.heatmap == "raw" else 3
-            heatmap = torch.zeros([1,dmap_channels,N_frames,height,width], dtype=torch.float, device=self.device) 
+            heatmap = torch.zeros([1,dmap_channels,N_frames,height,width], dtype=torch.float16, device=torch.device('cpu')) # Store heatmap in the CPU memory
         else:
             heatmap = None
 
@@ -261,11 +261,7 @@ class fvvdp:
 
             if self.debug: self.tb.verify_against_matlab(R.permute(0,2,3,4,1), 'Rdata', self.device, file='R_%d' % (ff+1), tolerance = 0.01)
 
-            # Perform Laplacian decomposition
-            # B = [None] * R.shape[1]
-            # for rr in range(R.shape[1]):
-            #     B[rr] = fvvdp_lpyr_dec( R[0,rr:(rr+1),0:1,:,:], self.pix_per_deg, self.device)
-
+            # Perform Laplacian pyramid decomposition
             B_bands, B_gbands = self.lpyr.decompose(R[0,...])
 
             if self.debug: assert len(B_bands) == self.lpyr.get_band_count()
@@ -320,6 +316,7 @@ class fvvdp:
                     if self.debug: self.tb.verify_against_matlab(T_f, 'T_f_data', self.device, file='T_f_%d_%d_%d' % (ff+1,bb+1,cc+1), tolerance = 0.001) 
                     if self.debug: self.tb.verify_against_matlab(R_f, 'R_f_data', self.device, file='R_f_%d_%d_%d' % (ff+1,bb+1,cc+1), tolerance = 0.001)
 
+                    # Pre-compute the inverse of the CSF (contrast thresholds)
                     if N_nCSF[bb][cc] is None:
 
                         if self.foveated:   # Fixation, parafoveal sensitivity
@@ -347,7 +344,7 @@ class fvvdp:
                         # if self.debug: self.tb.verify_against_matlab(ecc, 'ecc_data', self.device, file='ecc_%d_%d_%d' % (ff+1,bb+1,cc+1), tolerance = 0.01)  
                         # if self.debug: self.tb.verify_against_matlab(rho, 'rho_data', self.device, file='rho_%d_%d_%d' % (ff+1,bb+1,cc+1), tolerance = 0.05)  
 
-                        S = self.cached_sensitivity(rho, self.omega[cc], L_bkg, ecc, self.csf_sigma) * np.power(10.0, self.sensitivity_correction/20.0)
+                        S = self.cached_sensitivity(rho, self.omega[cc], L_bkg, ecc, self.csf_sigma) * 10.0**(self.sensitivity_correction/20.0)
                         # if self.debug: self.tb.verify_against_matlab(S, 'S_data', self.device, file='S_%d_%d_%d' % (ff+1,bb+1,cc+1), tolerance = 0.01, verbose=False)
 
                         if self.contrast == "log": N_nCSF[bb][cc] = self.weber2log(torch.min(1./S, self.torch_scalar(0.9999999)))
@@ -373,10 +370,10 @@ class fvvdp:
                 beta_jod = np.power(10.0, self.log_jod_exp)
                 dmap = torch.pow(self.heatmap_pyr.reconstruct(Dmap_pyr_bands), beta_jod) * abs(self.jod_a)         
                 if self.heatmap == "raw":
-                    heatmap[:,:,ff,...] = dmap 
+                    heatmap[:,:,ff,...] = dmap.detach().type(torch.float16).cpu()
                 else:
                     ref_frame = R[:,0, :, :, :]
-                    heatmap[:,:,ff,...] = visualize_diff_map(dmap, context_image=ref_frame, colormap_type=self.heatmap)
+                    heatmap[:,:,ff,...] = visualize_diff_map(dmap, context_image=ref_frame, colormap_type=self.heatmap).detach().type(torch.float16).cpu()
 
 
         Q_sc = self.lp_norm(Q_per_ch, self.beta_sch, 0, False)
