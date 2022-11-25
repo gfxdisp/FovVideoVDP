@@ -266,11 +266,11 @@ Use ffmpeg to read video frames, one by one.
 '''
 class fvvdp_video_source_video_file(fvvdp_video_source_dm):
 
-    def __init__( self, test_fname, reference_fname, display_photometry='sdr_4k_30', color_space_name='auto', frames=-1, display_models=None, full_screen_resize=None, resize_resolution=None, gpu_decode=False, verbose=False ):
+    def __init__( self, test_fname, reference_fname, display_photometry='sdr_4k_30', color_space_name='auto', frames=-1, display_models=None, full_screen_resize=None, resize_resolution=None, ffmpeg_cc=False, verbose=False ):
 
         fs_width = -1 if full_screen_resize is None else resize_resolution[0]
         fs_height = -1 if full_screen_resize is None else resize_resolution[1]
-        self.reader = video_reader_yuv_pytorch if gpu_decode else video_reader
+        self.reader = video_reader if ffmpeg_cc else video_reader_yuv_pytorch
         self.reference_vidr = self.reader(reference_fname, frames, resize_fn=full_screen_resize, resize_width=fs_width, resize_height=fs_height, verbose=verbose)
         self.test_vidr = self.reader(test_fname, frames, resize_fn=full_screen_resize, resize_width=fs_width, resize_height=fs_height, verbose=verbose)
 
@@ -398,7 +398,7 @@ Recognize whether the file is an image of video and wraps an appropriate video_s
 '''
 class fvvdp_video_source_file(fvvdp_video_source):
 
-    def __init__( self, test_fname, reference_fname, display_photometry='sdr_4k_30', color_space_name='auto', frames=-1, display_models=None, full_screen_resize=None, resize_resolution=None, preload=False, gpu_decode=False, verbose=False ):
+    def __init__( self, test_fname, reference_fname, display_photometry='sdr_4k_30', color_space_name='auto', frames=-1, display_models=None, full_screen_resize=None, resize_resolution=None, preload=False, ffmpeg_cc=False, verbose=False ):
         # these extensions switch mode to images instead
         image_extensions = [".png", ".jpg", ".gif", ".bmp", ".jpeg", ".ppm", ".tiff", ".dds", ".exr", ".hdr"]
 
@@ -416,10 +416,16 @@ class fvvdp_video_source_file(fvvdp_video_source):
             self.vs = fvvdp_video_source_array( img_test, img_reference, 0, dim_order='HWC', display_photometry=display_photometry, color_space_name=color_space_name, display_models=display_models )            
         else:
             assert os.path.splitext(reference_fname)[1].lower() not in image_extensions, 'Test is a video, but reference is an image'
-            if preload:
-                self.vs = fvvdp_video_source_video_file_preload( test_fname, reference_fname, display_photometry=display_photometry, color_space_name=color_space_name, frames=frames, display_models=display_models, full_screen_resize=full_screen_resize, resize_resolution=resize_resolution, gpu_decode=gpu_decode, verbose=verbose )
-            else:
-                self.vs = fvvdp_video_source_video_file( test_fname, reference_fname, display_photometry=display_photometry, color_space_name=color_space_name, frames=frames, display_models=display_models, full_screen_resize=full_screen_resize, resize_resolution=resize_resolution, gpu_decode=gpu_decode, verbose=verbose )
+            vs_class = fvvdp_video_source_video_file_preload if preload else fvvdp_video_source_video_file
+            self.vs = vs_class( test_fname, reference_fname, 
+                                display_photometry=display_photometry, 
+                                color_space_name=color_space_name, 
+                                frames=frames, 
+                                display_models=display_models, 
+                                full_screen_resize=full_screen_resize, 
+                                resize_resolution=resize_resolution, 
+                                ffmpeg_cc=ffmpeg_cc, 
+                                verbose=verbose )
 
     # Return (height, width, frames) touple with the resolution and
     # the length of the video clip.

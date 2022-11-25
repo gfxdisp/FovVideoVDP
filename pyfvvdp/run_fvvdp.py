@@ -86,7 +86,7 @@ def parse_args():
     parser.add_argument("--temp-padding", choices=['replicate', 'circular', 'pingpong'], default='replicate', help='How to pad the video in the time domain (for the temporal filters). "replicate" - repeat the first frame. "pingpong" - mirror the first frames. "circular" - take the last frames.')
     parser.add_argument("--quiet", action='store_true', default=False, help="Do not print any information but the final JOD value. Warning message will be still printed.")
     parser.add_argument("--verbose", action='store_true', default=False, help="Print out extra information.")
-    parser.add_argument("--gpu-decode", action='store_true', default=False, help="Decode video frames on the device.")
+    parser.add_argument("--ffmpeg-cc", action='store_true', default=False, help="Use ffmpeg for upsampling and colour conversion. Use custom pytorch code by default (faster and less memory).")
     args = parser.parse_args()
     return args
 
@@ -206,7 +206,7 @@ def main():
                                                   resize_resolution=display_geometry.resolution, 
                                                   frames=args.nframes,
                                                   preload=preload,
-                                                  gpu_decode=args.gpu_decode,
+                                                  ffmpeg_cc=args.ffmpeg_cc,
                                                   verbose=args.verbose )
             Q_pred, stats = mm.predict_video_source(vs)
             if args.quiet:
