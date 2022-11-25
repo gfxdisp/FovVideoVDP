@@ -12,8 +12,8 @@ import logging
 from video_source import *
 
 # for debugging only
-from gfxdisp.pfs import pfs
-from gfxdisp.pfs.pfs_torch import pfs_torch
+# from gfxdisp.pfs import pfs
+# from gfxdisp.pfs.pfs_torch import pfs_torch
 
 try:
     # This may fail if OpenEXR is not installed. To install,
@@ -84,7 +84,8 @@ class video_reader:
 
         stream = ffmpeg.input(vidfile)
         if (resize_fn is not None) and (resize_width!=self.width or resize_height!=self.height):
-            stream = ffmpeg.filter(stream, 'scale', resize_width, resize_height, flags=resize_fn)
+            resize_mode = resize_fn if resize_fn != 'nearest' else 'neighbor'
+            stream = ffmpeg.filter(stream, 'scale', resize_width, resize_height, flags=resize_mode)
             self.width = resize_width
             self.height = resize_height
 
@@ -160,8 +161,8 @@ class video_reader_yuv_pytorch(video_reader):
             self.uv_pixels = y_channel_pixels
             self.uv_shape = self.y_shape
         elif self.chroma_ss == "420":
-            self.frame_bytes = self.frame_bytes*3//2
-            self.uv_pixels = int(self.y_pixels/4)
+            self.frame_bytes = y_channel_pixels*3//2
+            self.uv_pixels = int(y_channel_pixels/4)
             self.uv_shape = (int(self.y_shape[0]/2), int(self.y_shape[1]/2))
         else:
             raise RuntimeError("Unrecognized chroma subsampling.")
