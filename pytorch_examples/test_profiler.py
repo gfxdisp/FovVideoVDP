@@ -27,7 +27,7 @@ fv = pyfvvdp.fvvdp(display_name=display_name, heatmap=None)
 
 frames = 20
 
-vs_file = pyfvvdp.fvvdp_video_source_file( tst_fname, ref_fname, display_photometry=display_name, frames=frames, preload=True )
+vs_file = pyfvvdp.fvvdp_video_source_file( tst_fname, ref_fname, display_photometry=display_name, frames=frames, preload=True, gpu_decode=True )
 
 print( "Pre-loading frames..." )
 start = time.time()

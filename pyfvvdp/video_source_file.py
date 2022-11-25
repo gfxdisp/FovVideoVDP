@@ -189,18 +189,16 @@ class video_reader_gpu_decode(video_reader):
 
         Yuv_float = self._fixed2float(Y, u, v, device)
 
-        # Convert to display-encoded (sRBG) BT.709 RGB image
-        ycbcr2rgb = torch.tensor([[1, 0, 1.5748],
-                                  [1, -0.18733, -0.46813],
-                                  [1, 1.85563, 0]], device=device)
-        # TODO: option for other output colour spaces
-        # elif self.color_space == 'BT.2020':
-        #     # Convert to display-encoded (PQ) BT.2020 RGB image
-        #     ycbcr2rgb = torch.tensor([[1, 0, 1.47460],
-        #                               [1, -0.16455, -0.57135],
-        #                               [1, 1.88140, 0]], device=device)
-        # else:
-        #     raise RuntimeError(f'Unknown color space: {self.color_space}')
+        if self.color_space=='bt2020nc':
+            # display-encoded (PQ) BT.2020 RGB image
+            ycbcr2rgb = torch.tensor([[1, 0, 1.47460],
+                                        [1, -0.16455, -0.57135],
+                                        [1, 1.88140, 0]], device=device)
+        else:
+            # display-encoded (sRBG) BT.709 RGB image
+            ycbcr2rgb = torch.tensor([[1, 0, 1.5748],
+                                    [1, -0.18733, -0.46813],
+                                    [1, 1.85563, 0]], device=device)
 
         RGB = Yuv_float @ ycbcr2rgb.transpose(1, 0)
         if (hasattr(self, 'resize_fn')) and (self.resize_fn is not None) \
