@@ -297,6 +297,17 @@ class fvvdp:
 
         return (Q_jod.squeeze(), stats)
 
+    def predict_stage2(self, Q_per_ch):
+        Q_sc = self.lp_norm(Q_per_ch, self.beta_sch, 0, False)  # Sum across spatial channels
+        Q_tc = self.lp_norm(Q_sc,     self.beta_tch, 1, False)  # Sum across tenporal channels
+        Q    = self.lp_norm(Q_tc,     self.beta_t,   2, True)   # Sum across frames
+        Q = Q.squeeze()
+
+        sign = lambda x: (1, -1)[x<0]
+        beta_jod = 10.0**self.log_jod_exp
+        Q_jod = sign(self.jod_a) * ((abs(self.jod_a)**(1.0/beta_jod))* Q)**beta_jod + 10.0 # This one can help with very large numbers
+        return Q_jod.squeeze()
+
     def compute_local_contrast(self, R, T, next_gauss_band, L_adapt):
         if self.local_adapt=="simple":
             L_bkg = Func.interpolate(L_adapt.unsqueeze(0).unsqueeze(0), R.shape, mode='bicubic', align_corners=True)
