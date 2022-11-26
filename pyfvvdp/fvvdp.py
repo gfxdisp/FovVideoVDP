@@ -44,6 +44,7 @@ class fvvdp:
         self.heatmap = heatmap
         self.color_space = color_space
         self.temp_padding = temp_padding
+        self.do_diff_mask = True # Mask pixels that are identical
 
         if display_photometry is None:
             self.display_photometry = fvvdp_display_photometry.load(display_name, models_file=display_models)
@@ -266,6 +267,15 @@ class fvvdp:
 
             if self.debug: self.tb.verify_against_matlab(R.permute(0,2,3,4,1), 'Rdata', self.device, file='R_%d' % (ff+1), tolerance = 0.01)
 
+            if self.do_diff_mask:
+                if is_image:
+                    test_frame = R[:,0, :, :, :]
+                    ref_frame = R[:,1, :, :, :]
+                else:
+                    test_frame = sw_buf[0][:, :, -1, :, :]
+                    ref_frame = sw_buf[1][:, :, -1, :, :]
+                diff_mask = (((test_frame-ref_frame).abs() / ref_frame) > 0.001).type(torch.float16) # Mask of pixels that are actually different
+
             # Perform Laplacian pyramid decomposition
             B_bands, B_gbands = self.lpyr.decompose(R[0,...])
 
@@ -359,6 +369,12 @@ class fvvdp:
                     D = self.apply_masking_model(T_f, R_f, N_nCSF[bb][cc], cc)
 
                     if self.debug: self.tb.verify_against_matlab(D, 'D_data', self.device, file='D_%d_%d_%d' % (ff+1,bb+1,cc+1), tolerance = 0.1, relative = True, verbose=False)
+
+                    if self.do_diff_mask:
+                        diff_mask_band = torch.nn.functional.interpolate(diff_mask,
+                                                  size=(D.shape[-2], D.shape[-1]),
+                                                  mode='area')
+                        D = D * diff_mask_band[0,0,:,:]
 
                     if self.do_heatmap:
                         if cc == 0: self.heatmap_pyr.set_band(Dmap_pyr_bands, bb, D)
