@@ -157,8 +157,20 @@ By default, FovVideoVDP will run the code on a GPU using `gpuArray`s, which requ
 
 ## Release notes
 
+* v1.2.0 - 27 November 2023
+  * The python command line interface can now accept HDR video files. 
+  * [PU21-PSNR](https://github.com/gfxdisp/pu21) can be run in addition to FovVideoVDP
+  * Added new command line options: `--full-screen-resize`, `--metrics`, `--temp-padding`, `--feature`, `--output-dir`
+  * Faster decoding for large (4k) videos when run on CUDA. 
+  * The prediction may differ slightly because of the way video files are handled and processed. There are no changes in the metric.
+
+* v1.1.3 - 18 October 2022
+  * Added "raw" heatmap type to the command line. 
+  * Changed the way pyfvvdp classes are imported  to avoid clash between the file and class names (see updated pytortch_examples)
+  * Installation of PyEXR is now optional (caused problems on some operating systems).
+
 * v1.1.2 - 23 September 2022
- * Updated Python dependencies - now works with earlier versions of PyTorch, Numpy and SciPy
+  * Updated Python dependencies - now works with earlier versions of PyTorch, Numpy and SciPy
 
 * v1.1.1 - 28 August 2022
   * We found a small inconsistency in eccentricity calculations. After fixing this, the metric has been retrained on the same datasets as described in the paper. FovVideoVDP v1.1 will return JOD values that are different than v1.0. For that reason, it is important to mention the version number when reporting the results. 
