@@ -16,7 +16,7 @@ import pyfvvdp
 from pyfvvdp.fvvdp_display_model import fvvdp_display_photometry, fvvdp_display_geometry
 # from pyfvvdp.visualize_diff_map import visualize_diff_map
 #from pytorch_msssim import SSIM
-from utils import *
+import pyfvvdp.utils as utils
 
 def expand_wildcards(filestrs):
     if not isinstance(filestrs, list):
@@ -74,17 +74,19 @@ def parse_args():
     parser.add_argument("--test", type=str, nargs='+', required = False, help="list of test images/videos")
     parser.add_argument("--ref", type=str, nargs='+', required = False, help="list of reference images/videos")
     parser.add_argument("--gpu", type=int,  default=0, help="select which GPU to use (e.g. 0), default is GPU 0. Pass -1 to run on the CPU.")
-    parser.add_argument("--heatmap", type=str, default="none", help="type of difference map (none, raw, threshold, supra-threshold)")
-    parser.add_argument("--heatmap-dir", type=str, default=None, help="in which directory heatmaps should be stored (the default is the current directory)")
+    parser.add_argument("--heatmap", type=str, default="none", help="type of difference map (none, raw, threshold, supra-threshold).")
+    parser.add_argument("--features", action='store_true', default=False, help="generate JSON files with extracted features. Useful for retraining the metric.")
+    parser.add_argument("--output-dir", type=str, default=None, help="in which directory heatmaps and feature files should be stored (the default is the current directory)")
     parser.add_argument("--foveated", action='store_true', default=False, help="Run in a foveated mode (non-foveated is the default)")
     parser.add_argument("--display", type=str, default="standard_4k", help="display name, e.g. 'HTC Vive', or ? to print the list of models.")
-    parser.add_argument("--display-models", type=str, default=None, help="A path to the JSON file with a list of display models")
+    parser.add_argument("--config-dir", type=str, default=None, help="A path to fvvdp configuration files: display_models.json, fvvdp_parameters.json and others.")
     parser.add_argument("--nframes", type=int, default=-1, help="the number of video frames you want to compare")
-    parser.add_argument("--full-screen-resize", choices=['fast_bilinear', 'bilinear', 'bicubic', 'lanczos'], help="Both test and reference videos will be resized to match the full resolution of the display. Currently works only with videos.")
+    parser.add_argument("--full-screen-resize", choices=['bilinear', 'bicubic', 'nearest', 'area'], default=None, help="Both test and reference videos will be resized to match the full resolution of the display. Currently works only with videos.")
     parser.add_argument("--metrics", choices=['fvvdp', 'pu-psnr'], nargs='+', default=['fvvdp'], help='Select which metric(s) to run')
     parser.add_argument("--temp-padding", choices=['replicate', 'circular', 'pingpong'], default='replicate', help='How to pad the video in the time domain (for the temporal filters). "replicate" - repeat the first frame. "pingpong" - mirror the first frames. "circular" - take the last frames.')
     parser.add_argument("--quiet", action='store_true', default=False, help="Do not print any information but the final JOD value. Warning message will be still printed.")
     parser.add_argument("--verbose", action='store_true', default=False, help="Print out extra information.")
+    parser.add_argument("--ffmpeg-cc", action='store_true', default=False, help="Use ffmpeg for upsampling and colour conversion. Use custom pytorch code by default (faster and less memory).")
     args = parser.parse_args()
     return args
 
@@ -98,13 +100,17 @@ def main():
         
     logging.basicConfig(format='[%(levelname)s] %(message)s', level=log_level)
 
+    if not args.config_dir is None:
+        utils.config_files.set_config_dir(args.config_dir)
+
     if args.display == "?":
-        fvvdp_display_photometry.list_displays(args.display_models)
+        fvvdp_display_photometry.list_displays()
         return
 
     if args.test is None or args.ref is None:
         logging.error( "Paths to both test and reference content needs to be specified.")
         return
+
 
     if args.gpu >= 0 and torch.cuda.is_available():
         device = torch.device('cuda:' + str(args.gpu))
@@ -130,6 +136,17 @@ def main():
         do_heatmap = True
     else:
         do_heatmap = False
+        
+    # Check for valid resizing methods
+    #if args.gpu_decode:
+        # Doc: https://pytorch.org/docs/stable/generated/torch.nn.functional.interpolate.html
+        #valid_methods = ['nearest', 'bilinear', 'bicubic', 'area', 'nearest-exact']
+    #else:
+        # Doc: https://ffmpeg.org/ffmpeg-scaler.html
+        #valid_methods = ['fast_bilinear', 'bilinear', 'bicubic', 'experimental', 'neighbor', 'area', 'bicublin', 'gauss', 'lanczos', 'spline']
+    #if args.full_screen_size not in valid_methods:
+    #    logging.error(f'The resizing method supplied is invalid. Please pick from {valid_methods}.')
+    #    sys.exit()
 
     args.test = expand_wildcards(args.test)
     args.ref = expand_wildcards(args.ref)    
@@ -150,8 +167,8 @@ def main():
         sys.exit()
 
     metrics = []
-    display_photometry = fvvdp_display_photometry.load(args.display, models_file=args.display_models)
-    display_geometry = fvvdp_display_geometry.load(args.display, models_file=args.display_models)
+    display_photometry = fvvdp_display_photometry.load(args.display)
+    display_geometry = fvvdp_display_geometry.load(args.display)
     if args.verbose:
         display_photometry.print()
 
@@ -178,6 +195,9 @@ def main():
             logging.info( 'When reporting metric results, please include the following information:' )
             logging.info( info_str )
 
+    out_dir = "." if args.output_dir is None else args.output_dir
+    os.makedirs(out_dir, exist_ok=True)
+
     for kk in range( max(N_test, N_ref) ): # For each test and reference pair
         test_file = args.test[min(kk,N_test-1)]
         ref_file = args.ref[min(kk,N_ref-1)]
@@ -189,7 +209,9 @@ def main():
                                                   full_screen_resize=args.full_screen_resize, 
                                                   resize_resolution=display_geometry.resolution, 
                                                   frames=args.nframes,
-                                                  preload=preload )
+                                                  preload=preload,
+                                                  ffmpeg_cc=args.ffmpeg_cc,
+                                                  verbose=args.verbose )
             Q_pred, stats = mm.predict_video_source(vs)
             if args.quiet:
                 print( "{Q:0.4f}".format(Q=Q_pred) )
@@ -197,13 +219,17 @@ def main():
                 units_str = f" [{mm.quality_unit()}]"
                 print( "{met_name}={Q:0.4f}{units}".format(met_name=mm.short_name(), Q=Q_pred, units=units_str) )
 
+            base, ext = os.path.splitext(os.path.basename(test_file))            
+
+            if args.features and not stats is None:
+                dest_name = os.path.join(out_dir, base + "_fmap.json")
+                logging.info("Writing feature map '" + dest_name + "' ...")
+                mm.write_features_to_json(stats, dest_name)
+
             if do_heatmap and not stats is None:
                 # diff_type = heatmap_types[args.heatmap]
                 # heatmap = stats["heatmap"] * diff_type["scale"]
                 # diff_map_viz = visualize_diff_map(heatmap, context_image=ref_vid_luminance, colormap_type=diff_type["colormap_type"])
-                out_dir = "." if args.heatmap_dir is None else args.heatmap_dir
-                os.makedirs(out_dir, exist_ok=True)
-                base, ext = os.path.splitext(os.path.basename(test_file))            
                 if stats["heatmap"].shape[2]>1: # if it is a video
                     dest_name = os.path.join(out_dir, base + "_heatmap.mp4")
                     logging.info("Writing heat map '" + dest_name + "' ...")

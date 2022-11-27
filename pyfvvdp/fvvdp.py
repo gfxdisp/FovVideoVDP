@@ -6,6 +6,7 @@ from torch.utils import checkpoint
 import numpy as np 
 import os
 import sys
+import json
 #import argparse
 #import time
 #import math
@@ -23,8 +24,11 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 #from third_party.cpuinfo import cpuinfo
 from pyfvvdp.fvvdp_lpyr_dec import fvvdp_lpyr_dec, fvvdp_contrast_pyr
 from interp import interp1, interp3
-from utils import *
-# from fvvdp_test import FovVideoVDP_Testbench
+
+import pyfvvdp.utils as utils
+
+#from utils import *
+from fvvdp_test import FovVideoVDP_Testbench
 
 from pyfvvdp.fvvdp_display_model import fvvdp_display_photometry, fvvdp_display_geometry
 
@@ -82,7 +86,7 @@ class fvvdp:
             self.preload_cache(oo, self.csf_sigma)
 
         self.lpyr = None
-        self.imgaussfilt = ImGaussFilt(0.5 * self.pix_per_deg, self.device)
+        self.imgaussfilt = utils.ImGaussFilt(0.5 * self.pix_per_deg, self.device)
         self.heatmap_pyr = None
 
 
@@ -93,13 +97,14 @@ class fvvdp:
             self.preload_cache(oo, self.csf_sigma)
 
         self.lpyr = None
-        self.imgaussfilt = ImGaussFilt(0.5 * self.pix_per_deg, self.device)
+        self.imgaussfilt = utils.ImGaussFilt(0.5 * self.pix_per_deg, self.device)
 
 
     def load_config( self ):
 
-        parameters_file = os.path.join(os.path.dirname(__file__), "fvvdp_data/fvvdp_parameters.json")
-        parameters = json2dict(parameters_file)
+        #parameters_file = os.path.join(os.path.dirname(__file__), "fvvdp_data/fvvdp_parameters.json")
+        self.parameters_file = utils.config_files.find( "fvvdp_parameters.json" )
+        parameters = utils.json2dict(self.parameters_file)
 
         #all common parameters between Matlab and Pytorch, loaded from the .json file
         self.mask_p = parameters['mask_p']
@@ -204,7 +209,7 @@ class fvvdp:
 
         if self.do_heatmap:
             dmap_channels = 1 if self.heatmap == "raw" else 3
-            heatmap = torch.zeros([1,dmap_channels,N_frames,height,width], dtype=torch.float, device=self.device) 
+            heatmap = torch.zeros([1,dmap_channels,N_frames,height,width], dtype=torch.float16, device=torch.device('cpu')) # Store heatmap in the CPU memory
         else:
             heatmap = None
 
@@ -284,6 +289,12 @@ class fvvdp:
         Q_jod = sign(self.jod_a) * ((abs(self.jod_a)**(1.0/beta_jod))* Q)**beta_jod + 10.0 # This one can help with very large numbers
 
         stats = {}
+        stats['Q_per_ch'] = self.Q_per_ch.detach().cpu().numpy() # the quality per channel and per frame
+        stats['rho_band'] = self.rho_band # Thespatial frequency per band
+        stats['frames_per_second'] = vid_source.get_frames_per_second()
+        stats['width'] = width
+        stats['height'] = height
+        stats['N_frames'] = N_frames
 
         if self.do_heatmap:            
             stats['heatmap'] = heatmap
@@ -339,7 +350,7 @@ class fvvdp:
             fname = os.path.join(csf_cache_dir, key + '_gpu0.mat')
             if os.path.isfile(fname):
                 #lut = load_mat_dict(fname, "lut_cpu", self.device)
-                lut = load_mat_dict(fname, "lut", self.device)
+                lut = utils.load_mat_dict(fname, "lut", self.device)
                 for k in lut:
                     lut[k] = torch.tensor(lut[k], device=self.device, requires_grad=False)
                 self.csf_cache[key] = {"lut" : lut}
@@ -379,22 +390,22 @@ class fvvdp:
 
     def phase_uncertainty(self, M):
         if self.pu_dilate != 0:
-            M_pu = imgaussfilt( M, self.pu_dilate ) * torch.pow(10.0, self.mask_c)
+            M_pu = utils.imgaussfilt( M, self.pu_dilate ) * torch.pow(10.0, self.mask_c)
         else:
             #M_pu = M * (10**self.mask_c); # * torch.pow(self.torch_scalar(10.0), self.torch_scalar(self.mask_c))
             M_pu = M * torch.pow(self.torch_scalar(10.0), self.torch_scalar(self.mask_c))
         return M_pu
 
-    def mask_func_perc_norm(self, G, G_mask):
-        # Masking on perceptually normalized quantities (as in Daly's VDP)
+    # def mask_func_perc_norm(self, G, G_mask):
+    #     # Masking on perceptually normalized quantities (as in Daly's VDP)
         
-        p = self.mask_p
-        #q = self.mask_q
-        #k = self.k_mask_self
+    #     p = self.mask_p
+    #     #q = self.mask_q
+    #     #k = self.k_mask_self
         
-        R = torch.div(torch.pow(G,p), torch.sqrt( 1. + torch.pow(k * G_mask, 2*q)))
+    #     R = torch.div(torch.pow(G,p), torch.sqrt( 1. + torch.pow(k * G_mask, 2*q)))
 
-        return R
+    #     return R
 
     def mask_func_perc_norm2(self, G, G_mask, p, q ):
         # Masking on perceptually normalized quantities (as in Daly's VDP)        
@@ -403,22 +414,24 @@ class fvvdp:
 
     def apply_masking_model(self, T, R, N, cc):
         # cc - temporal channel: 0 - sustained, 1 - transient
-        if self.masking_model == "joint_mutual_masking_perc_norm":
-            T = torch.div(T, N)
-            R = torch.div(R, N)
-            M = self.phase_uncertainty( torch.min( torch.abs(T), torch.abs(R) ) )
-            d = torch.abs(T-R)
-            M = M + d
-            D = self.mask_func_perc_norm( d, M )
-        elif self.masking_model == 'min_mutual_masking_perc_norm2':
-            p = self.mask_p
-            q = self.mask_q_sust if cc==0 else self.mask_q_trans            
-            T = torch.div(T, N)
-            R = torch.div(R, N)
-            M = self.phase_uncertainty( torch.min( torch.abs(T), torch.abs(R) ) )
-            D = self.mask_func_perc_norm2( torch.abs(T-R), M, p, q )
-        else:
-            print("Error: Masking model" + self.masking_model + "not implemented")
+        # if self.masking_model == "joint_mutual_masking_perc_norm":
+        #     T = torch.div(T, N)
+        #     R = torch.div(R, N)
+        #     M = self.phase_uncertainty( torch.min( torch.abs(T), torch.abs(R) ) )
+        #     d = torch.abs(T-R)
+        #     M = M + d
+        #     D = self.mask_func_perc_norm( d, M )
+        # elif self.masking_model == 'min_mutual_masking_perc_norm2':
+
+        p = self.mask_p
+        q = self.mask_q_sust if cc==0 else self.mask_q_trans            
+        T = torch.div(T, N)
+        R = torch.div(R, N)
+        M = self.phase_uncertainty( torch.min( torch.abs(T), torch.abs(R) ) )
+        D = self.mask_func_perc_norm2( torch.abs(T-R), M, p, q )
+
+        # else:
+        #     print("Error: Masking model" + self.masking_model + "not implemented")
 
         D = torch.clamp( D, max=1e4)
         return D
@@ -482,6 +495,22 @@ class fvvdp:
         fv_mode = 'foveated' if self.foveated else 'non-foveated'
         return '"FovVideoVDP v{}, {:.4g} [pix/deg], Lpeak={:.5g}, Lblack={:.4g} [cd/m^2], {}{}"'.format(self.version, self.pix_per_deg, self.display_photometry.get_peak_luminance(), self.display_photometry.get_black_level(), fv_mode, standard_str)
 
+    def write_features_to_json(self, stats, dest_fname):
+        Q_per_ch = stats['Q_per_ch'] # quality per channel [bb,cc,ff]
+        fmap = {}
+        for key, value in stats.items():
+            if not key in ["Q_per_ch", "heatmap"]:
+                if isinstance(value, np.ndarray):
+                    fmap[key] = value.tolist()
+                else:
+                    fmap[key] = value
+
+        for cc in range(Q_per_ch.shape[1]): # for each temporal channel
+            for bb in range(Q_per_ch.shape[0]): # for each band
+                fmap[f"t{cc}_b{bb}"] = Q_per_ch[bb,cc,:].tolist()
+
+        with open(dest_fname, 'w', encoding='utf-8') as f:
+            json.dump(fmap, f, ensure_ascii=False, indent=4)
 
     '''
     This is the core per-frame processing block. Gradients computed in this function will not be
@@ -496,11 +525,7 @@ class fvvdp:
         w_temp_ch = [1.0, self.w_transient]
         if self.debug: self.tb.verify_against_matlab(R.permute(0,2,3,4,1), 'Rdata', self.device, file='R_%d' % (ff+1), tolerance = 0.01)
 
-        # Perform Laplacian decomposition
-        # B = [None] * R.shape[1]
-        # for rr in range(R.shape[1]):
-        #     B[rr] = fvvdp_lpyr_dec( R[0,rr:(rr+1),0:1,:,:], self.pix_per_deg, self.device)
-
+        # Perform Laplacian pyramid decomposition
         B_bands, B_gbands = self.lpyr.decompose(R[0,...])
 
         if self.debug: assert len(B_bands) == self.lpyr.get_band_count()
@@ -513,7 +538,7 @@ class fvvdp:
 
         # L_bkg_bb = [None for i in range(self.lpyr.get_band_count()-1)]
 
-        rho_band = self.lpyr.get_freqs()
+        self.rho_band = self.lpyr.get_freqs()
 
         # Adaptation
         L_adapt = None
@@ -555,6 +580,7 @@ class fvvdp:
                 if self.debug: self.tb.verify_against_matlab(T_f, 'T_f_data', self.device, file='T_f_%d_%d_%d' % (ff+1,bb+1,cc+1), tolerance = 0.001) 
                 if self.debug: self.tb.verify_against_matlab(R_f, 'R_f_data', self.device, file='R_f_%d_%d_%d' % (ff+1,bb+1,cc+1), tolerance = 0.001)
 
+                # Pre-compute the inverse of the CSF (contrast thresholds)
                 if N_nCSF[bb][cc] is None:
 
                     if self.foveated:   # Fixation, parafoveal sensitivity
@@ -577,12 +603,12 @@ class fvvdp:
                         res_mag = torch.ones(R_f.shape[-2:], device=self.device)
                         ecc = torch.zeros(R_f.shape[-2:], device=self.device)
 
-                    rho = rho_band[bb] * res_mag
+                    rho = self.rho_band[bb] * res_mag
 
                     # if self.debug: self.tb.verify_against_matlab(ecc, 'ecc_data', self.device, file='ecc_%d_%d_%d' % (ff+1,bb+1,cc+1), tolerance = 0.01)  
                     # if self.debug: self.tb.verify_against_matlab(rho, 'rho_data', self.device, file='rho_%d_%d_%d' % (ff+1,bb+1,cc+1), tolerance = 0.05)  
 
-                    S = self.cached_sensitivity(rho, self.omega[cc], L_bkg, ecc, self.csf_sigma) * (10.0**(self.sensitivity_correction/20.0))
+                    S = self.cached_sensitivity(rho, self.omega[cc], L_bkg, ecc, self.csf_sigma) * 10.0**(self.sensitivity_correction/20.0)
                     # if self.debug: self.tb.verify_against_matlab(S, 'S_data', self.device, file='S_%d_%d_%d' % (ff+1,bb+1,cc+1), tolerance = 0.01, verbose=False)
 
                     if self.contrast == "log": N_nCSF[bb][cc] = self.weber2log(torch.min(1./S, self.torch_scalar(0.9999999)))
@@ -597,20 +623,21 @@ class fvvdp:
                     if cc == 0: self.heatmap_pyr.set_band(Dmap_pyr_bands, bb, D)
                     else:       self.heatmap_pyr.set_band(Dmap_pyr_bands, bb, self.heatmap_pyr.get_band(Dmap_pyr_bands, bb) + w_temp_ch[cc] * D)
 
-                if self.Q_per_ch is None:
-                    self.Q_per_ch = torch.zeros((self.lpyr.height, 2, N_frames), device=self.device)
-                self.Q_per_ch[bb,cc,ff] = w_temp_ch[cc] * self.lp_norm(D.flatten(), self.beta, 0, True)
+                if Q_per_ch is None:
+                    Q_per_ch = torch.zeros((self.lpyr.height, 2, N_frames), device=self.device)
 
-                #if self.debug: self.tb.verify_against_matlab(Q_per_ch[bb,cc,ff], 'Q_per_ch_data', self.device, file='Q_per_ch_%d_%d_%d' % (bb+1,cc+1,ff+1), tolerance = 0.1, relative=True, verbose=False)
+                Q_per_ch[bb,cc,ff] = w_temp_ch[cc] * self.lp_norm(D.flatten(), self.beta, 0, True)
+
+                if self.debug: self.tb.verify_against_matlab(Q_per_ch[bb,cc,ff], 'Q_per_ch_data', self.device, file='Q_per_ch_%d_%d_%d' % (bb+1,cc+1,ff+1), tolerance = 0.1, relative=True, verbose=False)
         # break
         if self.do_heatmap:
             beta_jod = np.power(10.0, self.log_jod_exp)
             dmap = torch.pow(self.heatmap_pyr.reconstruct(Dmap_pyr_bands), beta_jod) * abs(self.jod_a)         
             if self.heatmap == "raw":
-                heatmap[:,:,ff,...] = dmap 
+                heatmap[:,:,ff,...] = dmap.detach().type(torch.float16).cpu()
             else:
                 ref_frame = R[:,0, :, :, :]
-                heatmap[:,:,ff,...] = visualize_diff_map(dmap, context_image=ref_frame, colormap_type=self.heatmap)
+                heatmap[:,:,ff,...] = visualize_diff_map(dmap, context_image=ref_frame, colormap_type=self.heatmap).detach().type(torch.float16).cpu()
 
 
 

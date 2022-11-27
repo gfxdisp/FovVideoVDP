@@ -44,7 +44,7 @@ See [Command line interface](#command-line-interface) for further details. FovVi
 
 ## Display specification
 
-Unlike most image quality metrics, FovVideoVDP needs physical specification of the display (e.g. its size, resolution, peak brightness) and viewing conditions (viewing distance, ambient light) to compute accurate predictions. The specifications of the displays are stored in `fvvdp_data/display_models.json`. You can add the exact specification of your display to this file, or create a new JSON file and pass it as `--display-models` parameter (`fvvdp` command). If the display specification is unknown to you, you are encouraged to use one of the standard display specifications listed on the top of that file, for example `standard_4k`, or `standard_fhd`. If you use one of the standard displays, there is a better chance that your results will be comparable with other studies. 
+Unlike most image quality metrics, FovVideoVDP needs physical specification of the display (e.g. its size, resolution, peak brightness) and viewing conditions (viewing distance, ambient light) to compute accurate predictions. The specifications of the displays are stored in `fvvdp_data/display_models.json`. You can add the exact specification of your display to this file, or create a new JSON file and pass the directory it is located in as `--config-dir` parameter (`fvvdp` command). If the display specification is unknown to you, you are encouraged to use one of the standard display specifications listed on the top of that file, for example `standard_4k`, or `standard_fhd`. If you use one of the standard displays, there is a better chance that your results will be comparable with other studies. 
 
 You specify the display by passing `--display` argument to the PyTorch code, or `display_name` parameter to the MATLAB code. 
 
@@ -157,8 +157,20 @@ By default, FovVideoVDP will run the code on a GPU using `gpuArray`s, which requ
 
 ## Release notes
 
+* v1.2.0 - 27 November 2023
+  * The python command line interface can now accept HDR video files. 
+  * [PU21-PSNR](https://github.com/gfxdisp/pu21) can be run in addition to FovVideoVDP
+  * Added new command line options: `--full-screen-resize`, `--metrics`, `--temp-padding`, `--feature`, `--output-dir`
+  * Faster decoding for large (4k) videos when run on CUDA. 
+  * The prediction may differ slightly because of the way video files are handled and processed. There are no changes in the metric.
+
+* v1.1.3 - 18 October 2022
+  * Added "raw" heatmap type to the command line. 
+  * Changed the way pyfvvdp classes are imported  to avoid clash between the file and class names (see updated pytortch_examples)
+  * Installation of PyEXR is now optional (caused problems on some operating systems).
+
 * v1.1.2 - 23 September 2022
- * Updated Python dependencies - now works with earlier versions of PyTorch, Numpy and SciPy
+  * Updated Python dependencies - now works with earlier versions of PyTorch, Numpy and SciPy
 
 * v1.1.1 - 28 August 2022
   * We found a small inconsistency in eccentricity calculations. After fixing this, the metric has been retrained on the same datasets as described in the paper. FovVideoVDP v1.1 will return JOD values that are different than v1.0. For that reason, it is important to mention the version number when reporting the results. 

@@ -1,5 +1,5 @@
-# v1.1.4 - ?
- - [Python] Added option "--display-models" to specify an external file with display models.
+# v1.2.0 - ?
+ - [Python] Added option "--config-dir" to specify path to display_models.json and other config files
  - [Python] When passed "--display ?", a list of available display models will be printed.
  - [Python] Added PQ EOTF, fvvdp_display_photo_gog replaced with fvvdp_display_photo_eotf. 
  - [Python] sRGB EOTF used by default (instead of gamma). The predictions may differ slightly. 
@@ -7,7 +7,11 @@
  - [Python] Now GPU 0 is used by default (if available).
  - [Python] Added --metrics parameter, with an option to compute PU-PSNR.
  - [Python] Added --temp-padding parameter.
+ - [Python] Added --feature for dumping per-channel features
+ - [Python] --heatmap-dir argument renamed to --output-dir. Now used for both heatmaps and features
  - [Python] Minor performance improvements.
+ - [Python] --verbose will report much more information now.
+ - [Python] It can create much larger heatmaps now (stores them in the CPU memory as float16)
  
 # v1.1.3 - 18/10/2022
  - [Python] Added "raw" heatmap type to the command line
