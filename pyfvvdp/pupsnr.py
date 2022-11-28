@@ -7,7 +7,7 @@ from pyfvvdp.video_source import *
 PU21-PSNR metric. Usage is same as the FovVideoVDP metric (see pytorch_examples).
 """
 class pu_psnr:
-    def __init__(self, device=None):
+    def __init__(self, display_name="standard_4k", display_photometry=None, device=None, color_space="sRGB", display_models=None):
         # Use GPU if available
         if device is None:
             if torch.cuda.is_available() and torch.cuda.device_count()>0:
@@ -18,6 +18,14 @@ class pu_psnr:
             self.device = device
 
         self.pu = PU()
+        self.color_space = color_space
+
+        if display_photometry is None:
+            self.display_photometry = fvvdp_display_photometry.load(display_name, models_file=display_models)
+            self.display_name = display_name
+        else:
+            self.display_photometry = display_photometry
+            self.display_name = "unspecified"
 
 
     '''
