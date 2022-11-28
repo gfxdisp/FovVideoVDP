@@ -623,12 +623,12 @@ class fvvdp:
                     if cc == 0: self.heatmap_pyr.set_band(Dmap_pyr_bands, bb, D)
                     else:       self.heatmap_pyr.set_band(Dmap_pyr_bands, bb, self.heatmap_pyr.get_band(Dmap_pyr_bands, bb) + w_temp_ch[cc] * D)
 
-                if Q_per_ch is None:
-                    Q_per_ch = torch.zeros((self.lpyr.height, 2, N_frames), device=self.device)
+                if self.Q_per_ch is None:
+                    self.Q_per_ch = torch.zeros((self.lpyr.height, 2, N_frames), device=self.device)
 
-                Q_per_ch[bb,cc,ff] = w_temp_ch[cc] * self.lp_norm(D.flatten(), self.beta, 0, True)
+                self.Q_per_ch[bb,cc,ff] = w_temp_ch[cc] * self.lp_norm(D.flatten(), self.beta, 0, True)
 
-                if self.debug: self.tb.verify_against_matlab(Q_per_ch[bb,cc,ff], 'Q_per_ch_data', self.device, file='Q_per_ch_%d_%d_%d' % (bb+1,cc+1,ff+1), tolerance = 0.1, relative=True, verbose=False)
+                if self.debug: self.tb.verify_against_matlab(self.Q_per_ch[bb,cc,ff], 'Q_per_ch_data', self.device, file='Q_per_ch_%d_%d_%d' % (bb+1,cc+1,ff+1), tolerance = 0.1, relative=True, verbose=False)
         # break
         if self.do_heatmap:
             beta_jod = np.power(10.0, self.log_jod_exp)

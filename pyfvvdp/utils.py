@@ -200,3 +200,56 @@ class PU():
         V_p = ((V/self.p[6] + self.p[5]).clip(min=0))**(1/self.p[4])
         Y = ((V_p - self.p[0]).clip(min=0)/(self.p[1] - self.p[2]*V_p))**(1/self.p[3])
         return Y
+
+
+'''
+Torch does not natively support uint16. A workaround is to pack uint16 values into int16.
+This will be efficiently transferred and unpacked on the GPU.
+'''
+def npuint16_to_torchfp32(np_x_uint16, device):
+    max_value = 2**16 - 1
+    assert np_x_uint16.dtype == np.uint16
+    np_x_int16 = torch.tensor(np_x_uint16.astype(np.int16), dtype=torch.int16)
+    torch_x_int32 = np_x_int16.to(device).to(torch.int32)
+    torch_x_uint16 = torch_x_int32 & max_value
+    torch_x_fp32 = torch_x_uint16.to(torch.float32)
+    return torch_x_fp32
+
+def np_to_torchfp32(X, device):
+    if X.dtype == np.uint8:
+        return torch.tensor(X, dtype=torch.uint8).to(device).to(torch.float32)
+    elif X.dtype == np.uint16:
+        return npuint16_to_torchfp32(X, device)
+
+
+'''
+Convert flattened (Y, u, v) uint np arrays to fp32 tensors.
+Upsample chroma channels on device (using bilinear interpolation) if needed.
+
+Returns: The Yuv image stored as a torch tensor on the device
+'''
+def fixed2float_upscale(Y, u, v, y_shape, uv_shape, bits, chroma_ss, device):
+    Yuv = torch.empty(y_shape[0], y_shape[1], 3, device=device)
+
+    # L: Luminance channel
+    offset = 16/219
+    weight = 1/(2**(bits-8)*219)
+    Y = np_to_torchfp32(Y, device)
+    Yuv[..., 0] = torch.clip(weight*Y - offset, 0, 1).reshape(y_shape)
+
+    # u, v: Chroma channels
+    offset = 128/224
+    weight = 1/(2**(bits-8)*224)
+    uv = np.stack((u, v))
+    uv = np_to_torchfp32(uv, device)
+    uv = torch.clip(weight*uv - offset, -0.5, 0.5).reshape(1, 2, uv_shape[0], uv_shape[1])
+
+    if chroma_ss == '420':
+        # TODO: Replace with a proper filter.
+        uv_upscaled = torch.nn.functional.interpolate(uv, scale_factor=2, mode='bilinear')
+    else:
+        uv_upscaled = uv
+
+    Yuv[...,1:] = uv_upscaled.squeeze().permute(1,2,0)
+
+    return Yuv
