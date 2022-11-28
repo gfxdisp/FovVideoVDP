@@ -264,8 +264,7 @@ class fvvdp_video_source_video_file(fvvdp_video_source_dm):
     # Return (height, width, frames) touple with the resolution and
     # the length of the video clip.
     def get_video_size(self):
-        if hasattr(self.test_vidr, 'resize_fn') and self.test_vidr.resize_fn is not None:
-            return (self.test_vidr.height, self.test_vidr.width, self.frames )
+        return (self.test_vidr.height, self.test_vidr.width, self.frames )
 
     # Return the frame rate of the video
     def get_frames_per_second(self) -> int:
