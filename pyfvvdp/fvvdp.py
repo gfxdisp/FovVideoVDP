@@ -282,7 +282,7 @@ class fvvdp:
             else:
                 self.process_frame(ff, R, vid_sz, temp_ch, fixation_point, heatmap)
 
-        Q_jod = self.do_pooling_and_jods(self.Q_per_ch, self.rho_band)
+        Q_jod = self.do_pooling_and_jods(self.Q_per_ch, self.rho_band[0:-1])
 
         # Q_sc = self.lp_norm(self.Q_per_ch, self.beta_sch, 0, False)
         # #Q_sc = self.lp_norm(Q_per_ch, self.beta_sch, 0, False)
@@ -320,12 +320,12 @@ class fvvdp:
 
         # Weights for the two temporal channels
         if Q_per_ch.shape[1]==2: # If video
-            per_tband_w = torch.stack( (torch.ones(1, device=self.device), self.w_transient[None] ), dim=1)[:,:,None]
+            per_tband_w = torch.stack( (torch.ones(1, device=self.device), torch.as_tensor(self.w_transient, device=self.device)[None] ), dim=1)[:,:,None]
         else: # If image
             per_tband_w = 1
 
         # Weights for the spatial bands
-        per_sband_w = torch.exp(interp1( self.quality_band_freq_log, self.quality_band_w_log, torch.log(rho_band) ))[:,None,None]
+        per_sband_w = torch.exp(interp1( self.quality_band_freq_log, self.quality_band_w_log, torch.log(torch.as_tensor(rho_band, device=self.device)) ))[:,None,None]
 
         Q_sc = self.lp_norm(Q_per_ch*per_tband_w*per_sband_w, self.beta_sch, 0, False)  # Sum across spatial channels
         Q_tc = self.lp_norm(Q_sc,     self.beta_tch, 1, False)  # Sum across temporal channels
