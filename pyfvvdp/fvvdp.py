@@ -309,8 +309,11 @@ class fvvdp:
         return (Q_jod.squeeze(), stats)
 
     def predict_stage2(self, Q_per_ch):
-        Q_sc = self.lp_norm(Q_per_ch, self.beta_sch, 0, False)  # Sum across spatial channels
-        Q_tc = self.lp_norm(Q_sc,     self.beta_tch, 1, False)  # Sum across tenporal channels
+
+        Q_per_ch_tw = Q_per_ch * ( torch.tensor((1., self.w_transient), device=Q_per_ch.device).reshape((1, 2, 1)) )
+
+        Q_sc = self.lp_norm(Q_per_ch_tw, self.beta_sch, 0, False)  # Sum across spatial channels
+        Q_tc = self.lp_norm(Q_sc,     self.beta_tch, 1, False)  # Sum across temporal channels
         Q    = self.lp_norm(Q_tc,     self.beta_t,   2, True)   # Sum across frames
         Q = Q.squeeze()
 
