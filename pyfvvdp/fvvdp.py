@@ -98,6 +98,8 @@ class fvvdp:
 
         self.lpyr = None
         self.imgaussfilt = utils.ImGaussFilt(0.5 * self.pix_per_deg, self.device)
+        self.quality_band_freq_log = self.quality_band_freq_log.to(device)
+        self.quality_band_w_log = self.quality_band_w_log.to(device)
 
 
     def load_config( self ):
@@ -129,6 +131,9 @@ class fvvdp:
         self.k_cm = parameters['k_cm']  # new parameter controlling cortical magnification
         self.filter_len = parameters['filter_len']
         self.version = parameters['version']
+
+        self.quality_band_freq_log = torch.log(torch.tensor( [0.5, 1, 2, 4, 8, 16, 32, 64], device=self.device ))
+        self.quality_band_w_log = torch.tensor( parameters['quality_band_w_log'], device=self.device )
 
         # other parameters
         self.debug = False
@@ -277,16 +282,18 @@ class fvvdp:
             else:
                 self.process_frame(ff, R, vid_sz, temp_ch, fixation_point, heatmap)
 
-        Q_sc = self.lp_norm(self.Q_per_ch, self.beta_sch, 0, False)
-        #Q_sc = self.lp_norm(Q_per_ch, self.beta_sch, 0, False)
-        Q_tc = self.lp_norm(Q_sc,     self.beta_tch, 1, False)
-        Q    = self.lp_norm(Q_tc,     self.beta_t,   2, True)
+        Q_jod = self.do_pooling_and_jods(self.Q_per_ch, self.rho_band)
 
-        Q = Q.squeeze()
+        # Q_sc = self.lp_norm(self.Q_per_ch, self.beta_sch, 0, False)
+        # #Q_sc = self.lp_norm(Q_per_ch, self.beta_sch, 0, False)
+        # Q_tc = self.lp_norm(Q_sc,     self.beta_tch, 1, False)
+        # Q    = self.lp_norm(Q_tc,     self.beta_t,   2, True)
 
-        sign = lambda x: (1, -1)[x<0]
-        beta_jod = 10.0**self.log_jod_exp
-        Q_jod = sign(self.jod_a) * ((abs(self.jod_a)**(1.0/beta_jod))* Q)**beta_jod + 10.0 # This one can help with very large numbers
+        # Q = Q.squeeze()
+
+        # sign = lambda x: (1, -1)[x<0]
+        # beta_jod = 10.0**self.log_jod_exp
+        # Q_jod = sign(self.jod_a) * ((abs(self.jod_a)**(1.0/beta_jod))* Q)**beta_jod + 10.0 # This one can help with very large numbers
 
         stats = {}
         stats['Q_per_ch'] = self.Q_per_ch.detach().cpu().numpy() # the quality per channel and per frame
@@ -308,11 +315,19 @@ class fvvdp:
 
         return (Q_jod.squeeze(), stats)
 
-    def predict_stage2(self, Q_per_ch):
+    # Perform pooling with per-band weights and map to JODs
+    def do_pooling_and_jods(self, Q_per_ch, rho_band):
 
-        Q_per_ch_tw = Q_per_ch * ( torch.tensor((1., self.w_transient), device=Q_per_ch.device).reshape((1, 2, 1)) )
+        # Weights for the two temporal channels
+        if Q_per_ch.shape[1]==2: # If video
+            per_tband_w = torch.stack( (torch.ones(1, device=self.device), self.w_transient[None] ), dim=1)[:,:,None]
+        else: # If image
+            per_tband_w = 1
 
-        Q_sc = self.lp_norm(Q_per_ch_tw, self.beta_sch, 0, False)  # Sum across spatial channels
+        # Weights for the spatial bands
+        per_sband_w = torch.exp(interp1( self.quality_band_freq_log, self.quality_band_w_log, torch.log(rho_band) ))[:,None,None]
+
+        Q_sc = self.lp_norm(Q_per_ch*per_tband_w*per_sband_w, self.beta_sch, 0, False)  # Sum across spatial channels
         Q_tc = self.lp_norm(Q_sc,     self.beta_tch, 1, False)  # Sum across temporal channels
         Q    = self.lp_norm(Q_tc,     self.beta_t,   2, True)   # Sum across frames
         Q = Q.squeeze()
@@ -525,7 +540,7 @@ class fvvdp:
     '''
     def process_frame(self, ff, R, vid_sz, temp_ch, fixation_point, heatmap):
         height, width, N_frames = vid_sz
-        w_temp_ch = [1.0, self.w_transient]
+        #w_temp_ch = [1.0, self.w_transient]
         if self.debug: self.tb.verify_against_matlab(R.permute(0,2,3,4,1), 'Rdata', self.device, file='R_%d' % (ff+1), tolerance = 0.01)
 
         # Perform Laplacian pyramid decomposition
@@ -629,7 +644,8 @@ class fvvdp:
                 if self.Q_per_ch is None:
                     self.Q_per_ch = torch.zeros((self.lpyr.height, 2, N_frames), device=self.device)
 
-                self.Q_per_ch[bb,cc,ff] = w_temp_ch[cc] * self.lp_norm(D.flatten(), self.beta, 0, True)
+                #self.Q_per_ch[bb,cc,ff] = w_temp_ch[cc] * self.lp_norm(D.flatten(), self.beta, 0, True)
+                self.Q_per_ch[bb,cc,ff] = self.lp_norm(D.flatten(), self.beta, 0, True)
 
                 if self.debug: self.tb.verify_against_matlab(self.Q_per_ch[bb,cc,ff], 'Q_per_ch_data', self.device, file='Q_per_ch_%d_%d_%d' % (bb+1,cc+1,ff+1), tolerance = 0.1, relative=True, verbose=False)
         # break
