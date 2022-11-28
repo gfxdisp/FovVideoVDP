@@ -112,22 +112,10 @@ class video_reader:
             frame_fp32 = frame_t_hwc.to(device).to(torch.float32)
         elif self.dtype == np.uint16:
             max_value = 2**16 - 1
-            frame_fp32 = self._npuint16_to_torchfp32(frame_np, device)
+            frame_fp32 = utils.npuint16_to_torchfp32(frame_np, device)
 
         RGB = frame_fp32.reshape(self.height, self.width, 3) / max_value
         return RGB
-
-    # Torch does not natively support uint16. A workaround is to pack uint16 values into int16.
-    # This will be efficiently transferred and unpacked on the GPU.
-    # logging.info('Test has datatype uint16, packing into int16')
-    def _npuint16_to_torchfp32(self, np_x_uint16, device):
-        max_value = 2**16 - 1
-        assert np_x_uint16.dtype == np.uint16
-        np_x_int16 = torch.tensor(np_x_uint16.astype(np.int16), dtype=torch.int16)
-        torch_x_int32 = np_x_int16.to(device).to(torch.int32)
-        torch_x_uint16 = torch_x_int32 & max_value
-        torch_x_fp32 = torch_x_uint16.to(torch.float32)
-        return torch_x_fp32
 
     # Delete or close if program was interrupted
     def __del__(self):
@@ -153,9 +141,9 @@ class video_reader_yuv_pytorch(video_reader):
     def __init__(self, vidfile, frames=-1, resize_fn=None, resize_height=-1, resize_width=-1, verbose=False):
         super().__init__(vidfile, frames, resize_fn, resize_height, resize_width, verbose)
 
-        y_channel_pixels = int(self.width*self.height)
+        y_channel_pixels = int(self.src_width*self.src_height)
         self.y_pixels = y_channel_pixels
-        self.y_shape = (self.height, self.width)
+        self.y_shape = (self.src_height, self.src_width)
 
         if self.chroma_ss == "444":
             self.frame_bytes = y_channel_pixels*3
@@ -194,8 +182,8 @@ class video_reader_yuv_pytorch(video_reader):
         # Resize later on the GPU
         if resize_fn is not None:
             self.resize_fn = resize_fn
-            self.resize_height = resize_height
-            self.resize_width = resize_width
+            self.width = resize_width
+            self.height = resize_height
 
         stream = ffmpeg.input(vidfile)
         stream = ffmpeg.output(stream, 'pipe:', format='rawvideo', pix_fmt=out_pix_fmt)
@@ -206,7 +194,7 @@ class video_reader_yuv_pytorch(video_reader):
         u = x[self.y_pixels:self.y_pixels+self.uv_pixels]
         v = x[self.y_pixels+self.uv_pixels:]
 
-        Yuv_float = self._fixed2float_upscale(Y, u, v, device)
+        Yuv_float = utils.fixed2float_upscale(Y, u, v, self.y_shape, self.uv_shape, self.bit_depth, self.chroma_ss, device)
 
         if self.color_space=='bt2020nc':
             # display-encoded (PQ) BT.2020 RGB image
@@ -221,44 +209,12 @@ class video_reader_yuv_pytorch(video_reader):
 
         RGB = Yuv_float @ ycbcr2rgb.transpose(1, 0)
         if (hasattr(self, 'resize_fn')) and (self.resize_fn is not None) \
-            and (self.height != self.resize_height or self.width != self.resize_width):
+            and (self.height != self.src_height or self.width != self.src_width):
             RGB = torch.nn.functional.interpolate(RGB.permute(2,0,1)[None],
-                                                  size=(self.resize_height, self.resize_width),
+                                                  size=(self.height, self.width),
                                                   mode=self.resize_fn)
             RGB = RGB.squeeze().permute(1,2,0)
         return RGB.clip(0, 1)
-
-    def _np_to_torchfp32(self, X, device):
-        if X.dtype == np.uint8:
-            return torch.tensor(X, dtype=torch.uint8).to(device).to(torch.float32)
-        elif X.dtype == np.uint16:
-            return self._npuint16_to_torchfp32(X, device)
-
-
-    def _fixed2float_upscale(self, Y, u, v, device):
-        offset = 16/219
-        weight = 1/(2**(self.bit_depth-8)*219)
-        Yuv = torch.empty(self.height, self.width, 3, device=device)
-
-        Y = self._np_to_torchfp32(Y, device)
-        Yuv[..., 0] = torch.clip(weight*Y - offset, 0, 1).reshape(self.height, self.width)
-
-        offset = 128/224
-        weight = 1/(2**(self.bit_depth-8)*224)
-
-        uv = np.stack((u, v))
-        uv = self._np_to_torchfp32(uv, device)
-        uv = torch.clip(weight*uv - offset, -0.5, 0.5).reshape(1, 2, self.uv_shape[0], self.uv_shape[1])
-
-        if self.chroma_ss=="420":
-            # TODO: Replace with a proper filter.
-            uv_upscaled = torch.nn.functional.interpolate(uv, scale_factor=2, mode='bilinear')
-        else:
-            uv_upscaled = uv
-
-        Yuv[...,1:] = uv_upscaled.squeeze().permute(1,2,0)
-
-        return Yuv
 
 
 '''
@@ -309,8 +265,6 @@ class fvvdp_video_source_video_file(fvvdp_video_source_dm):
     # the length of the video clip.
     def get_video_size(self):
         if hasattr(self.test_vidr, 'resize_fn') and self.test_vidr.resize_fn is not None:
-            return (self.test_vidr.resize_height, self.test_vidr.resize_width, self.frames )
-        else:
             return (self.test_vidr.height, self.test_vidr.width, self.frames )
 
     # Return the frame rate of the video

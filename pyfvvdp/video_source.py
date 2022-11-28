@@ -209,3 +209,89 @@ class fvvdp_video_source_array( fvvdp_video_source_dm ):
             L = L[:,0:1,:,:,:]*self.color_to_luminance[0] + L[:,1:2,:,:,:]*self.color_to_luminance[1] + L[:,2:3,:,:,:]*self.color_to_luminance[2]
 
         return L
+
+
+class fvvdp_video_source_packed_array( fvvdp_video_source_dm ):
+    def __init__(self, test_video, reference_video, fps, display_photometry='sdr_4k_30', color_space_name='sRGB', yuv=True, resize_mode='bilinear'):
+        super().__init__(display_photometry, color_space_name)
+
+        self.fps = fps
+        self.is_video = fps > 0
+        self.test_video = test_video
+        self.reference_video = reference_video
+        self.yuv = yuv
+        self.color_space = color_space_name
+        self.resize_mode = resize_mode
+
+    def get_frames_per_second(self):
+        return self.fps
+
+    # Return a [height width frames] vector with the resolution and
+    # the number of frames in the video clip. [height width 1] is
+    # returned for an image.
+    def get_video_size(self):
+        n, _, _, _, _, h, w = map(int, self.test_video[:7])
+        return h, w, n
+
+    def get_test_frame(self, frame, device):
+        return self._get_frame(self.test_video, frame, device)
+
+    def get_reference_frame(self, frame, device):
+        return self._get_frame(self.reference_video, frame, device)
+
+    def _get_frame(self, from_array, idx, device):
+        n, h, w, bit_depth, chroma_ss, resize_h, resize_w = map(int, from_array[:7])
+        if self.yuv:
+            y_pixels = h*w
+            chroma_ss = str(chroma_ss)
+            uv_shape = (h//2, w//2) if chroma_ss == '420' else (h, w)
+            uv_pixels = uv_shape[0]*uv_shape[1]
+            frame_pixels = y_pixels + 2*uv_pixels
+
+            Y = from_array[7 + idx*frame_pixels                        : 7 + idx*frame_pixels + y_pixels]
+            u = from_array[7 + idx*frame_pixels + y_pixels             : 7 + idx*frame_pixels + y_pixels + uv_pixels]
+            v = from_array[7 + idx*frame_pixels + y_pixels + uv_pixels : 7 + idx*frame_pixels + y_pixels + 2*uv_pixels]
+
+            Yuv_float = utils.fixed2float_upscale(Y, u, v, (h, w), uv_shape, bit_depth, chroma_ss, device)
+            if self.color_space=='bt2020nc':
+                # display-encoded (PQ) BT.2020 RGB image
+                ycbcr2rgb = torch.tensor([[1, 0, 1.47460],
+                                        [1, -0.16455, -0.57135],
+                                        [1, 1.88140, 0]], device=device)
+            else:
+                # display-encoded (sRGB) BT.709 RGB image
+                ycbcr2rgb = torch.tensor([[1, 0, 1.402],
+                                        [1, -0.344136, -0.714136],
+                                        [1, 1.772, 0]], device=device)
+            RGB = Yuv_float @ ycbcr2rgb.transpose(1, 0)
+            # Torch interpolate requires (B,C,H,W)
+            RGB = RGB.permute(2,0,1).unsqueeze(0).clip(0, 1)
+            if (resize_h != h) or (resize_w != w):
+                RGB = torch.nn.functional.interpolate(RGB,
+                                                      size=(resize_h, resize_w),
+                                                      mode=self.resize_mode)
+
+            # fvvdp required dims -> (B,C,N,H,W)
+            frame = RGB.unsqueeze(2)
+        else:
+            frame_pixels = resize_h*resize_w*3
+            if from_array.dtype == np.uint8:
+                frame = torch.tensor(from_array[7 + idx*frame_pixels : 7 + (idx+1)*frame_pixels], dtype=torch.uint8)
+                frame = frame.to(device).to(torch.float32)
+                max_value = 2**8 - 1
+            elif from_array.dtype == np.uint16:
+                frame = utils.npuint16_to_torchfp32(from_array[7 + idx*frame_pixels : 7 + (idx+1)*frame_pixels], device)
+                max_value = 2**16 - 1
+
+            # fvvdp required dims -> (B,C,N,H,W)
+            frame = frame.reshape(resize_h, resize_w, 3) / max_value
+            frame = frame.permute(2,0,1).reshape(1, -1, 1, resize_h, resize_w)
+
+        L = self.dm_photometry.forward( frame )
+
+        if L.shape[1] == 3:
+            # Convert to grayscale
+            L = L[:,0:1,:,:,:]*self.color_to_luminance[0] + L[:,1:2,:,:,:]*self.color_to_luminance[1] + L[:,2:3,:,:,:]*self.color_to_luminance[2]
+
+        return L
+
