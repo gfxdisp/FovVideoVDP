@@ -32,6 +32,7 @@ See [Command line interface](#command-line-interface) for further details. FovVi
 **Table of contents**
 - [Display specification](#display-specification)
     - [Custom specification](#custom-specification)
+    - [HDR content](#HDR-content)
     - [Reporting metric results](#reporting-metric-results)
     - [Predicting quality scores](#predicted-quality-scores)
 - [PyTorch](#pytorch)
@@ -48,13 +49,21 @@ Unlike most image quality metrics, FovVideoVDP needs physical specification of t
 
 You specify the display by passing `--display` argument to the PyTorch code, or `display_name` parameter to the MATLAB code. 
 
-Note the the specification in `display_models.json` is for the display and not the image. If you select to use `standard_hdr` with the resolution of 3840x2160 for your display and pass a 1920x1080 image, the metric will assume that the image occupies one quarter of that display (the central portion). If you want to enlarge the image to the full resolution of the display, pass `--full-screen-resize {fast_bilinear,bilinear,bicubic,lanczos}` option (now works with video only). 
+Note the the specification in `display_models.json` is for the display and not the image. If you select to use `standard_4k` with the resolution of 3840x2160 for your display and pass a 1920x1080 image, the metric will assume that the image occupies one quarter of that display (the central portion). If you want to enlarge the image to the full resolution of the display, pass `--full-screen-resize {fast_bilinear,bilinear,bicubic,lanczos}` option (now works with video only). 
 
 The command line version of FovVideoVDP can take as input HDR video streams encoded using the PQ transfer function (from version 1.1.4). To correctly model HDR content, it is necessary to pass a display model with `EOTF="PQ"`, for example `standard_hdr`.
 
 ### Custom specification
 
 The display photometry and geometry is typically specified by passing `display_name` parameter to the metric. Alternatively, if you need more flexibility in specifying display geometry (size, fov, viewing distance) and its colorimetry, you can instead pass objects of the classes `fvvdp_display_geometry`, `fvvdp_display_photo_gog` for most SDR displays, and `fvvdp_display_photo_absolute` for HDR displays. You can also create your own subclasses of those classes for custom display specification. 
+
+### HDR content
+
+(Python command line only) You can use the metric to compare: 
+
+* HDR video files encoded using PQ EOTF function (SMPTE ST 2084). Pass the video files as `--test` and `--ref` arguments and specify `--display standard_hdr_pq`.
+
+* OpenEXR images. The images *MUST* contain absolute linear colour values (colour graded values, emitted from the display). That is, if the disply peak luminance is 1000, RGB=(1000,1000,1000) corresponds to the maximum value emitted from the display. If you pass images with the maximum value of 1, the metric will assume that the images are very dark (the peak of 1 nit) and result in incorerect predictrions. You need to specify `--display standard_hdr_linear` to use correct EOTF.
 
 ### Reporting metric results
 

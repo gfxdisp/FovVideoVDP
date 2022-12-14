@@ -146,7 +146,7 @@ class fvvdp_display_photo_eotf(fvvdp_display_photometry):
     # the display.
     def forward( self, V ):
         
-        if torch.any(V>1).bool() or torch.any(V<0).bool():
+        if self.EOTF != 'linear' and (torch.any(V>1).bool() or torch.any(V<0).bool()):
             logging.warning("Pixel outside the valid range 0-1")
             V = V.clamp( 0., 1. )
             
@@ -158,6 +158,8 @@ class fvvdp_display_photo_eotf(fvvdp_display_photometry):
             L = (self.Y_peak-Y_black)*torch.pow(V, self.gamma) + Y_black
         elif self.EOTF=='PQ':
             L = pq2lin( V ).clip(0.005, self.Y_peak) + Y_black #TODO: soft clipping
+        elif self.EOTF=='linear':
+            L = V.clip(0.005, self.Y_peak) + Y_black #TODO: soft clipping
         else:
             raise RuntimeError( f"Unknown EOTF '{self.EOTF}'" )        
         return L
