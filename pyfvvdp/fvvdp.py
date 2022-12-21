@@ -2,6 +2,7 @@ from abc import abstractmethod
 from urllib.parse import ParseResultBytes
 from numpy.lib.shape_base import expand_dims
 import torch
+from torch.utils import checkpoint
 from torch.functional import Tensor
 import torch.nn.functional as Func
 import numpy as np 
@@ -38,15 +39,16 @@ from pyfvvdp.fvvdp_display_model import fvvdp_display_photometry, fvvdp_display_
 FovVideoVDP metric. Refer to pytorch_examples for examples on how to use this class. 
 """
 class fvvdp:
-    def __init__(self, display_name="standard_4k", display_photometry=None, display_geometry=None, color_space="sRGB", foveated=False, heatmap=None, quiet=False, device=None, display_models=None, temp_padding="replicate"):
+    def __init__(self, display_name="standard_4k", display_photometry=None, display_geometry=None, color_space="sRGB", foveated=False, heatmap=None, quiet=False, device=None, temp_padding="replicate", use_checkpoints=False):
         self.quiet = quiet
         self.foveated = foveated
         self.heatmap = heatmap
         self.color_space = color_space
         self.temp_padding = temp_padding
+        self.use_checkpoints = use_checkpoints # Used for training
 
         if display_photometry is None:
-            self.display_photometry = fvvdp_display_photometry.load(display_name, models_file=display_models)
+            self.display_photometry = fvvdp_display_photometry.load(display_name)
             self.display_name = display_name
         else:
             self.display_photometry = display_photometry
@@ -55,7 +57,7 @@ class fvvdp:
         self.do_heatmap = (not self.heatmap is None) and (self.heatmap != "none")
 
         if display_geometry is None:
-            self.display_geometry = fvvdp_display_geometry.load(display_name, models_file=display_models)
+            self.display_geometry = fvvdp_display_geometry.load(display_name)
         else:
             self.display_geometry = display_geometry
 
@@ -264,131 +266,19 @@ class fvvdp:
                     R[:,cc*2+0, :, :, :] = (sw_buf[0] * corr_filter).sum(dim=-3,keepdim=True)
                     R[:,cc*2+1, :, :, :] = (sw_buf[1] * corr_filter).sum(dim=-3,keepdim=True)
 
-            if self.debug: self.tb.verify_against_matlab(R.permute(0,2,3,4,1), 'Rdata', self.device, file='R_%d' % (ff+1), tolerance = 0.01)
+            if self.use_checkpoints:
+                # Used for training
+                Q_per_ch_block = checkpoint.checkpoint(self.process_block_of_frames, ff, R, vid_sz, temp_ch, fixation_point, heatmap, use_reentrant=False)
+            else:
+                Q_per_ch_block = self.process_block_of_frames(ff, R, vid_sz, temp_ch, fixation_point, heatmap)
 
-            # Perform Laplacian pyramid decomposition
-            B_bands, B_gbands = self.lpyr.decompose(R[0,...])
+            if Q_per_ch is None:
+                Q_per_ch = torch.zeros((Q_per_ch_block.shape[0], Q_per_ch_block.shape[1], N_frames), device=self.device)
+            
+            Q_per_ch[:,:,ff:(ff+Q_per_ch_block.shape[2])] = Q_per_ch_block  
 
-            if self.debug: assert len(B_bands) == self.lpyr.get_band_count()
-
-            # CSF
-            N_nCSF = [[None, None] for i in range(self.lpyr.get_band_count()-1)]
-
-            if self.do_heatmap:
-                Dmap_pyr_bands, Dmap_pyr_gbands = self.heatmap_pyr.decompose( torch.zeros([1,1,height,width], dtype=torch.float, device=self.device))
-
-            # L_bkg_bb = [None for i in range(self.lpyr.get_band_count()-1)]
-
-            rho_band = self.lpyr.get_freqs()
-
-            # Adaptation
-            L_adapt = None
-
-            if self.local_adapt == "simple":
-                L_adapt = R[0,1,0,...] # reference, sustained
-                if self.contrast == "log":
-                    L_adapt = torch.pow(10.0, L_adapt)
-                L_adapt = self.imgaussfilt.run(L_adapt)
-            elif self.local_adapt == "global":
-                print("ERROR: global adapt not supported")
-                return
-
-            for cc in range(temp_ch):
-                for bb in range(self.lpyr.get_band_count()-1):
-
-                    T_f = self.lpyr.get_band(B_bands, bb)[cc*2+0,0,...]
-                    R_f = self.lpyr.get_band(B_bands, bb)[cc*2+1,0,...]
-
-                    if self.local_adapt=="gpyr":
-                        L_bkg = self.lpyr.get_gband(B_gbands, bb)
-                    else:
-                        # 1:2 below is passing reference sustained
-                        L_bkg, R_f, T_f = self.compute_local_contrast(R_f, T_f, 
-                            self.lpyr.get_gband(B_gbands, bb+1)[1:2,...], L_adapt)
-
-                    # temp_errs[ff] += torch.mean(torch.abs(R_f - T_f))
-                    # continue
-
-                    # if self.debug: self.tb.verify_against_matlab(L_bkg, 'L_bkg_data', self.device, file='L_bkg_%d_%d_%d' % (ff+1,bb+1,cc+1), tolerance = 0.01)
-
-                    # #  TODO: check cc = 1
-                    # if self.debug:
-                    #     print("%d, %d" % (cc, bb))
-                    #     h, w = T_f.shape[-2], T_f.shape[-1]
-                    #     np2img(stack_horizontal([
-                    #         (T_f * 100.0).squeeze().unsqueeze(-1).expand(h,w,3).cpu().numpy(), 
-                    #         (R_f * 100.0).squeeze().unsqueeze(-1).expand(h,w,3).cpu().numpy()])).show()
-                    if self.debug: self.tb.verify_against_matlab(T_f, 'T_f_data', self.device, file='T_f_%d_%d_%d' % (ff+1,bb+1,cc+1), tolerance = 0.001) 
-                    if self.debug: self.tb.verify_against_matlab(R_f, 'R_f_data', self.device, file='R_f_%d_%d_%d' % (ff+1,bb+1,cc+1), tolerance = 0.001)
-
-                    # Pre-compute the inverse of the CSF (contrast thresholds)
-                    if N_nCSF[bb][cc] is None:
-
-                        if self.foveated:   # Fixation, parafoveal sensitivity
-                            if fixation_point.dim() == 2:
-                                current_fixation_point = fixation_point[ff,:].squeeze()
-                            else:
-                                current_fixation_point = fixation_point
-
-                            xv = torch.linspace( 0.5, vid_sz[1]-0.5, T_f.shape[-1], device=self.device )
-                            yv = torch.linspace( 0.5, vid_sz[0]-0.5, T_f.shape[-2], device=self.device )
-                            [xx, yy] = torch.meshgrid( xv, yv, indexing='xy' )
-
-                            ecc = self.display_geometry.pix2eccentricity( torch.tensor((vid_sz[1], vid_sz[0])), xx, yy, current_fixation_point+0.5 )
-
-                            # The same shape as bands
-                            ecc = ecc.reshape( [1, 1, ecc.shape[-2], ecc.shape[-1]] )
-
-                            res_mag = self.display_geometry.get_resolution_magnification(ecc)
-                        else:   # No fixation, foveal sensitivity everywhere
-                            res_mag = torch.ones(R_f.shape[-2:], device=self.device)
-                            ecc = torch.zeros(R_f.shape[-2:], device=self.device)
-
-                        rho = rho_band[bb] * res_mag
-
-                        # if self.debug: self.tb.verify_against_matlab(ecc, 'ecc_data', self.device, file='ecc_%d_%d_%d' % (ff+1,bb+1,cc+1), tolerance = 0.01)  
-                        # if self.debug: self.tb.verify_against_matlab(rho, 'rho_data', self.device, file='rho_%d_%d_%d' % (ff+1,bb+1,cc+1), tolerance = 0.05)  
-
-                        S = self.cached_sensitivity(rho, self.omega[cc], L_bkg, ecc, self.csf_sigma) * 10.0**(self.sensitivity_correction/20.0)
-                        # if self.debug: self.tb.verify_against_matlab(S, 'S_data', self.device, file='S_%d_%d_%d' % (ff+1,bb+1,cc+1), tolerance = 0.01, verbose=False)
-
-                        if self.contrast == "log": N_nCSF[bb][cc] = self.weber2log(torch.min(1./S, self.torch_scalar(0.9999999)))
-                        else:                      N_nCSF[bb][cc] = torch.reciprocal(S)
-                        # if self.debug: self.tb.verify_against_matlab(N_nCSF[bb][cc], 'N_nCSF_data', self.device, file='N_nCSF_%d_%d_%d' % (ff+1,bb+1,cc+1), tolerance = 0.01, relative = True)
-
-                    D = self.apply_masking_model(T_f, R_f, N_nCSF[bb][cc], cc)
-
-                    if self.debug: self.tb.verify_against_matlab(D, 'D_data', self.device, file='D_%d_%d_%d' % (ff+1,bb+1,cc+1), tolerance = 0.1, relative = True, verbose=False)
-
-                    if self.do_heatmap:
-                        if cc == 0: self.heatmap_pyr.set_band(Dmap_pyr_bands, bb, D)
-                        else:       self.heatmap_pyr.set_band(Dmap_pyr_bands, bb, self.heatmap_pyr.get_band(Dmap_pyr_bands, bb) + w_temp_ch[cc] * D)
-
-                    if Q_per_ch is None:
-                        Q_per_ch = torch.zeros((self.lpyr.height, 2, N_frames), device=self.device)
-
-                    Q_per_ch[bb,cc,ff] = w_temp_ch[cc] * self.lp_norm(D.flatten(), self.beta, 0, True)
-
-                    if self.debug: self.tb.verify_against_matlab(Q_per_ch[bb,cc,ff], 'Q_per_ch_data', self.device, file='Q_per_ch_%d_%d_%d' % (bb+1,cc+1,ff+1), tolerance = 0.1, relative=True, verbose=False)
-            # break
-            if self.do_heatmap:
-                beta_jod = np.power(10.0, self.log_jod_exp)
-                dmap = torch.pow(self.heatmap_pyr.reconstruct(Dmap_pyr_bands), beta_jod) * abs(self.jod_a)         
-                if self.heatmap == "raw":
-                    heatmap[:,:,ff,...] = dmap.detach().type(torch.float16).cpu()
-                else:
-                    ref_frame = R[:,0, :, :, :]
-                    heatmap[:,:,ff,...] = visualize_diff_map(dmap, context_image=ref_frame, colormap_type=self.heatmap).detach().type(torch.float16).cpu()
-
-
-        Q_sc = self.lp_norm(Q_per_ch, self.beta_sch, 0, False)
-        Q_tc = self.lp_norm(Q_sc,     self.beta_tch, 1, False)
-        Q    = self.lp_norm(Q_tc,     self.beta_t,   2, True)
-
-        Q = Q.squeeze()
-
-        beta_jod = np.power(10.0, self.log_jod_exp)
-        Q_jod = np.sign(self.jod_a) * torch.pow(torch.tensor(np.power(np.abs(self.jod_a),(1.0/beta_jod)), device=self.device)* Q, beta_jod) + 10.0 # This one can help with very large numbers
+        rho_band = self.lpyr.get_freqs()
+        Q_jod = self.do_pooling_and_jods(Q_per_ch, rho_band[0:-1])
 
         stats = {}
         stats['Q_per_ch'] = Q_per_ch.detach().cpu().numpy() # the quality per channel and per frame
@@ -401,14 +291,151 @@ class fvvdp:
         if self.do_heatmap:            
             stats['heatmap'] = heatmap
 
-        if self.debug: self.tb.verify_against_matlab(Q_per_ch, 'Q_per_ch_data', self.device, file='Q_per_ch', tolerance = 0.1, relative=True, verbose=True)
-        if self.debug: self.tb.verify_against_matlab(Q_sc,     'Q_sc_data',     self.device, file='Q_sc',     tolerance = 0.1, relative=True, verbose=True)
-        if self.debug: self.tb.verify_against_matlab(Q_tc,     'Q_tc_data',     self.device, file='Q_tc',     tolerance = 0.1, relative=True, verbose=True)
-        if self.debug: self.tb.verify_against_matlab(Q,        'Q_data',        self.device, file='Q',        tolerance = 0.1, relative=True, verbose=True)
-        if self.debug: self.tb.verify_against_matlab(Q_jod,    'Q_jod_data',    self.device, file='Q_jod',    tolerance = 0.1, relative=True, verbose=True)
-        if self.debug: self.tb.print_summary()    
+        # if self.debug: self.tb.verify_against_matlab(Q_per_ch, 'Q_per_ch_data', self.device, file='Q_per_ch', tolerance = 0.1, relative=True, verbose=True)
+        # if self.debug: self.tb.verify_against_matlab(Q_sc,     'Q_sc_data',     self.device, file='Q_sc',     tolerance = 0.1, relative=True, verbose=True)
+        # if self.debug: self.tb.verify_against_matlab(Q_tc,     'Q_tc_data',     self.device, file='Q_tc',     tolerance = 0.1, relative=True, verbose=True)
+        # if self.debug: self.tb.verify_against_matlab(Q,        'Q_data',        self.device, file='Q',        tolerance = 0.1, relative=True, verbose=True)
+        # if self.debug: self.tb.verify_against_matlab(Q_jod,    'Q_jod_data',    self.device, file='Q_jod',    tolerance = 0.1, relative=True, verbose=True)
+        # if self.debug: self.tb.print_summary()    
 
         return (Q_jod.squeeze(), stats)
+
+    # Perform pooling with per-band weights and map to JODs
+    def do_pooling_and_jods(self, Q_per_ch, rho_band):
+
+        # Weights for the two temporal channels
+        if Q_per_ch.shape[1]==2: # If video
+            per_tband_w = torch.stack( (torch.ones(1, device=self.device), torch.as_tensor(self.w_transient, device=self.device)[None] ), dim=1)[:,:,None]
+        else: # If image
+            per_tband_w = 1
+
+        # Weights for the spatial bands
+        #per_sband_w = torch.exp(interp1( self.quality_band_freq_log, self.quality_band_w_log, torch.log(torch.as_tensor(rho_band, device=self.device)) ))[:,None,None]
+
+        #Q_sc = self.lp_norm(Q_per_ch*per_tband_w*per_sband_w, self.beta_sch, 0, False)  # Sum across spatial channels
+        Q_sc = self.lp_norm(Q_per_ch*per_tband_w, self.beta_sch, 0, False)  # Sum across spatial channels
+        Q_tc = self.lp_norm(Q_sc,     self.beta_tch, 1, False)  # Sum across temporal channels
+        Q    = self.lp_norm(Q_tc,     self.beta_t,   2, True)   # Sum across frames
+        Q = Q.squeeze()
+
+        sign = lambda x: (1, -1)[x<0]
+        beta_jod = 10.0**self.log_jod_exp
+        Q_jod = sign(self.jod_a) * ((abs(self.jod_a)**(1.0/beta_jod))* Q)**beta_jod + 10.0 # This one can help with very large numbers
+        return Q_jod.squeeze()
+
+    def process_block_of_frames(self, ff, R, vid_sz, temp_ch, fixation_point, heatmap):
+        # TODO: process multiple frames at a time. Right now, we process one frame at a time
+
+        height, width, N_frames = vid_sz
+
+        if self.debug: self.tb.verify_against_matlab(R.permute(0,2,3,4,1), 'Rdata', self.device, file='R_%d' % (ff+1), tolerance = 0.01)
+
+        # Perform Laplacian pyramid decomposition
+        B_bands, B_gbands = self.lpyr.decompose(R[0,...])
+
+        if self.debug: assert len(B_bands) == self.lpyr.get_band_count()
+
+        # CSF
+        N_nCSF = [[None, None] for i in range(self.lpyr.get_band_count()-1)]
+
+        if self.do_heatmap:
+            Dmap_pyr_bands, Dmap_pyr_gbands = self.heatmap_pyr.decompose( torch.zeros([1,1,height,width], dtype=torch.float, device=self.device))
+
+        # L_bkg_bb = [None for i in range(self.lpyr.get_band_count()-1)]
+
+        rho_band = self.lpyr.get_freqs()
+
+        # Adaptation
+        L_adapt = None
+
+        if self.local_adapt == "simple":
+            L_adapt = R[0,1,0,...] # reference, sustained
+            if self.contrast == "log":
+                L_adapt = torch.pow(10.0, L_adapt)
+            L_adapt = self.imgaussfilt.run(L_adapt)
+
+        Q_per_ch_block = None
+
+        for cc in range(temp_ch):
+            for bb in range(self.lpyr.get_band_count()-1):
+
+                T_f = self.lpyr.get_band(B_bands, bb)[cc*2+0,0,...]
+                R_f = self.lpyr.get_band(B_bands, bb)[cc*2+1,0,...]
+
+                if self.local_adapt=="gpyr":
+                    L_bkg = self.lpyr.get_gband(B_gbands, bb)
+                else:
+                    # 1:2 below is passing reference sustained
+                    L_bkg, R_f, T_f = self.compute_local_contrast(R_f, T_f, 
+                        self.lpyr.get_gband(B_gbands, bb+1)[1:2,...], L_adapt)
+
+                # temp_errs[ff] += torch.mean(torch.abs(R_f - T_f))
+                # continue
+
+                # if self.debug: self.tb.verify_against_matlab(L_bkg, 'L_bkg_data', self.device, file='L_bkg_%d_%d_%d' % (ff+1,bb+1,cc+1), tolerance = 0.01)
+
+                if self.debug: self.tb.verify_against_matlab(T_f, 'T_f_data', self.device, file='T_f_%d_%d_%d' % (ff+1,bb+1,cc+1), tolerance = 0.001) 
+                if self.debug: self.tb.verify_against_matlab(R_f, 'R_f_data', self.device, file='R_f_%d_%d_%d' % (ff+1,bb+1,cc+1), tolerance = 0.001)
+
+                # Pre-compute the inverse of the CSF (contrast thresholds)
+                if N_nCSF[bb][cc] is None:
+
+                    if self.foveated:   # Fixation, parafoveal sensitivity
+                        if fixation_point.dim() == 2:
+                            current_fixation_point = fixation_point[ff,:].squeeze()
+                        else:
+                            current_fixation_point = fixation_point
+
+                        xv = torch.linspace( 0.5, vid_sz[1]-0.5, T_f.shape[-1], device=self.device )
+                        yv = torch.linspace( 0.5, vid_sz[0]-0.5, T_f.shape[-2], device=self.device )
+                        [xx, yy] = torch.meshgrid( xv, yv, indexing='xy' )
+
+                        ecc = self.display_geometry.pix2eccentricity( torch.tensor((vid_sz[1], vid_sz[0])), xx, yy, current_fixation_point+0.5 )
+
+                        # The same shape as bands
+                        ecc = ecc.reshape( [1, 1, ecc.shape[-2], ecc.shape[-1]] )
+
+                        res_mag = self.display_geometry.get_resolution_magnification(ecc)
+                    else:   # No fixation, foveal sensitivity everywhere
+                        res_mag = torch.ones(R_f.shape[-2:], device=self.device)
+                        ecc = torch.zeros(R_f.shape[-2:], device=self.device)
+
+                    rho = rho_band[bb] * res_mag
+
+                    # if self.debug: self.tb.verify_against_matlab(ecc, 'ecc_data', self.device, file='ecc_%d_%d_%d' % (ff+1,bb+1,cc+1), tolerance = 0.01)  
+                    # if self.debug: self.tb.verify_against_matlab(rho, 'rho_data', self.device, file='rho_%d_%d_%d' % (ff+1,bb+1,cc+1), tolerance = 0.05)  
+
+                    S = self.cached_sensitivity(rho, self.omega[cc], L_bkg, ecc, self.csf_sigma) * 10.0**(self.sensitivity_correction/20.0)
+                    # if self.debug: self.tb.verify_against_matlab(S, 'S_data', self.device, file='S_%d_%d_%d' % (ff+1,bb+1,cc+1), tolerance = 0.01, verbose=False)
+
+                    if self.contrast == "log": N_nCSF[bb][cc] = self.weber2log(torch.min(1./S, self.torch_scalar(0.9999999)))
+                    else:                      N_nCSF[bb][cc] = torch.reciprocal(S)
+                    # if self.debug: self.tb.verify_against_matlab(N_nCSF[bb][cc], 'N_nCSF_data', self.device, file='N_nCSF_%d_%d_%d' % (ff+1,bb+1,cc+1), tolerance = 0.01, relative = True)
+
+                D = self.apply_masking_model(T_f, R_f, N_nCSF[bb][cc], cc)
+
+                if self.debug: self.tb.verify_against_matlab(D, 'D_data', self.device, file='D_%d_%d_%d' % (ff+1,bb+1,cc+1), tolerance = 0.1, relative = True, verbose=False)
+
+                if self.do_heatmap:
+                    if cc == 0: self.heatmap_pyr.set_band(Dmap_pyr_bands, bb, D)
+                    else:       self.heatmap_pyr.set_band(Dmap_pyr_bands, bb, self.heatmap_pyr.get_band(Dmap_pyr_bands, bb) + w_temp_ch[cc] * D)
+
+                if Q_per_ch_block is None:
+                    Q_per_ch_block = torch.zeros((self.lpyr.height, 2, 1), device=self.device)
+
+                Q_per_ch_block[bb,cc,0] = self.lp_norm(D.flatten(), self.beta, 0, True)
+
+        if self.do_heatmap:
+            beta_jod = np.power(10.0, self.log_jod_exp)
+            dmap = torch.pow(self.heatmap_pyr.reconstruct(Dmap_pyr_bands), beta_jod) * abs(self.jod_a)         
+            if self.heatmap == "raw":
+                heatmap[:,:,ff,...] = dmap.detach().type(torch.float16).cpu()
+            else:
+                ref_frame = R[:,0, :, :, :]
+                heatmap[:,:,ff,...] = visualize_diff_map(dmap, context_image=ref_frame, colormap_type=self.heatmap).detach().type(torch.float16).cpu()
+        
+        return Q_per_ch_block
+
 
     def compute_local_contrast(self, R, T, next_gauss_band, L_adapt):
         if self.local_adapt=="simple":

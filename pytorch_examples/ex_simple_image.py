@@ -1,7 +1,7 @@
 import os
 import numpy as np
 import matplotlib.pyplot as plt
-
+import torch
 import ex_utils as utils
 import pyfvvdp
 
@@ -47,11 +47,11 @@ axs[0][1].imshow( I_test_blur/(2**16 - 1) )
 axs[0][1].set_title('Test image with blur')
 axs[0][1].set_xticks([])
 axs[0][1].set_yticks([])
-axs[1][0].imshow( stats_noise['heatmap'][0,:,0,:,:].permute([1,2,0]).cpu().numpy() )
+axs[1][0].imshow( stats_noise['heatmap'][0,:,0,:,:].permute([1,2,0]).to(torch.float32).numpy() )
 axs[1][0].set_xticks([])
 axs[1][0].set_yticks([])
 axs[1][0].set_title(noise_str)
-axs[1][1].imshow( stats_blur['heatmap'][0,:,0,:,:].permute([1,2,0]).cpu().numpy() )
+axs[1][1].imshow( stats_blur['heatmap'][0,:,0,:,:].permute([1,2,0]).to(torch.float32).numpy() )
 axs[1][1].set_xticks([])
 axs[1][1].set_yticks([])
 axs[1][1].set_title(blur_str)
