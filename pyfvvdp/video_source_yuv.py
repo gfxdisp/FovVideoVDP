@@ -1,0 +1,272 @@
+from video_source import *
+
+def decode_video_props( fname ):
+    vprops = dict()
+    vprops["width"]=1920
+    vprops["height"]=1080
+
+    vprops["fps"] = 24
+    vprops["bit_depth"] = 8
+    vprops["color_space"] = '2020'
+    vprops["chroma_ss"] = '420'
+
+    bname = os.path.splitext(os.path.basename(fname))[0]
+    fp = bname.split("_")
+
+    res_match = re.compile( '(\d+)x(\d+)p?' )
+
+    for field in fp:
+
+        if res_match.match( field ):
+            res = field.split( "x")
+            if len(res) != 2:
+                raise ValueError("Cannot decode the resolution")
+            vprops["width"]=int(res[0])
+            vprops["height"]=int(res[1])
+            continue
+
+        if field.endswith("fps"):
+            vprops["fps"] = int(field[:-3])
+
+        if field=="444" or field=="420":
+            vprops["chroma_ss"]=field
+
+        if field=="10" or field=="10b":
+            vprops["bit_depth"]=10
+
+        if field=="8" or field=="8b":
+            vprops["bit_depth"]=8
+
+        if field=="2020" or field=="709":
+            vprops["color_space"]=field
+
+        if field=="bt709":
+            vprops["color_space"]="709"
+
+        if field=="ct2020" or field=="pq2020":
+            vprops["color_space"]="2020"
+
+    return vprops
+
+# Create a filename which encodes the yuv header. It can be parsed with decode_video_props and pfstools.
+def create_yuv_fname( basename, vprops ):
+    yuv_name = f"{basename}_{vprops["width"]}x{vprops["height"]}_{vprops["bit_depth"]}b_{vprops["color_space"]}_{vprops["fps"]}fps.yuv"
+    return yuv_name
+
+
+class YUVReader:
+
+    def __init__(self, file_name):        
+        self.file_name = file_name
+
+        if not os.path.isfile(file_name):
+            raise FileNotFoundError( "File {} not found".format(file_name) )
+
+        vprops = decode_video_props(file_name)
+
+        self.width = vprops["width"]
+        self.height = vprops["height"]
+        self.fps = vprops["fps"]
+
+        self.bit_depth = vprops["bit_depth"]
+        self.frame_bytes = int(self.width*self.height)
+        self.y_pixels = int(self.frame_bytes)
+        self.y_shape = (vprops["height"], vprops["width"])
+
+        if vprops["chroma_ss"]=="444":
+            self.frame_bytes *= 3
+            self.uv_pixels = self.y_pixels
+            self.uv_shape = self.y_shape
+        else: # Chroma sub-sampling
+            self.frame_bytes = self.frame_bytes*3/2
+            self.uv_pixels = int(self.y_pixels/4)
+            self.uv_shape = (int(self.y_shape[0]/2), int(self.y_shape[1]/2))
+
+        self.frame_pixels = self.frame_bytes
+        if vprops["bit_depth"]>8:
+            self.frame_bytes *= 2
+            self.dtype = np.uint16
+        else:
+            self.dtype = np.uint8
+
+        self.frame_count = os.stat(file_name).st_size / self.frame_bytes
+#        if math.ceil(self.frame_count)!=self.frame_count:
+#            raise RuntimeError( ".yuv file does not seem to contain an integer number of frames" )
+
+        self.frame_count = int(self.frame_count)
+
+        self.mm = np.memmap( file_name, self.dtype, mode="r")
+
+    def get_frame_count(self):
+        return int(self.frame_count)
+    
+    def get_frame_yuv( self, frame_index ):
+
+        if frame_index<0 or frame_index>=self.frame_count:
+            raise RuntimeError( "The frame index is outside the range of available frames")
+
+        offset = int(frame_index*self.frame_pixels)
+        Y = self.mm[offset:offset+self.y_pixels]
+        u = self.mm[offset+self.y_pixels:offset+self.y_pixels+self.uv_pixels]
+        v = self.mm[offset+self.y_pixels+self.uv_pixels:offset+self.y_pixels+2*self.uv_pixels]
+
+        return (np.reshape(Y,self.y_shape,'C'),np.reshape(u,self.uv_shape,'C'),np.reshape(v,self.uv_shape,'C'))
+
+    # Return display-encoded (sRGB) BT.709 RGB image
+    def get_frame_rgb_rec709( self, frame_index ):
+
+        (Y,u,v) = self.get_frame_yuv(frame_index)
+
+        YUV = fixed2float( np.concatenate( (Y[:,:,np.newaxis],\
+            convert420to444(u)[:,:,np.newaxis],\
+            convert420to444(v)[:,:,np.newaxis]), axis=2), self.bit_depth)
+
+        RGB = (np.reshape( YUV, (self.y_pixels, 3), order='F' ) @ ycbcr2rgb_rec709.transpose()).reshape( (*self.y_shape, 3 ), order='F' )
+
+        return RGB
+
+    # Return display-encoded (PQ) BT.2020 RGB image
+    def get_frame_rgb_rec2020( self, frame_index ):
+
+        (Y,u,v) = self.get_frame_yuv(frame_index)
+
+        YUV = fixed2float( np.concatenate( (Y[:,:,np.newaxis],\
+            convert420to444(u)[:,:,np.newaxis],\
+            convert420to444(v)[:,:,np.newaxis]), axis=2), self.bit_depth)
+
+        RGB = (np.reshape( YUV, (self.y_pixels, 3), order='F' ) @ ycbcr2rgb_rec2020.transpose()).reshape( (*self.y_shape, 3 ), order='F' )
+
+        return RGB
+
+    # Return RGB PyTorch tensor
+    def get_frame_rgb_tensor( self, frame_index, device ):
+
+        if frame_index<0 or frame_index>=self.frame_count:
+            raise RuntimeError( "The frame index is outside the range of available frames")
+
+        offset = int(frame_index*self.frame_pixels)
+        Y = self.mm[offset:offset+self.y_pixels]
+        u = self.mm[offset+self.y_pixels:offset+self.y_pixels+self.uv_pixels]
+        v = self.mm[offset+self.y_pixels+self.uv_pixels:offset+self.y_pixels+2*self.uv_pixels]
+
+        Yuv_float = self._fixed2float_upscale(Y, u, v, device)
+
+        if self.color_space=='2020':
+            # display-encoded (PQ) BT.2020 RGB image
+            ycbcr2rgb = torch.tensor([[1, 0, 1.47460],
+                                        [1, -0.16455, -0.57135],
+                                        [1, 1.88140, 0]], device=device)
+        else:
+            # display-encoded (sRGB) BT.709 RGB image
+            ycbcr2rgb = torch.tensor([[1, 0, 1.402],
+                                    [1, -0.344136, -0.714136],
+                                    [1, 1.772, 0]], device=device)
+
+        RGB = Yuv_float @ ycbcr2rgb.transpose(1, 0)
+        # if (hasattr(self, 'resize_fn')) and (self.resize_fn is not None) \
+        #     and (self.height != self.resize_height or self.width != self.resize_width):
+        #     RGB = torch.nn.functional.interpolate(RGB.permute(2,0,1)[None],
+        #                                           size=(self.resize_height, self.resize_width),
+        #                                           mode=self.resize_fn)
+        #     RGB = RGB.squeeze().permute(1,2,0)
+        return RGB.clip(0, 1)
+
+
+    def _np_to_torchfp32(self, X, device):
+        if X.dtype == np.uint8:
+            return torch.tensor(X, dtype=torch.uint8).to(device).to(torch.float32)
+        elif X.dtype == np.uint16:
+            return self._npuint16_to_torchfp32(X, device)
+
+
+    def _fixed2float_upscale(self, Y, u, v, device):
+        offset = 16/219
+        weight = 1/(2**(self.bit_depth-8)*219)
+        Yuv = torch.empty(self.height, self.width, 3, device=device)
+
+        Y = self._np_to_torchfp32(Y, device)
+        Yuv[..., 0] = torch.clip(weight*Y - offset, 0, 1).reshape(self.height, self.width)
+
+        offset = 128/224
+        weight = 1/(2**(self.bit_depth-8)*224)
+
+        uv = np.stack((u, v))
+        uv = self._np_to_torchfp32(uv, device)
+        uv = torch.clip(weight*uv - offset, -0.5, 0.5).reshape(1, 2, self.uv_shape[0], self.uv_shape[1])
+
+        if self.chroma_ss=="420":
+            # TODO: Replace with a proper filter.
+            uv_upscaled = torch.nn.functional.interpolate(uv, scale_factor=2, mode='bilinear')
+        else:
+            uv_upscaled = uv
+
+        Yuv[...,1:] = uv_upscaled.squeeze().permute(1,2,0)
+
+        return Yuv
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, type, value, tb):
+        self.mm = None
+
+
+
+class fvvdp_video_source_yuv_file(fvvdp_video_source_dm):
+
+    def __init__( self, test_fname, reference_fname, display_photometry='standard_4k', color_space_name='auto', frames=-1, full_screen_resize=None, resize_resolution=None, verbose=False ):
+
+        fs_width = -1 if full_screen_resize is None else resize_resolution[0]
+        fs_height = -1 if full_screen_resize is None else resize_resolution[1]
+
+        self.reference_vidr = YUVReader(reference_fname)
+        self.test_vidr = YUVReader(test_fname)
+
+        self.frames = self.test_vidr.frame_count if frames==-1 else frames
+
+        # for vr in [self.test_vidr, self.reference_vidr]:
+        #     if vr == self.test_vidr:
+        #         logging.debug(f"Test video '{test_fname}':")
+        #     else:
+        #         logging.debug(f"Reference video '{reference_fname}':")
+        #     if full_screen_resize is None:
+        #         rs_str = ""
+        #     else:
+        #         rs_str = f"->[{resize_resolution[0]}x{resize_resolution[1]}]"
+        #     logging.debug(f"  [{vr.src_width}x{vr.src_height}]{rs_str}, colorspace: {vr.color_space}, color transfer: {vr.color_transfer}, fps: {vr.fps}, pixfmt: {vr.in_pix_fmt}, frames: {self.frames}" )
+
+        if color_space_name=='auto':
+            if self.test_vidr.color_space=='2020':
+                color_space_name="BT.2020"
+            else:
+                color_space_name="sRGB"
+
+        super().__init__(display_photometry=display_photometry, color_space_name=color_space_name)        
+
+        
+    # Return (height, width, frames) touple with the resolution and
+    # the length of the video clip.
+    def get_video_size(self):
+        return [self.test_vidr.height, self.test_vidr.width, self.frames]
+
+    # Return the frame rate of the video
+    def get_frames_per_second(self) -> int:
+        return self.test_vidr.fps
+    
+    # Get a pair of test and reference video frames as a single-precision luminance map
+    # scaled in absolute inits of cd/m^2. 'frame' is the frame index,
+    # starting from 0. 
+    def get_test_frame( self, frame, device ) -> Tensor:
+        L = self._get_frame( self.test_vidr, frame, device )
+        return L
+
+    def get_reference_frame( self, frame, device ) -> Tensor:
+        L = self._get_frame( self.reference_vidr, frame, device )
+        return L
+
+    def _get_frame( self, vid_reader, frame, device ):        
+        RGB = self.get_frame_rgb_tensor(frame, device)
+        RGB_bcfhw = reshuffle_dims( RGB, in_dims='HWC', out_dims="BCFHW" )
+        RGB_lin = self.dm_photometry.forward(RGB_bcfhw)
+        L = RGB_lin[:,0:1,:,:,:]*self.color_to_luminance[0] + RGB_lin[:,1:2,:,:,:]*self.color_to_luminance[1] + RGB_lin[:,2:3,:,:,:]*self.color_to_luminance[2]
+        return L
