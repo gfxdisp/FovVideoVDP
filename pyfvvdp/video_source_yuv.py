@@ -50,7 +50,12 @@ def decode_video_props( fname ):
 
 # Create a filename which encodes the yuv header. It can be parsed with decode_video_props and pfstools.
 def create_yuv_fname( basename, vprops ):
-    yuv_name = f"{basename}_{vprops["width"]}x{vprops["height"]}_{vprops["bit_depth"]}b_{vprops["color_space"]}_{vprops["fps"]}fps.yuv"
+    width = vprops["width"]
+    height = vprops["height"]
+    bit_depth = vprops["bit_depth"]
+    color_space = vprops["color_space"]
+    fps = vprops["fps"]
+    yuv_name = f"{basename}_{width}x{height}_{bit_depth}b_{color_space}_{fps}fps.yuv"
     return yuv_name
 
 
