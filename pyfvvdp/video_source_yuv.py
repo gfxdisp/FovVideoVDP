@@ -1,4 +1,5 @@
 from video_source import *
+import re
 
 def decode_video_props( fname ):
     vprops = dict()
@@ -26,7 +27,7 @@ def decode_video_props( fname ):
             continue
 
         if field.endswith("fps"):
-            vprops["fps"] = int(field[:-3])
+            vprops["fps"] = float(field[:-3])
 
         if field=="444" or field=="420":
             vprops["chroma_ss"]=field
@@ -55,6 +56,7 @@ def create_yuv_fname( basename, vprops ):
     bit_depth = vprops["bit_depth"]
     color_space = vprops["color_space"]
     fps = vprops["fps"]
+    fps = round(fps,3) if round(fps)!=fps else int(fps)  #do not use decimals if not needed
     yuv_name = f"{basename}_{width}x{height}_{bit_depth}b_{color_space}_{fps}fps.yuv"
     return yuv_name
 
@@ -72,6 +74,8 @@ class YUVReader:
         self.width = vprops["width"]
         self.height = vprops["height"]
         self.fps = vprops["fps"]
+        self.color_space = vprops["color_space"]
+        self.chroma_ss = vprops["chroma_ss"]
 
         self.bit_depth = vprops["bit_depth"]
         self.frame_bytes = int(self.width*self.height)
@@ -270,7 +274,7 @@ class fvvdp_video_source_yuv_file(fvvdp_video_source_dm):
         return L
 
     def _get_frame( self, vid_reader, frame, device ):        
-        RGB = self.get_frame_rgb_tensor(frame, device)
+        RGB = vid_reader.get_frame_rgb_tensor(frame, device)
         RGB_bcfhw = reshuffle_dims( RGB, in_dims='HWC', out_dims="BCFHW" )
         RGB_lin = self.dm_photometry.forward(RGB_bcfhw)
         L = RGB_lin[:,0:1,:,:,:]*self.color_to_luminance[0] + RGB_lin[:,1:2,:,:,:]*self.color_to_luminance[1] + RGB_lin[:,2:3,:,:,:]*self.color_to_luminance[2]
