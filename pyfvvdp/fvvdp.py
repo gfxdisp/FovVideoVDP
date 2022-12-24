@@ -47,21 +47,9 @@ class fvvdp:
         self.temp_padding = temp_padding
         self.use_checkpoints = use_checkpoints # Used for training
 
-        if display_photometry is None:
-            self.display_photometry = fvvdp_display_photometry.load(display_name)
-            self.display_name = display_name
-        else:
-            self.display_photometry = display_photometry
-            self.display_name = "unspecified"
-        
+        self.set_display_model(display_name, display_geometry, display_photometry)
+
         self.do_heatmap = (not self.heatmap is None) and (self.heatmap != "none")
-
-        if display_geometry is None:
-            self.display_geometry = fvvdp_display_geometry.load(display_name)
-        else:
-            self.display_geometry = display_geometry
-
-        self.pix_per_deg = self.display_geometry.get_ppd()
 
         # Use GPU if available
         if device is None:
@@ -134,6 +122,21 @@ class fvvdp:
 
         # other parameters
         self.debug = False
+
+    def set_display_model(self, display_name="standard_4k", display_photometry=None, display_geometry=None):
+        if display_photometry is None:
+            self.display_photometry = fvvdp_display_photometry.load(display_name)
+            self.display_name = display_name
+        else:
+            self.display_photometry = display_photometry
+            self.display_name = "unspecified"
+        
+        if display_geometry is None:
+            self.display_geometry = fvvdp_display_geometry.load(display_name)
+        else:
+            self.display_geometry = display_geometry
+
+        self.pix_per_deg = self.display_geometry.get_ppd()
 
     '''
     Predict image/video quality using FovVideoVDP.
@@ -358,11 +361,11 @@ class fvvdp:
         # Adaptation
         L_adapt = None
 
-        if self.local_adapt == "simple":
-            L_adapt = R[0,1,0,...] # reference, sustained
-            if self.contrast == "log":
-                L_adapt = torch.pow(10.0, L_adapt)
-            L_adapt = self.imgaussfilt.run(L_adapt)
+        # if self.local_adapt == "simple":
+        #     L_adapt = R[0,1,0,...] # reference, sustained
+        #     if self.contrast == "log":
+        #         L_adapt = torch.pow(10.0, L_adapt)
+        #     L_adapt = self.imgaussfilt.run(L_adapt)
 
         Q_per_ch_block = None
 

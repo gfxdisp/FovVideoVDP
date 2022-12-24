@@ -55,9 +55,10 @@ def create_yuv_fname( basename, vprops ):
     height = vprops["height"]
     bit_depth = vprops["bit_depth"]
     color_space = vprops["color_space"]
+    chroma_ss = vprops["chroma_ss"]
     fps = vprops["fps"]
     fps = round(fps,3) if round(fps)!=fps else int(fps)  #do not use decimals if not needed
-    yuv_name = f"{basename}_{width}x{height}_{bit_depth}b_{color_space}_{fps}fps.yuv"
+    yuv_name = f"{basename}_{width}x{height}_{bit_depth}b_{chroma_ss}_{color_space}_{fps}fps.yuv"
     return yuv_name
 
 
@@ -104,7 +105,7 @@ class YUVReader:
 
         self.frame_count = int(self.frame_count)
 
-        self.mm = np.memmap( file_name, self.dtype, mode="r")
+        self.mm = None
 
     def get_frame_count(self):
         return int(self.frame_count)
@@ -113,6 +114,9 @@ class YUVReader:
 
         if frame_index<0 or frame_index>=self.frame_count:
             raise RuntimeError( "The frame index is outside the range of available frames")
+
+        if self.mm is None: # Mem-map as needed
+            self.mm = np.memmap( self.file_name, self.dtype, mode="r")
 
         offset = int(frame_index*self.frame_pixels)
         Y = self.mm[offset:offset+self.y_pixels]
@@ -153,6 +157,9 @@ class YUVReader:
         if frame_index<0 or frame_index>=self.frame_count:
             raise RuntimeError( "The frame index is outside the range of available frames")
 
+        if self.mm is None: # Mem-map as needed
+            self.mm = np.memmap( self.file_name, self.dtype, mode="r")
+
         offset = int(frame_index*self.frame_pixels)
         Y = self.mm[offset:offset+self.y_pixels]
         u = self.mm[offset+self.y_pixels:offset+self.y_pixels+self.uv_pixels]
@@ -187,6 +194,17 @@ class YUVReader:
         elif X.dtype == np.uint16:
             return self._npuint16_to_torchfp32(X, device)
 
+    # Torch does not natively support uint16. A workaround is to pack uint16 values into int16.
+    # This will be efficiently transferred and unpacked on the GPU.
+    # logging.info('Test has datatype uint16, packing into int16')
+    def _npuint16_to_torchfp32(self, np_x_uint16, device):
+        max_value = 2**16 - 1
+        assert np_x_uint16.dtype == np.uint16
+        np_x_int16 = torch.tensor(np_x_uint16.astype(np.int16), dtype=torch.int16)
+        torch_x_int32 = np_x_int16.to(device).to(torch.int32)
+        torch_x_uint16 = torch_x_int32 & max_value
+        torch_x_fp32 = torch_x_uint16.to(torch.float32)
+        return torch_x_fp32
 
     def _fixed2float_upscale(self, Y, u, v, device):
         offset = 16/219
@@ -231,7 +249,7 @@ class fvvdp_video_source_yuv_file(fvvdp_video_source_dm):
         self.reference_vidr = YUVReader(reference_fname)
         self.test_vidr = YUVReader(test_fname)
 
-        self.frames = self.test_vidr.frame_count if frames==-1 else frames
+        self.frames = self.test_vidr.frame_count if frames==-1 else min(self.test_vidr.frame_count, frames)
 
         # for vr in [self.test_vidr, self.reference_vidr]:
         #     if vr == self.test_vidr:
