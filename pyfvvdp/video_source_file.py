@@ -64,10 +64,10 @@ class video_reader:
         if frames==-1:
             self.frames = num_frames
         else:    
-            if num_frames < frames:
-                err_str = 'Expecting {needed_frames} frames but only {available_frames} available in the file \"{file}\"'.format( needed_frames=frames, available_frames=num_frames, file=vidfile)
-                raise RuntimeError( err_str )
-            self.frames = frames
+            # if num_frames < frames:
+            #     err_str = 'Expecting {needed_frames} frames but only {available_frames} available in the file \"{file}\"'.format( needed_frames=frames, available_frames=num_frames, file=vidfile)
+            #     raise RuntimeError( err_str )
+            self.frames = min( num_frames, frames ) # Use at most as many frames as passed in "frames" argument
 
         self._setup_ffmpeg(vidfile, resize_fn, resize_height, resize_width, verbose)
         self.curr_frame = -1

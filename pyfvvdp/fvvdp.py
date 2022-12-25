@@ -13,7 +13,7 @@ import json
 #import time
 #import math
 import torch.utils.benchmark as torchbench
-#import logging
+import logging
 
 from pyfvvdp.visualize_diff_map import visualize_diff_map
 from pyfvvdp.video_source import *
@@ -94,6 +94,7 @@ class fvvdp:
 
         #parameters_file = os.path.join(os.path.dirname(__file__), "fvvdp_data/fvvdp_parameters.json")
         self.parameters_file = utils.config_files.find( "fvvdp_parameters.json" )
+        logging.debug( f"Loading FovVideoVDP parameters from '{self.parameters_file}'" )
         parameters = utils.json2dict(self.parameters_file)
 
         #all common parameters between Matlab and Pytorch, loaded from the .json file
