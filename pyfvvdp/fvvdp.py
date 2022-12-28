@@ -47,7 +47,7 @@ class fvvdp:
         self.temp_padding = temp_padding
         self.use_checkpoints = use_checkpoints # Used for training
 
-        self.set_display_model(display_name, display_geometry, display_photometry)
+        self.set_display_model(display_name, display_photometry=display_photometry, display_geometry=display_geometry)
 
         self.do_heatmap = (not self.heatmap is None) and (self.heatmap != "none")
 
