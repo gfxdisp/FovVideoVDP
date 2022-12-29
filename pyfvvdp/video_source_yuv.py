@@ -64,7 +64,7 @@ def create_yuv_fname( basename, vprops ):
 
 class YUVReader:
 
-    def __init__(self, file_name):        
+    def __init__(self, file_name):
         self.file_name = file_name
 
         if not os.path.isfile(file_name):
@@ -243,8 +243,8 @@ class fvvdp_video_source_yuv_file(fvvdp_video_source_dm):
 
     def __init__( self, test_fname, reference_fname, display_photometry='standard_4k', color_space_name='auto', frames=-1, full_screen_resize=None, resize_resolution=None, verbose=False ):
 
-        fs_width = -1 if full_screen_resize is None else resize_resolution[0]
-        fs_height = -1 if full_screen_resize is None else resize_resolution[1]
+        self.fs_width = -1 if full_screen_resize is None else resize_resolution[0]
+        self.fs_height = -1 if full_screen_resize is None else resize_resolution[1]
 
         self.reference_vidr = YUVReader(reference_fname)
         self.test_vidr = YUVReader(test_fname)
@@ -274,7 +274,10 @@ class fvvdp_video_source_yuv_file(fvvdp_video_source_dm):
     # Return (height, width, frames) touple with the resolution and
     # the length of the video clip.
     def get_video_size(self):
-        return [self.test_vidr.height, self.test_vidr.width, self.frames]
+        if -1 not in (self.fs_width, self.fs_height):
+            return [self.fs_height, self.fs_width, self.frames]
+        else:
+            return [self.test_vidr.height, self.test_vidr.width, self.frames]
 
     # Return the frame rate of the video
     def get_frames_per_second(self) -> int:
@@ -294,6 +297,10 @@ class fvvdp_video_source_yuv_file(fvvdp_video_source_dm):
     def _get_frame( self, vid_reader, frame, device ):        
         RGB = vid_reader.get_frame_rgb_tensor(frame, device)
         RGB_bcfhw = reshuffle_dims( RGB, in_dims='HWC', out_dims="BCFHW" )
+        if -1 not in (self.fs_width, self.fs_height):
+            RGB_bcfhw = torch.nn.functional.interpolate(RGB_bcfhw[:,:,0],
+                                                        size=(self.fs_height, self.fs_width),
+                                                        mode='bilinear')[:,:,None]
         RGB_lin = self.dm_photometry.forward(RGB_bcfhw)
         L = RGB_lin[:,0:1,:,:,:]*self.color_to_luminance[0] + RGB_lin[:,1:2,:,:,:]*self.color_to_luminance[1] + RGB_lin[:,2:3,:,:,:]*self.color_to_luminance[2]
         return L
