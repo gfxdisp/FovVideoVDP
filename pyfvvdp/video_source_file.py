@@ -9,7 +9,7 @@ import ffmpeg
 import re
 
 import logging
-from video_source import *
+from pyfvvdp.video_source import *
 
 # for debugging only
 # from gfxdisp.pfs import pfs
