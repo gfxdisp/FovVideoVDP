@@ -47,8 +47,6 @@ class fvvdp:
         self.temp_padding = temp_padding
         self.use_checkpoints = use_checkpoints # Used for training
 
-        self.set_display_model(display_name, display_photometry=display_photometry, display_geometry=display_geometry)
-
         self.do_heatmap = (not self.heatmap is None) and (self.heatmap != "none")
 
         # Use GPU if available
@@ -60,6 +58,7 @@ class fvvdp:
         else:
             self.device = device
         
+        self.set_display_model(display_name, display_photometry=display_photometry, display_geometry=display_geometry)
         self.load_config()
 
         # if self.mask_s > 0.0:
@@ -138,6 +137,7 @@ class fvvdp:
             self.display_geometry = display_geometry
 
         self.pix_per_deg = self.display_geometry.get_ppd()
+        self.imgaussfilt = utils.ImGaussFilt(0.5 * self.pix_per_deg, self.device)
 
     '''
     Predict image/video quality using FovVideoVDP.
