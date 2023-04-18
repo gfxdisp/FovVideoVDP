@@ -432,7 +432,9 @@ class fvvdp:
 
                 if self.do_heatmap:
                     if cc == 0: self.heatmap_pyr.set_band(Dmap_pyr_bands, bb, D)
-                    else:       self.heatmap_pyr.set_band(Dmap_pyr_bands, bb, self.heatmap_pyr.get_band(Dmap_pyr_bands, bb) + w_temp_ch[cc] * D)
+                    else:       
+                        w_temp_ch = [1.0, self.w_transient]
+                        self.heatmap_pyr.set_band(Dmap_pyr_bands, bb, self.heatmap_pyr.get_band(Dmap_pyr_bands, bb) + w_temp_ch[cc] * D)
 
                 if Q_per_ch_block is None:
                     Q_per_ch_block = torch.zeros((self.lpyr.height, 2, 1), device=self.device)
