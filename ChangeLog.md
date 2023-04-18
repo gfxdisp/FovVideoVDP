@@ -12,6 +12,7 @@
  - [Python] Minor performance improvements.
  - [Python] --verbose will report much more information now.
  - [Python] It can create much larger heatmaps now (stores them in the CPU memory as float16)
+ - [Python] Fix for the freezing of ffmpeg on some systems (due to the issues with /dev/nuyll redirection in python_ffmpeg)
  
 # v1.1.3 - 18/10/2022
  - [Python] Added "raw" heatmap type to the command line
