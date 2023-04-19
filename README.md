@@ -168,7 +168,7 @@ By default, FovVideoVDP will run the code on a GPU using `gpuArray`s, which requ
 
 ## Release notes
 
-* v1.2.0 - 27 November 2022
+* v1.2.0 - 19 April 2023
   * The python command line interface can now accept HDR video files and OpenEXR images. 
   * [PU21-PSNR](https://github.com/gfxdisp/pu21) can be run in addition to FovVideoVDP
   * Added new command line options: `--full-screen-resize`, `--metrics`, `--temp-padding`, `--feature`, `--output-dir`

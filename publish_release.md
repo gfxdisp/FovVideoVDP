@@ -9,7 +9,8 @@
 - [Optional] Remove previous versions `rm dist/*`
 - Create the new package: `python setup.py sdist`
 - [Optiona] Upload to the testpypi: `twine upload --repository testpypi dist/*`
-- Upload the package: `twine upload dist/*`. You will be asked to enter your credentials for every update.
+- Upload the package: `twine upload dist/*`. 
+  - You need to create a token on the pypi.org web page, then enter `__token__` as username and paste the token password as the password. 
 
 # Steps for Conda
 You can build separate packages for different architectures and python versions. This is a guide for python 3.9 on a Linux machine.
