@@ -23,8 +23,8 @@ I_test_blur = imgaussfilt( I_ref, 2 );
 % properties and instead tell that we pass absolute colorimetric values. 
 % Note that many HDR images are in rec709 color space, so no need to
 % specify rec2020. 
-[Q_JOD_noise, diff_map_noise] = fvvdp( I_test_noise, I_ref, 'display_name', 'standard_hdr', 'display_photometry', 'absolute', 'heatmap', 'threshold' );
-[Q_JOD_blur, diff_map_blur] = fvvdp( I_test_blur, I_ref, 'display_name', 'standard_hdr', 'display_photometry', 'absolute', 'heatmap', 'threshold' );
+[Q_JOD_noise, diff_map_noise] = fvvdp( I_test_noise, I_ref, 'display_name', 'standard_hdr_linear', 'display_photometry', 'absolute', 'heatmap', 'threshold' );
+[Q_JOD_blur, diff_map_blur] = fvvdp( I_test_blur, I_ref, 'display_name', 'standard_hdr_linear', 'display_photometry', 'absolute', 'heatmap', 'threshold' );
 
 clf
 subplot( 1, 2, 1 );

@@ -556,6 +556,6 @@ class fvvdp_display_geometry:
                 obj = fvvdp_display_geometry( (W, H), distance_m=distance_m, fov_diagonal=fov_diagonal, diagonal_size_inches=diag_size_inch)
                 return obj
 
-        logging.error("Error: Display model '%s' not found in display_models.json" % display_name)
-        return None
+        raise RuntimeError("Error: Display model '%s' not found in display_models.json" % display_name)
+        #return None
 

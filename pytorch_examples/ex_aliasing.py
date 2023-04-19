@@ -5,7 +5,7 @@ import time
 
 import pyfvvdp
 
-display_name = 'sdr_fhd_24'
+display_name = 'standard_fhd'
 media_folder = os.path.join(os.path.dirname(__file__), '..',
                             'example_media', 'aliasing')
 

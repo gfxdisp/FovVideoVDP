@@ -1,5 +1,6 @@
 import os
 import numpy as np
+import torch
 import matplotlib.pyplot as plt
 import ex_utils as utils
 
@@ -23,11 +24,12 @@ I_test_noise = (I_ref + I_ref*np.random.randn(*I_ref.shape)*0.3).astype(I_ref.dt
 I_test_blur = utils.imgaussblur(I_ref, 2)
 
 # We use geometry of SDR 4k 30" display, but ignore its photometric
-# properties and instead tell that we pass absolute colorimetric values. 
+# properties and instead tell that we pass absolute linear colorimetric values. 
+# (the display name is 'standard_hdr_linear')
 # Note that many HDR images are in rec709 color space, so no need to
 # specify rec2020. 
 disp_photo = pyfvvdp.fvvdp_display_photo_absolute(L_peak)
-fv = pyfvvdp.fvvdp(display_name='standard_hdr', display_photometry=disp_photo, heatmap='threshold')
+fv = pyfvvdp.fvvdp(display_name='standard_hdr_linear', display_photometry=disp_photo, heatmap='threshold')
 
 # predict() method can handle numpy ndarrays or PyTorch tensors. The data
 # type should be float32, int16 or uint8.
@@ -42,11 +44,11 @@ blur_str = f'Blur - Quality: {Q_JOD_blur:.3f} JOD'
 print( blur_str )
 
 f, axs = plt.subplots(1, 2)
-axs[0].imshow( stats_noise['heatmap'][0,:,0,:,:].permute([1,2,0]).cpu().numpy() )
+axs[0].imshow( stats_noise['heatmap'][0,:,0,:,:].permute([1,2,0]).to(torch.float32).cpu().numpy() )
 axs[0].set_xticks([])
 axs[0].set_yticks([])
 axs[0].set_title(noise_str)
-axs[1].imshow( stats_blur['heatmap'][0,:,0,:,:].permute([1,2,0]).cpu().numpy() )
+axs[1].imshow( stats_blur['heatmap'][0,:,0,:,:].permute([1,2,0]).to(torch.float32).cpu().numpy() )
 axs[1].set_xticks([])
 axs[1].set_yticks([])
 axs[1].set_title(blur_str)

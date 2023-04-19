@@ -68,7 +68,7 @@ The display photometry and geometry is typically specified by passing `display_n
 ### Reporting metric results
 
 When reporting the results of the metric, please include the string returned by the metric, such as:
-`"FovVideoVDP v1.4, 75.4 [pix/deg], Lpeak=200, Lblack=0.5979 [cd/m^2], non-foveated, (standard_4k)"`
+`"FovVideoVDP v1.2.0, 75.4 [pix/deg], Lpeak=200, Lblack=0.5979 [cd/m^2], non-foveated, (standard_4k)"`
 This is to ensure that you provide enough details to reproduce your results. 
 
 ### Predicted quality scores
@@ -103,16 +103,18 @@ fvvdp --test example_media/aliasing/ferris-*-*.mp4 --ref example_media/aliasing/
 
 |Original | ![ferris wheel](https://www.cl.cam.ac.uk/research/rainbow/projects/fovvideovdp/html_reports/github_examples/aliasing/ferris-ref.gif) | Quality | Difference map |
 | :---: | :---: | :---: | :---: |
-| Bicubic &#8595;<br />Bicubic &#8593;<br />(4x4) | ![bicubic-bicubic](https://www.cl.cam.ac.uk/research/rainbow/projects/fovvideovdp/html_reports/github_examples/aliasing/ferris-bicubic-bicubic.gif) | 6.6277 | ![bicubic-bicubic-diff](https://www.cl.cam.ac.uk/research/rainbow/projects/fovvideovdp/html_reports/github_examples/aliasing/diff_maps/ferris-bicubic-bicubic_diff_map_viz.gif) |
-| Bicubic &#8595;<br />Nearest &#8593;<br />(4x4) | ![bicubic-nearest](https://www.cl.cam.ac.uk/research/rainbow/projects/fovvideovdp/html_reports/github_examples/aliasing/ferris-bicubic-nearest.gif) | 6.4803 | ![bicubic-nearest-diff](https://www.cl.cam.ac.uk/research/rainbow/projects/fovvideovdp/html_reports/github_examples/aliasing/diff_maps/ferris-bicubic-nearest_diff_map_viz.gif) |
-| Nearest &#8595;<br />Bicubic &#8593;<br />(4x4) | ![nearest-bicubic](https://www.cl.cam.ac.uk/research/rainbow/projects/fovvideovdp/html_reports/github_examples/aliasing/ferris-nearest-bicubic.gif) | 6.0446 | ![nearest-bicubic-diff](https://www.cl.cam.ac.uk/research/rainbow/projects/fovvideovdp/html_reports/github_examples/aliasing/diff_maps/ferris-nearest-bicubic_diff_map_viz.gif) |
-| Nearest &#8595;<br />Nearest &#8593;<br />(4x4) | ![nearest-nearest](https://www.cl.cam.ac.uk/research/rainbow/projects/fovvideovdp/html_reports/github_examples/aliasing/ferris-nearest-nearest.gif) | 5.9450 | ![nearest-nearest-diff](https://www.cl.cam.ac.uk/research/rainbow/projects/fovvideovdp/html_reports/github_examples/aliasing/diff_maps/ferris-nearest-nearest_diff_map_viz.gif) |
+| Bicubic &#8595;<br />Bicubic &#8593;<br />(4x4) | ![bicubic-bicubic](https://www.cl.cam.ac.uk/research/rainbow/projects/fovvideovdp/html_reports/github_examples/aliasing/ferris-bicubic-bicubic.gif) | 6.469 | ![bicubic-bicubic-diff](https://www.cl.cam.ac.uk/research/rainbow/projects/fovvideovdp/html_reports/github_examples/aliasing/diff_maps/ferris-bicubic-bicubic_diff_map_viz.gif) |
+| Bicubic &#8595;<br />Nearest &#8593;<br />(4x4) | ![bicubic-nearest](https://www.cl.cam.ac.uk/research/rainbow/projects/fovvideovdp/html_reports/github_examples/aliasing/ferris-bicubic-nearest.gif) | 6.328 | ![bicubic-nearest-diff](https://www.cl.cam.ac.uk/research/rainbow/projects/fovvideovdp/html_reports/github_examples/aliasing/diff_maps/ferris-bicubic-nearest_diff_map_viz.gif) |
+| Nearest &#8595;<br />Bicubic &#8593;<br />(4x4) | ![nearest-bicubic](https://www.cl.cam.ac.uk/research/rainbow/projects/fovvideovdp/html_reports/github_examples/aliasing/ferris-nearest-bicubic.gif) | 5.923 | ![nearest-bicubic-diff](https://www.cl.cam.ac.uk/research/rainbow/projects/fovvideovdp/html_reports/github_examples/aliasing/diff_maps/ferris-nearest-bicubic_diff_map_viz.gif) |
+| Nearest &#8595;<br />Nearest &#8593;<br />(4x4) | ![nearest-nearest](https://www.cl.cam.ac.uk/research/rainbow/projects/fovvideovdp/html_reports/github_examples/aliasing/ferris-nearest-nearest.gif) | 5.821 | ![nearest-nearest-diff](https://www.cl.cam.ac.uk/research/rainbow/projects/fovvideovdp/html_reports/github_examples/aliasing/diff_maps/ferris-nearest-nearest_diff_map_viz.gif) |
 
 
 ### Low-level Python interface
 FovVideoVDP can also be run through the Python interface by instatiating the `pyfvvdp.fvvdp.fvvdp` class. This example shows how to predict the quality of images degraded by Gaussian noise and blur.
 
 ```python
+import os
+import numpy as np
 import pyfvvdp
 import ex_utils as utils
 
@@ -130,8 +132,8 @@ Q_JOD_blur, stats_blur = fv.predict( I_test_blur, I_ref, dim_order="HWC" )
 
 |Original | ![wavy-facade](https://github.com/gfxdisp/FovVideoVDP/raw/main/example_media/wavy_facade.png) | Quality | Difference map |
 | :---: | :---: | :---: | :---: |
-| Gaussian noise (σ<sup>2</sup> = 0.003) | ![noise](https://www.cl.cam.ac.uk/research/rainbow/projects/fovvideovdp/html_reports/github_examples/simple_image/wavy_facade_noise.png) | 9.532 | ![noise-diff](https://www.cl.cam.ac.uk/research/rainbow/projects/fovvideovdp/html_reports/github_examples/simple_image/wavy_facade_noise_diff_map_viz.png) |
-| Gaussian blur (σ = 2) | ![blur](https://www.cl.cam.ac.uk/research/rainbow/projects/fovvideovdp/html_reports/github_examples/simple_image/wavy_facade_blur.png) | 8.674 | ![blur-diff](https://www.cl.cam.ac.uk/research/rainbow/projects/fovvideovdp/html_reports/github_examples/simple_image/wavy_facade_blur_diff_map_viz.png) |
+| Gaussian noise (σ<sup>2</sup> = 0.003) | ![noise](https://www.cl.cam.ac.uk/research/rainbow/projects/fovvideovdp/html_reports/github_examples/simple_image/wavy_facade_noise.png) | 9.537 | ![noise-diff](https://www.cl.cam.ac.uk/research/rainbow/projects/fovvideovdp/html_reports/github_examples/simple_image/wavy_facade_noise_diff_map_viz.png) |
+| Gaussian blur (σ = 2) | ![blur](https://www.cl.cam.ac.uk/research/rainbow/projects/fovvideovdp/html_reports/github_examples/simple_image/wavy_facade_blur.png) | 8.693 | ![blur-diff](https://www.cl.cam.ac.uk/research/rainbow/projects/fovvideovdp/html_reports/github_examples/simple_image/wavy_facade_blur_diff_map_viz.png) |
 
 More examples can be found in these [example scripts](https://github.com/gfxdisp/FovVideoVDP/blob/main/pytorch_examples).
 
@@ -170,8 +172,9 @@ By default, FovVideoVDP will run the code on a GPU using `gpuArray`s, which requ
   * The python command line interface can now accept HDR video files and OpenEXR images. 
   * [PU21-PSNR](https://github.com/gfxdisp/pu21) can be run in addition to FovVideoVDP
   * Added new command line options: `--full-screen-resize`, `--metrics`, `--temp-padding`, `--feature`, `--output-dir`
-  * Faster decoding for large (4k) videos when run on CUDA. 
+  * Faster decoding for large (4k) videos when run on CUDA (python, the command line interface `fvvdp`). 
   * The prediction may differ slightly because of the way video files are handled and processed. There are no changes in the metric.
+  * Fixed issue when reading video frames in python freezed on some platforms (issue with python's `/dev/null` redirection)
 
 * v1.1.3 - 18 October 2022
   * Added "raw" heatmap type to the command line. 
