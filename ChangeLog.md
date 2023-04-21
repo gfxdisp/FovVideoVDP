@@ -1,5 +1,6 @@
 # v1.2.1 - ?
  - [Python] Extra channels (alpha, depth) are now ignored.
+ - [Python] Better handling of grayscale images.
 
 # v1.2.0 - 19/04/2023
  - [Python] Added option "--config-dir" to specify path to display_models.json and other config files
