@@ -1,4 +1,7 @@
-# v1.2.0 - ?
+# v1.2.1 - ?
+ - [Python] Extra channels (alpha, depth) are now ignored.
+
+# v1.2.0 - 19/04/2023
  - [Python] Added option "--config-dir" to specify path to display_models.json and other config files
  - [Python] When passed "--display ?", a list of available display models will be printed.
  - [Python] Added PQ EOTF, fvvdp_display_photo_gog replaced with fvvdp_display_photo_eotf. 
