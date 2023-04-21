@@ -181,7 +181,7 @@ class fvvdp_video_source_array( fvvdp_video_source_dm ):
         # Determine the maximum value of the data type storing the
         # image/video
 
-        if from_array.dtype is torch.float32:
+        if from_array.dtype is (torch.float32 or torch.float16):
             frame = from_array[:,:,frame:(frame+1),:,:].to(device)
         elif from_array.dtype is torch.int16:
             # Use int16 to losslessly pack uint16 values
