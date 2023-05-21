@@ -230,8 +230,8 @@ class fvvdp:
 
             if is_image:                
                 R = torch.zeros((1, 2, 1, height, width), device=self.device)
-                R[:,0, :, :, :] = vid_source.get_test_frame(0, device=self.device)
-                R[:,1, :, :, :] = vid_source.get_reference_frame(0, device=self.device)
+                R[:,0, :, :, :] = vid_source.get_test_frame(0, device=self.device, colorspace='Y')
+                R[:,1, :, :, :] = vid_source.get_reference_frame(0, device=self.device, colorspace='Y')
 
             else: # This is video
                 if self.debug: print("Frame %d:\n----" % ff)
@@ -239,15 +239,15 @@ class fvvdp:
                 if ff == 0: # First frame
                     if self.temp_padding == "replicate":
                         # TODO: proper handling of batches
-                        sw_buf[0] = vid_source.get_test_frame(0, device=self.device).expand([1, 1, fl, height, width])
-                        sw_buf[1] = vid_source.get_reference_frame(0, device=self.device).expand([1, 1, fl, height, width])
+                        sw_buf[0] = vid_source.get_test_frame(0, device=self.device, colorspace='Y').expand([1, 1, fl, height, width])
+                        sw_buf[1] = vid_source.get_reference_frame(0, device=self.device, colorspace='Y').expand([1, 1, fl, height, width])
                     elif self.temp_padding == "circular":
                         sw_buf[0] = torch.zeros([1, 1, fl, height, width], device=self.device)
                         sw_buf[1] = torch.zeros([1, 1, fl, height, width], device=self.device)
                         for kk in range(fl):
                             fidx = (N_frames - 1 - fl + kk) % N_frames
-                            sw_buf[0][:,:,kk,...] = vid_source.get_test_frame(fidx, device=self.device)
-                            sw_buf[1][:,:,kk,...] = vid_source.get_reference_frame(fidx, device=self.device)
+                            sw_buf[0][:,:,kk,...] = vid_source.get_test_frame(fidx, device=self.device, colorspace='Y')
+                            sw_buf[1][:,:,kk,...] = vid_source.get_reference_frame(fidx, device=self.device, colorspace='Y')
                     elif self.temp_padding == "pingpong":
                         sw_buf[0] = torch.zeros([1, 1, fl, height, width], device=self.device)
                         sw_buf[1] = torch.zeros([1, 1, fl, height, width], device=self.device)
@@ -260,13 +260,13 @@ class fvvdp:
 
                         for kk in range(fl):
                             fidx = indices[kk]
-                            sw_buf[0][:,:,kk,...] = vid_source.get_test_frame(fidx,device=self.device)
-                            sw_buf[1][:,:,kk,...] = vid_source.get_reference_frame(fidx,device=self.device)
+                            sw_buf[0][:,:,kk,...] = vid_source.get_test_frame(fidx,device=self.device, colorspace='Y')
+                            sw_buf[1][:,:,kk,...] = vid_source.get_reference_frame(fidx,device=self.device, colorspace='Y')
                     else:
                         raise RuntimeError( 'Unknown padding method "{}"'.format(self.temp_padding) )
                 else:
-                    cur_tframe = vid_source.get_test_frame(ff, device=self.device)
-                    cur_rframe = vid_source.get_reference_frame(ff, device=self.device)
+                    cur_tframe = vid_source.get_test_frame(ff, device=self.device, colorspace='Y')
+                    cur_rframe = vid_source.get_reference_frame(ff, device=self.device, colorspace='Y')
 
                     sw_buf[0] = torch.cat((sw_buf[0][:, :, 1:, :, :], cur_tframe), 2)
                     sw_buf[1] = torch.cat((sw_buf[1][:, :, 1:, :, :], cur_rframe), 2)
@@ -315,7 +315,7 @@ class fvvdp:
         return (Q_jod.squeeze(), stats)
 
     # Perform pooling with per-band weights and map to JODs
-    def do_pooling_and_jods(self, Q_per_ch, rho_band):
+    def do_pooling_and_jods(self, Q_per_ch, rho_band, fps=None):
 
         # Weights for the two temporal channels
         if Q_per_ch.shape[1]==2: # If video
@@ -524,10 +524,10 @@ class fvvdp:
 
     def phase_uncertainty(self, M):
         if self.pu_dilate != 0:
-            M_pu = utils.imgaussfilt( M, self.pu_dilate ) * torch.pow(10.0, self.mask_c)
+            M_pu = utils.imgaussfilt( M, self.pu_dilate ) * 10.0**self.mask_c
         else:
             #M_pu = M * (10**self.mask_c); # * torch.pow(self.torch_scalar(10.0), self.torch_scalar(self.mask_c))
-            M_pu = M * torch.pow(self.torch_scalar(10.0), self.torch_scalar(self.mask_c))
+            M_pu = M * 10.0**self.mask_c
         return M_pu
 
     # def mask_func_perc_norm(self, G, G_mask):
@@ -570,7 +570,7 @@ class fvvdp:
         D = torch.clamp( D, max=1e4)
         return D
 
-    def lp_norm(self, x, p, dim=0, normalize=True):
+    def lp_norm(self, x, p, dim=0, normalize=True, keepdim=True):
         if dim is None:
             dim = 0
 
@@ -579,7 +579,11 @@ class fvvdp:
         else:
             N = 1.0
 
-        return torch.norm(x, p, dim=dim, keepdim=True) / (float(N) ** (1./p))
+        if isinstance( p, torch.Tensor ):
+            # p is a Tensor if it is being optimized. In that case, we need the formula for the norm
+            return torch.pow( torch.sum(x ** (p), dim=dim, keepdim=keepdim)/float(N), 1/p)
+        else:
+            return torch.norm(x, p, dim=dim, keepdim=keepdim) / (float(N) ** (1./p))
 
     def get_temporal_filters(self, frames_per_s):
         t = torch.linspace(0.0, self.filter_len / frames_per_s, self.filter_len, device=self.device)
@@ -605,7 +609,7 @@ class fvvdp:
         return F, omega
 
     def torch_scalar(self, val, dtype=torch.float32):
-        return torch.tensor(val, dtype=dtype, device=self.device)
+        return val if isinstance(val, torch.Tensor) else torch.tensor(val, dtype=dtype, device=self.device)
 
     def short_name(self):
         return "FovVideoVDP"
