@@ -282,9 +282,9 @@ class fvvdp:
 
             if self.use_checkpoints:
                 # Used for training
-                Q_per_ch_block = checkpoint.checkpoint(self.process_block_of_frames, ff, R, vid_sz, temp_ch, fixation_point, heatmap, use_reentrant=False)
+                Q_per_ch_block = checkpoint.checkpoint(self.process_block_of_frames, ff, R, vid_sz, temp_ch, fixation_point, heatmap, self.lpyr, use_reentrant=False)
             else:
-                Q_per_ch_block = self.process_block_of_frames(ff, R, vid_sz, temp_ch, fixation_point, heatmap)
+                Q_per_ch_block = self.process_block_of_frames(ff, R, vid_sz, temp_ch, fixation_point, heatmap, self.lpyr)
 
             if Q_per_ch is None:
                 Q_per_ch = torch.zeros((Q_per_ch_block.shape[0], Q_per_ch_block.shape[1], N_frames), device=self.device)
@@ -337,7 +337,7 @@ class fvvdp:
         Q_jod = sign(self.jod_a) * ((abs(self.jod_a)**(1.0/beta_jod))* Q)**beta_jod + 10.0 # This one can help with very large numbers
         return Q_jod.squeeze()
 
-    def process_block_of_frames(self, ff, R, vid_sz, temp_ch, fixation_point, heatmap):
+    def process_block_of_frames(self, ff, R, vid_sz, temp_ch, fixation_point, heatmap, lpyr):
         # TODO: process multiple frames at a time. Right now, we process one frame at a time
 
         height, width, N_frames = vid_sz
@@ -345,19 +345,19 @@ class fvvdp:
         if self.debug: self.tb.verify_against_matlab(R.permute(0,2,3,4,1), 'Rdata', self.device, file='R_%d' % (ff+1), tolerance = 0.01)
 
         # Perform Laplacian pyramid decomposition
-        B_bands, B_gbands = self.lpyr.decompose(R[0,...])
+        B_bands, B_gbands = lpyr.decompose(R[0,...])
 
-        if self.debug: assert len(B_bands) == self.lpyr.get_band_count()
+        if self.debug: assert len(B_bands) == lpyr.get_band_count()
 
         # CSF
-        N_nCSF = [[None, None] for i in range(self.lpyr.get_band_count()-1)]
+        N_nCSF = [[None, None] for i in range(lpyr.get_band_count()-1)]
 
         if self.do_heatmap:
             Dmap_pyr_bands, Dmap_pyr_gbands = self.heatmap_pyr.decompose( torch.zeros([1,1,height,width], dtype=torch.float, device=self.device))
 
-        # L_bkg_bb = [None for i in range(self.lpyr.get_band_count()-1)]
+        # L_bkg_bb = [None for i in range(lpyr.get_band_count()-1)]
 
-        rho_band = self.lpyr.get_freqs()
+        rho_band = lpyr.get_freqs()
 
         # Adaptation
         L_adapt = None
@@ -371,17 +371,17 @@ class fvvdp:
         Q_per_ch_block = None
 
         for cc in range(temp_ch):
-            for bb in range(self.lpyr.get_band_count()-1):
+            for bb in range(lpyr.get_band_count()-1):
 
-                T_f = self.lpyr.get_band(B_bands, bb)[cc*2+0,0,...]
-                R_f = self.lpyr.get_band(B_bands, bb)[cc*2+1,0,...]
+                T_f = lpyr.get_band(B_bands, bb)[cc*2+0,0,...]
+                R_f = lpyr.get_band(B_bands, bb)[cc*2+1,0,...]
 
                 if self.local_adapt=="gpyr":
-                    L_bkg = self.lpyr.get_gband(B_gbands, bb)
+                    L_bkg = lpyr.get_gband(B_gbands, bb)
                 else:
                     # 1:2 below is passing reference sustained
                     L_bkg, R_f, T_f = self.compute_local_contrast(R_f, T_f, 
-                        self.lpyr.get_gband(B_gbands, bb+1)[1:2,...], L_adapt)
+                        lpyr.get_gband(B_gbands, bb+1)[1:2,...], L_adapt, lpyr)
 
                 # temp_errs[ff] += torch.mean(torch.abs(R_f - T_f))
                 # continue
@@ -437,7 +437,7 @@ class fvvdp:
                         self.heatmap_pyr.set_band(Dmap_pyr_bands, bb, self.heatmap_pyr.get_band(Dmap_pyr_bands, bb) + w_temp_ch[cc] * D)
 
                 if Q_per_ch_block is None:
-                    Q_per_ch_block = torch.zeros((self.lpyr.height, 2, 1), device=self.device)
+                    Q_per_ch_block = torch.zeros((lpyr.height, 2, 1), device=self.device)
 
                 Q_per_ch_block[bb,cc,0] = self.lp_norm(D.flatten(), self.beta, 0, True)
 
@@ -453,7 +453,7 @@ class fvvdp:
         return Q_per_ch_block
 
 
-    def compute_local_contrast(self, R, T, next_gauss_band, L_adapt):
+    def compute_local_contrast(self, R, T, next_gauss_band, L_adapt, lpyr):
         if self.local_adapt=="simple":
             L_bkg = Func.interpolate(L_adapt.unsqueeze(0).unsqueeze(0), R.shape, mode='bicubic', align_corners=True)
             # L_bkg = torch.ones_like(R) * torch.mean(R)
@@ -462,7 +462,7 @@ class fvvdp:
         elif self.local_adapt=="gpyr":
             if self.contrast == "log":
                 next_gauss_band = torch.pow(10.0, next_gauss_band)
-            L_bkg = self.lpyr.gausspyr_expand(next_gauss_band, [R.shape[-2], R.shape[-1]])
+            L_bkg = lpyr.gausspyr_expand(next_gauss_band, [R.shape[-2], R.shape[-1]])
         else:
             print("Error: local adaptation %s not supported" % self.local_adapt)
             return
