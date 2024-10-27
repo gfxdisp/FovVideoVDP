@@ -400,16 +400,23 @@ class fvvdp:
                         else:
                             current_fixation_point = fixation_point
 
-                        xv = torch.linspace( 0.5, vid_sz[1]-0.5, T_f.shape[-1], device=self.device )
-                        yv = torch.linspace( 0.5, vid_sz[0]-0.5, T_f.shape[-2], device=self.device )
+                        w_band, h_band = T_f.shape[-1], T_f.shape[-2]  # width and height of a given band
+                        w_frame, h_frame = vid_sz[1], vid_sz[0]        # width and height of a given frame
+                        xv = torch.linspace( 0.5, w_band-0.5, w_band, device=self.device )
+                        yv = torch.linspace( 0.5, h_band-0.5, h_band, device=self.device )
                         [xx, yy] = torch.meshgrid( xv, yv, indexing='xy' )
 
-                        ecc = self.display_geometry.pix2eccentricity( torch.tensor((vid_sz[1], vid_sz[0])), xx, yy, current_fixation_point+0.5 )
+                        vd = self.display_geometry.pix2view_direction( torch.tensor((w_band, h_band)), xx, yy )
+                        vd_gaze = self.display_geometry.pix2view_direction( torch.tensor((w_frame, h_frame)), 
+                                    torch.as_tensor((current_fixation_point[0]+0.5), device=self.device), 
+                                    torch.as_tensor((current_fixation_point[1]+0.5), device=self.device) ).view(2,1,1)
+                        ecc = torch.sqrt(torch.sum((vd-vd_gaze)**2, dim=0, keepdim=False ))
 
                         # The same shape as bands
                         ecc = ecc.reshape( [1, 1, ecc.shape[-2], ecc.shape[-1]] )
 
-                        res_mag = self.display_geometry.get_resolution_magnification(ecc)
+                        view_angle = torch.sqrt(torch.sum((vd)**2, dim=0, keepdim=False ))
+                        res_mag = self.display_geometry.get_resolution_magnification(view_angle)
                     else:   # No fixation, foveal sensitivity everywhere
                         res_mag = torch.ones(R_f.shape[-2:], device=self.device)
                         ecc = torch.zeros(R_f.shape[-2:], device=self.device)

@@ -1,6 +1,7 @@
 # v1.2.1 - ?
  - [Python] Extra channels (alpha, depth) are now ignored.
  - [Python] Better handling of grayscale images.
+ - [Python] Fixed the ppd calculations for steep viewiewg angles when the gaze was not in the centre of the display
 
 # v1.2.0 - 19/04/2023
  - [Python] Added option "--config-dir" to specify path to display_models.json and other config files

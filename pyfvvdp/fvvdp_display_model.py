@@ -431,88 +431,71 @@ class fvvdp_display_geometry:
         
         self.display_size_deg = ( 2 * math.degrees(math.atan( self.display_size_m[0] / (2*self.distance_m) )), \
                                   2 * math.degrees(math.atan( self.display_size_m[1] / (2*self.distance_m) )) )
+
+        # ppd in the centre of the display
+        self.ppd_centre = 1/(2*math.degrees(math.atan( 0.5*self.display_size_m[0]/self.resolution[0]/self.distance_m )))
+
         
     # Get the number of pixels per degree
     #
     # ppd = R.get_ppd()
-    # ppd = R.get_ppd(eccentricity)
+    # ppd = R.get_ppd(view_angle)
     #
-    # eccentricity is the viewing angle from the center in degrees. If
-    # not specified, the central ppd value (for 0 eccentricity) is
+    # view_angle is provided from the center of the screen in degrees (scaler). If
+    # not specified, the central ppd value (for view_angle=0) is
     # returned.
-    def get_ppd(self, eccentricity = None):
+    def get_ppd(self, view_angle = None):
         
         # if ~isempty( dr.fixed_ppd )
         #     ppd = dr.fixed_ppd;
         #     return;
         # end
-        
-        # pixel size in the centre of the display
-        pix_deg = 2*math.degrees(math.atan( 0.5*self.display_size_m[0]/self.resolution[0]/self.distance_m ))
-        
-        base_ppd = 1/pix_deg
-        
-        if eccentricity is None:
-            return base_ppd
+                
+        if view_angle is None:
+            return self.ppd_centre
         else:
+            pix_deg = 1/self.ppd_centre
             delta = pix_deg/2
             tan_delta = math.tan(math.radians(delta))
-            tan_a = torch.tan( torch.deg2rad(eccentricity) )
+            tan_a = torch.tan( torch.deg2rad(view_angle) )
             
-            ppd = base_ppd * (torch.tan(torch.deg2rad(eccentricity+delta))-tan_a)/tan_delta
+            ppd = self.ppd_centre * (torch.tan(torch.deg2rad(view_angle+delta))-tan_a)/tan_delta
             return ppd
 
-
-    # Convert pixel positions into eccentricities for the given
-    # display
+    # Convert pixel positions into relative view direction in degrees with respect to the centre of the display
     #
     # resolution_pix - image resolution as [width height] in pix
+    #                  This is used to pass the resolution of a sub-band
     # x_pix, y_pix - pixel coordinates generated with meshgrid,
     #   pixels indexed from 0
-    # gaze_pix - [x y] of the gaze position, in pixels
-    def pix2eccentricity( self, resolution_pix, x_pix, y_pix, gaze_pix ):
-                        
-        if not self.fixed_ppd is None:
-            ecc = torch.sqrt( (x_pix-gaze_pix[0])**2 + (y_pix-gaze_pix[1])**2 )/self.fixed_ppd
-        else:
-            # Position the image in the centre
-            shift_to_centre = -resolution_pix/2
-            x_pix_rel = x_pix+shift_to_centre[0]
-            y_pix_rel = y_pix+shift_to_centre[1]
-            
-            x_m = x_pix_rel * self.display_size_m[0] / self.resolution[0]
-            y_m = y_pix_rel * self.display_size_m[1] / self.resolution[1]
-            
-            device = x_pix.device
+    def pix2view_direction( self, resolution_pix, x_pix, y_pix ):
 
-            gaze_m = (gaze_pix + shift_to_centre) * torch.tensor(self.display_size_m) / torch.tensor(self.resolution)
-            gaze_deg = torch.rad2deg(torch.atan( gaze_m/self.distance_m ))
+        # Position the image in the centre
+        shift_to_centre = -resolution_pix/2
+        x_pix_rel = x_pix+shift_to_centre[0]
+        y_pix_rel = y_pix+shift_to_centre[1]
             
-            ecc = torch.sqrt( (torch.rad2deg(torch.atan(x_m/self.distance_m))-gaze_deg[0])**2 + (torch.rad2deg(torch.atan(y_m/self.distance_m))-gaze_deg[1])**2 )
-        
-        return ecc
-        
-    def get_resolution_magnification( self, eccentricity ):
+        x_m = x_pix_rel * self.display_size_m[0] / resolution_pix[0]
+        y_m = y_pix_rel * self.display_size_m[1] / resolution_pix[1]
+            
+        view_d = torch.stack( ( torch.rad2deg(torch.atan(x_m/self.distance_m)), torch.rad2deg(torch.atan(y_m/self.distance_m)) ), dim=0 )
+
+        return view_d
+
+    def get_resolution_magnification( self, view_angle ):
             # Get the relative magnification of the resolution due to
-            # eccentricity.
+            # the viewing angle (for a large fov display). It is used to vary the spatial frequency (in cpd)
+            # across the image. 
             # 
-            # M = R.get_resolution_magnification(eccentricity)
+            # M = R.get_resolution_magnification(view_angle)
             # 
-            # eccentricity is the viewing angle from the center to the fixation point in degrees.
+            # view_angle is measured from the center of the screen in degrees.
             
             if not self.fixed_ppd is None:
-                M = torch( (1), device=eccentricity.device )
+                M = torch( (1), device=view_angle.device )
             else:            
-                eccentricity = torch.minimum( eccentricity, torch.tensor((89.9)) ) # To avoid singulatities
-                
-                # pixel size in the centre of the display
-                pix_rad = 2*math.atan( 0.5*self.display_size_m[0]/self.resolution[0]/self.distance_m )
-                
-                delta = pix_rad/2
-                tan_delta = math.tan(delta)
-                tan_a = torch.tan( torch.deg2rad(eccentricity) )
-                
-                M = (torch.tan(torch.deg2rad(eccentricity)+delta)-tan_a)/tan_delta
+                view_angle = torch.minimum( view_angle, torch.tensor((89.9)) ) # To avoid singulatities                
+                M = self.get_ppd(view_angle)/self.get_ppd(torch.as_tensor( (0.), device=view_angle.device ))
 
             return M
 
