@@ -2,6 +2,7 @@
 # This example is based on "ex_foveated_video.py"
 import os
 import time
+import torch
 import numpy as np
 import ex_utils as utils
 from PIL import Image
@@ -9,19 +10,22 @@ from PIL import Image
 import pyfvvdp
 
 class custom_display_geometry( pyfvvdp.fvvdp_display_geometry ):
-    # Get the number of pixels per degree
+    # Get the number of pixels per degree 
     #
     # ppd = R.get_ppd()
-    # ppd = R.get_ppd(view_angle)
+    # ppd = R.get_ppd(view_dir)
     #
-    # view_angle is provided from the center of the screen in degrees (scaler). If
-    # not specified, the central ppd value (for view_angle=0) is
-    # returned.
-    def get_ppd(self, view_angle = None):
+    # Without any arguments, the function returns ppd at the centre of the screen. 
+    # When view_dir is provided, the function returns ppd for a given set of view directions. 
+    # view_dir is a tensor [2 x height x width] containing horizontal and vertical angles in visual degrees. 
+    # The central pixel have both coordinates equal to 0. The view_dir has both coordinates negative for pixels in the left-top cornert of the screen. 
+    # pixel coordinates can be transformed to view_dir with the pix2view_direction method. 
+    def get_ppd(self, view_dir = None):
                         
-        if view_angle is None:
+        if view_dir is None:
             return self.ppd_centre
         else:
+            view_angle = torch.sqrt(torch.sum((view_dir)**2, dim=0, keepdim=False ))        
             # let's assume a display in which ppd decreases as we move away from the centre            
             ppd = self.ppd_centre / (view_angle/20. + 1.)
             return ppd

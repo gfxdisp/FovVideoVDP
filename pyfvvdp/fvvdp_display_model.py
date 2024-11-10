@@ -462,6 +462,31 @@ class fvvdp_display_geometry:
             ppd = self.ppd_centre * (torch.tan(torch.deg2rad(view_angle+delta))-tan_a)/tan_delta
             return ppd
 
+    # Get the number of pixels per degree 
+    #
+    # ppd = R.get_ppd()
+    # ppd = R.get_ppd(view_dir)
+    #
+    # Without any arguments, the function returns ppd at the centre of the screen. 
+    # When view_dir is provided, the function returns ppd for a given set of view directions. 
+    # view_dir is a tensor [2 x height x width] containing horizontal and vertical angles in visual degrees. 
+    # The central pixel have both coordinates equal to 0. The view_dir has both coordinates negative for pixels in the left-top cornert of the screen. 
+    # pixel coordinates can be transformed to view_dir with the pix2view_direction method. 
+    def get_ppd(self, view_dir = None):
+                    
+        if view_dir is None:
+            return self.ppd_centre
+        else:
+            view_angle = torch.sqrt(torch.sum((view_dir)**2, dim=0, keepdim=False ))
+            view_angle = torch.minimum( view_angle, torch.tensor((89.9)) ) # To avoid singulatities                
+            pix_deg = 1/self.ppd_centre
+            delta = pix_deg/2
+            tan_delta = math.tan(math.radians(delta))
+            tan_a = torch.tan( torch.deg2rad(view_angle) )
+            
+            ppd = self.ppd_centre * (torch.tan(torch.deg2rad(view_angle+delta))-tan_a)/tan_delta
+            return ppd
+
     # Convert pixel positions into relative view direction in degrees with respect to the centre of the display
     #
     # resolution_pix - image resolution as [width height] in pix
@@ -482,20 +507,19 @@ class fvvdp_display_geometry:
 
         return view_d
 
-    def get_resolution_magnification( self, view_angle ):
+    def get_resolution_magnification( self, view_dir ):
             # Get the relative magnification of the resolution due to
             # the viewing angle (for a large fov display). It is used to vary the spatial frequency (in cpd)
             # across the image. 
             # 
-            # M = R.get_resolution_magnification(view_angle)
+            # M = R.get_resolution_magnification(view_dir)
             # 
-            # view_angle is measured from the center of the screen in degrees.
+            # view_dir is measured from the center of the screen in degrees. See the dumentation for get_ppd.
             
             if not self.fixed_ppd is None:
-                M = torch( (1), device=view_angle.device )
+                M = torch( (1), device=view_dir.device )
             else:            
-                view_angle = torch.minimum( view_angle, torch.tensor((89.9)) ) # To avoid singulatities                
-                M = self.get_ppd(view_angle)/self.get_ppd(torch.as_tensor( (0.), device=view_angle.device ))
+                M = self.get_ppd(view_dir)/self.get_ppd()
 
             return M
 
