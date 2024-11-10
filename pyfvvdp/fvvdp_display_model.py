@@ -470,7 +470,7 @@ class fvvdp_display_geometry:
     # Without any arguments, the function returns ppd at the centre of the screen. 
     # When view_dir is provided, the function returns ppd for a given set of view directions. 
     # view_dir is a tensor [2 x height x width] containing horizontal and vertical angles in visual degrees. 
-    # The central pixel have both coordinates equal to 0. The view_dir has both coordinates negative for pixels in the left-top cornert of the screen. 
+    # The central pixel have both coordinates equal to 0. The view_dir has both coordinates negative for pixels in the left-bottom corner of the screen. 
     # pixel coordinates can be transformed to view_dir with the pix2view_direction method. 
     def get_ppd(self, view_dir = None):
                     
@@ -487,7 +487,9 @@ class fvvdp_display_geometry:
             ppd = self.ppd_centre * (torch.tan(torch.deg2rad(view_angle+delta))-tan_a)/tan_delta
             return ppd
 
-    # Convert pixel positions into relative view direction in degrees with respect to the centre of the display
+    # Convert pixel positions into relative view direction in degrees with respect to the centre of the display. 
+    # The screen coordinates x_pix and y_pix use the standard convention with the top-left pixel at [0,0] and bottom-right at [width-1,height-1]
+    # The returned view direction [2,height,width] has x-axis pointing rightwards and y-axis pointing upwards. 
     #
     # resolution_pix - image resolution as [width height] in pix
     #                  This is used to pass the resolution of a sub-band
@@ -501,7 +503,7 @@ class fvvdp_display_geometry:
         y_pix_rel = y_pix+shift_to_centre[1]
             
         x_m = x_pix_rel * self.display_size_m[0] / resolution_pix[0]
-        y_m = y_pix_rel * self.display_size_m[1] / resolution_pix[1]
+        y_m = -y_pix_rel * self.display_size_m[1] / resolution_pix[1]
             
         view_d = torch.stack( ( torch.rad2deg(torch.atan(x_m/self.distance_m)), torch.rad2deg(torch.atan(y_m/self.distance_m)) ), dim=0 )
 
