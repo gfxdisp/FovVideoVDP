@@ -1,6 +1,9 @@
 from abc import abstractmethod
 from urllib.parse import ParseResultBytes
-from numpy import expand_dims
+try:
+    from numpy import expand_dims
+except ImportError:
+    from numpy.lib.shape_base import expand_dims
 import torch
 from torch.utils import checkpoint
 from torch.functional import Tensor
