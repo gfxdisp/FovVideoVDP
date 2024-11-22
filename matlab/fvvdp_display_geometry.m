@@ -180,14 +180,13 @@ classdef fvvdp_display_geometry
             % x_pix, y_pix - pixel coordinates generated with meshgrid,
             %   pixels indexed from 0
             % gaze_pix - [x y] of the gaze position, in pixels
-            
-            assert( all(size(dr.resolution)==[1 2]) );
-            assert( all(size(gaze_pix)==[1 2]) );
-            
+                        
             if ~isempty( dr.fixed_ppd )
                 % We have only ppd, use the approximate formula
                 ecc = sqrt( (x_pix-gaze_pix(1)).^2 + (y_pix-gaze_pix(2)).^2 )/dr.fixed_ppd;
             else
+                assert( all(size(dr.resolution)==[1 2]) );
+                assert( all(size(gaze_pix)==[1 2]) );
                 % Position the image in the centre
                 shift_to_centre = -resolution_pix/2;
                 x_pix_rel = x_pix+shift_to_centre(1);
