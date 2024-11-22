@@ -1,5 +1,7 @@
 # FovVideoVDP: A visible difference predictor for wide field-of-view video
 
+![FovVideoVDP logo](https://github.com/gfxdisp/FovVideoVDP/blob/webpage/imgs/FovVideoVDPlogo_128.png) [Web page](https://www.cl.cam.ac.uk/research/rainbow/projects/fovvideovdp/) | [Paper](https://www.cl.cam.ac.uk/research/rainbow/projects/fovvideovdp/mantiuk2021_VideoVDP.pdf)
+
 <img src="https://www.cl.cam.ac.uk/research/rainbow/projects/fovvideovdp/teaser.png"></img>
 
 FovVideoVDP is a full-reference visual quality metric that predicts the perceptual difference between pairs of images and videos. Similar to popular metrics like PSNR and SSIM, it is aimed at comparing a ground truth reference video against a distorted (e.g. compressed, lower framerate) version.
