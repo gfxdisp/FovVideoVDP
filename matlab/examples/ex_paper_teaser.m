@@ -1,7 +1,12 @@
 function ex_paper_teaser()
+    % Note: From version 1.2.1 the result will be slightly different than
+    % the one seen in the paper. See the Changelog.md
 
     % add paths for matlab code
-    addpath(genpath('../'));
+    if ~exist( 'fvvdp', 'file' )
+        addpath( fullfile( pwd, '..') );
+    end
+    
     % load up the SIGGRAPH logo worldcloud image
     I_ref = im2double( imread( '../../example_media/SIGGRAPH_wordcloud.png' ) );
 
@@ -70,7 +75,7 @@ function ex_paper_teaser()
             fixation_point = [mid(2) - 0.25.*ECCs(ee)*disp_geo.get_ppd()  mid(1)];
             % run the metric with all the parameters set above 
             [res{ee,dd}.Q_JOD, res{ee,dd}.diff_map] = fvvdp( L_test, L_ref, 'display_photometry', 'absolute', 'frames_per_second', fps, ...
-                'display_name', 'standard_hmd', 'foveated', true, 'quiet', true, 'options', {'fixation_point', fixation_point, 'use_gpu', false} );
+                'display_name', 'standard_hmd', 'foveated', true, 'quiet', true, 'options', {'fixation_point', fixation_point} );
         end
     end
 

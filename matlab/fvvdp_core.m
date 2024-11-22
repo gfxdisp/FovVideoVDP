@@ -316,17 +316,22 @@ for ff=1:N % for each frame
                     end
                     
                     if isempty( metric_par.content_mapping )
-                        % Calculate the eccentricity for a flat-panel display                                                
-                        xv = linspace( 0.5, video_sz(2)-0.5, size(T_f,2) );
-                        yv = linspace( 0.5, video_sz(1)-0.5, size(T_f,1) );
+                        % Calculate the view direction for a flat-panel display                                                
+                        band_size = size(T_f);
+                        xv = single(linspace( 0.5, band_size(2)-0.5, band_size(2) ));
+                        yv = single(linspace( 0.5, band_size(1)-0.5, band_size(1) ));
                         if metric_par.use_gpu
-                            xv = gpuArray( single(xv) );
-                            yv = gpuArray( single(yv) );
+                            xv = gpuArray( xv );
+                            yv = gpuArray( yv );
                         end                        
-                        [xx, yy] = meshgrid( xv, yv );                        
-                        ecc = display_geometry.pix2eccentricity( video_sz([2 1]), xx, yy, fix_point+0.5 );                        
+                        [xx, yy] = meshgrid( xv, yv ); 
+                        view_dir = display_geometry.pix2view_direction( band_size([2 1]), xx, yy  );
+                        view_dir_gaze = display_geometry.pix2view_direction( video_sz([2 1]), fix_point(1)+0.5, fix_point(2)+0.5  );
+
+                        ecc = sqrt( sum( (view_dir-view_dir_gaze).^2, 3 ) );
                         
                     else
+                        error( "Not implemented" );
                         df = video_sz(2)/size(T_f,2); % Downscale factor
                         ecc = metric_par.content_mapping.get_eccentricity_map( [size(T_f,1) size(T_f,2)], fix_point/df );
                         if metric_par.use_gpu
@@ -334,7 +339,7 @@ for ff=1:N % for each frame
                         end
                     end
                     %ecc = zeros(size(L_bkg));
-                    rho = rho_band(bb).*display_geometry.get_resolution_magnification(ecc);
+                    rho = rho_band(bb).*display_geometry.get_resolution_magnification(view_dir);
                 else % No fixation, foveal sensitivity everywhere
                     if metric_par.use_gpu                    
                         rho = gpuArray(single(rho_band(bb)));

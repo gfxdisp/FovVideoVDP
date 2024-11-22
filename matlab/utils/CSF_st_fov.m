@@ -84,7 +84,7 @@ classdef CSF_st_fov
                 lut = obj.cache.(key).lut;
             end
             
-            Y_q = double(log2(clamp(L_bkg,lut.Y(1), lut.Y(end))));
+            Y_q = log2(clamp(L_bkg,lut.Y(1), lut.Y(end)));
             
             if numel(rho)==1 % if rho is a scalar
                 rho_q = ones(size(Y_q), 'like', rho ) * log2(clamp(rho, lut.rho(1), lut.rho(end)));

@@ -1,7 +1,10 @@
-# v1.2.1 - ?
+# v1.2.1 - 22/11/2024
  - [Python] Extra channels (alpha, depth) are now ignored.
  - [Python] Better handling of grayscale images.
  - [Python] Fixed the ppd calculations for steep viewiewg angles when the gaze was not in the centre of the display
+ - [Python/Matlab] Fixed the formula for computing display's pixels-per-degree for the fixation point different from the centre of the display
+ - [Python] Ability to add a custom `fvvdp_display_geometry` that varies ppd across the screen
+ - [Matlab] Minor bug fixes
 
 # v1.2.0 - 19/04/2023
  - [Python] Added option "--config-dir" to specify path to display_models.json and other config files

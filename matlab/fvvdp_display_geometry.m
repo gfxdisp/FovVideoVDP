@@ -140,7 +140,7 @@ classdef fvvdp_display_geometry
         end
         
         
-        function ppd = get_ppd(dr, eccentricity)
+        function ppd = get_ppd(dr, view_dir)
             % Get the number of pixels per degree
             %
             % ppd = R.get_ppd()
@@ -160,71 +160,57 @@ classdef fvvdp_display_geometry
             
             base_ppd = 1/pix_deg;
             
-            if ~exist( 'eccentricity', 'var' )
+            if ~exist( 'view_dir', 'var' )
                 ppd = base_ppd;
             else
+                view_angle = sqrt(sum(view_dir.^2, 3));
+                view_angle = min( view_angle, 89.9 ); % To avoid singulatities
                 delta = pix_deg/2;
                 tan_delta = tand(delta);
-                tan_a = tand( eccentricity );
+                tan_a = tand( view_angle );
                 
-                ppd = base_ppd .* (tand(eccentricity+delta)-tan_a)/tan_delta;
+                ppd = base_ppd .* (tand(view_angle+delta)-tan_a)/tan_delta;
             end
             
         end
         
-        function ecc = pix2eccentricity( dr, resolution_pix, x_pix, y_pix, gaze_pix )
-            % Convert pixel positions into eccentricities for the given
-            % display
-            %
-            % resolution_pix - image resolution as [width height] in pix
-            % x_pix, y_pix - pixel coordinates generated with meshgrid,
-            %   pixels indexed from 0
-            % gaze_pix - [x y] of the gaze position, in pixels
-                        
-            if ~isempty( dr.fixed_ppd )
-                % We have only ppd, use the approximate formula
-                ecc = sqrt( (x_pix-gaze_pix(1)).^2 + (y_pix-gaze_pix(2)).^2 )/dr.fixed_ppd;
-            else
-                assert( all(size(dr.resolution)==[1 2]) );
-                assert( all(size(gaze_pix)==[1 2]) );
-                % Position the image in the centre
-                shift_to_centre = -resolution_pix/2;
-                x_pix_rel = x_pix+shift_to_centre(1);
-                y_pix_rel = y_pix+shift_to_centre(2);
-                
-                x_m = x_pix_rel * dr.display_size_m(1) / dr.resolution(1);
-                y_m = y_pix_rel * dr.display_size_m(2) / dr.resolution(2);
-                
-                gaze_m = (gaze_pix + shift_to_centre) .* dr.display_size_m ./ dr.resolution;
-                gaze_deg = atand( gaze_m/dr.distance_m );
-                
-                ecc = sqrt( (atand(x_m/dr.distance_m)-gaze_deg(1)).^2 + (atand(y_m/dr.distance_m)-gaze_deg(2)).^2 );
-            end
+        % Convert pixel positions into relative view direction in degrees with respect to the centre of the display.
+        % The screen coordinates x_pix and y_pix use the standard convention with the top-left pixel at [0,0] and bottom-right at [width-1,height-1]
+        % The returned view direction [2,height,width] has x-axis pointing rightwards and y-axis pointing upwards.
+        %
+        % resolution_pix - image resolution as [width height] in pix
+        %                  This is used to pass the resolution of a sub-band
+        % x_pix, y_pix - pixel coordinates generated with meshgrid,
+        %   pixels indexed from 0
+        function view_d = pix2view_direction( obj, resolution_pix, x_pix, y_pix )
+
+            % Position the image in the centre
+            shift_to_centre = -resolution_pix/2;
+            x_pix_rel = x_pix+shift_to_centre(1);
+            y_pix_rel = y_pix+shift_to_centre(2);
+                     
+            x_m = x_pix_rel * obj.display_size_m(1) / resolution_pix(1);
+            y_m = -y_pix_rel * obj.display_size_m(2) / resolution_pix(2);
+            
+            view_d = cat( 3, atand(x_m/obj.distance_m), atand(y_m/obj.distance_m) );
+
         end
-        
-        function M = get_resolution_magnification(dr, eccentricity)
+                
+        function M = get_resolution_magnification(dr, view_dir)
             % Get the relative magnification of the resolution due to
-            % eccentricity.
-            %
-            % M = R.get_resolution_magnification(eccentricity)
-            %
-            % eccentricity is the viewing angle from the center in degrees.
+            % the viewing angle (for a large fov display). It is used to vary the spatial frequency (in cpd)
+            % across the image. 
+            % 
+            % M = R.get_resolution_magnification(view_dir)
+            % 
+            % view_dir is measured from the center of the screen in degrees. See the dumentation for get_ppd.
             
             if ~isempty( dr.fixed_ppd )
-                M = ones(size(eccentricity), 'like', eccentricity );
+                M = ones(size(view_dir), 'like', view_dir );
                 return;
             end
-            
-            eccentricity = min( eccentricity, 89.9 ); % To avoid singulatities
-            
-            % pixel size in the centre of the display
-            pix_deg = 2*atand( 0.5*dr.display_size_m(1)/dr.resolution(1)/dr.distance_m );
-            
-            delta = pix_deg/2;
-            tan_delta = tand(delta);
-            tan_a = tand( eccentricity );
-            
-            M = (tand(eccentricity+delta)-tan_a)/tan_delta;
+
+            M = dr.get_ppd(view_dir)/dr.get_ppd();            
         end
         
         function print(dr)

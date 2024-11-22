@@ -168,6 +168,12 @@ By default, FovVideoVDP will run the code on a GPU using `gpuArray`s, which requ
 
 ## Release notes
 
+* v1.2.1 - 22 November 2024
+  * [Python] Extra channels (alpha, depth) are now ignored, better handling of grayscale images.
+  * [Python/Matlab] Fixed the ppd calculations for steep viewiewg angles when the gaze was not in the centre of the display
+  * [Python/Matlab] Fixed the formula for computing display's pixels-per-degree for the fixation point different from the centre of the display
+  * [Matlab] Minor bug fixes
+
 * v1.2.0 - 19 April 2023
   * The python command line interface can now accept HDR video files and OpenEXR images. 
   * [PU21-PSNR](https://github.com/gfxdisp/pu21) can be run in addition to FovVideoVDP
