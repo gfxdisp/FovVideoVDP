@@ -40,9 +40,27 @@ from pyfvvdp.fvvdp_display_model import fvvdp_display_photometry, fvvdp_display_
 
 """
 FovVideoVDP metric. Refer to pytorch_examples for examples on how to use this class. 
+
+display_name - name of the display from pyfvvdp/fvvdp_data/display_models.json
+display_photometry - [optional] object of the class fvvdp_display_photometry, replaces the photometric properties of the display `display_name`
+display_geometry - [optional] object of the class fvvdp_display_geometry, replaces the geometric properties of the display `display_name`
+color_space - color space of the input images/video frames
+heatmap - one of: "none", "raw", "threshold", "supra-threshold". If is different from "none", fvvdp.predit will return heatmap image/video in stats["heatmap"]
+quiet - do not show any message except the final JOD score
+device - PyTorch device 
+temp_padding - temporal padding. the metric requires at least 250ms of video for temporal processing. Because no previous frames exist in the
+        first 250ms of video, the metric must pad those first frames. This options specifies the type of padding to use:
+          'replicate' - replicate the first frame
+          'circular'  - tile the video in the front, so that the last frame is used for frame 0.
+          'pingpong'  - the video frames are mirrored so that frames -1, -2, ... correspond to frames 0, 1, ...
+use_checkpoints - internal, used for training the model
 """
 class fvvdp:
     def __init__(self, display_name="standard_4k", display_photometry=None, display_geometry=None, color_space="sRGB", foveated=False, heatmap=None, quiet=False, device=None, temp_padding="replicate", use_checkpoints=False):
+
+        assert heatmap in [ None, "none", "raw", "threshold", "supra-threshold"], "Unsupported heatmap type"
+        assert temp_padding in [ "replicate", "circular", "pingpong" ], "Unsupported temporal padding method"
+
         self.quiet = quiet
         self.foveated = foveated
         self.heatmap = heatmap
@@ -156,11 +174,9 @@ class fvvdp:
         W - width
         Examples: "HW" - gray-scale image (column-major pixel order); "HWC" - colour image; "FCHW" - colour video
         The default order is "BCFHW". The processing can be a bit faster if data is provided in that order. 
-    frame_padding - the metric requires at least 250ms of video for temporal processing. Because no previous frames exist in the
-        first 250ms of video, the metric must pad those first frames. This options specifies the type of padding to use:
-          'replicate' - replicate the first frame
-          'circular'  - tile the video in the front, so that the last frame is used for frame 0.
-          'pingpong'  - the video frames are mirrored so that frames -1, -2, ... correspond to frames 0, 1, ...
+    The function returns a touple with the following:
+        Q_JOD - a scalar with the JOD score
+        stats - a dictionary with additional data, for example stats["heatmap"] contains a PyTorch tensor with a heatmap
     '''
     def predict(self, test_cont, reference_cont, dim_order="BCFHW", frames_per_second=0, fixation_point=None):
 

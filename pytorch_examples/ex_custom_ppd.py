@@ -1,4 +1,5 @@
 # This example shows how to create own fvvdp_display_geometry with a custom computation of pixels-per-degree
+# It also shows how to save the heatmap. 
 # This example is based on "ex_foveated_video.py"
 import os
 import time
@@ -6,8 +7,33 @@ import torch
 import numpy as np
 import ex_utils as utils
 from PIL import Image
+import ffmpeg
 
 import pyfvvdp
+
+# Save a numpy array as a video - used to save the heatmap
+def np2vid(np_srgb, vidfile, fps, verbose=False):
+
+    N, H, W, C = np_srgb.shape
+    if C == 1:
+        np_srgb = np.concatenate([np_srgb]*3, -1)
+    process = (
+        ffmpeg
+            .input('pipe:', format='rawvideo', pix_fmt='rgb24', s='{}x{}'.format(W, H), r=fps)
+            .output(vidfile, pix_fmt='yuv420p', crf=10)
+            .overwrite_output()
+            .global_args( '-hide_banner')
+            .global_args( '-loglevel', 'info' if verbose else 'quiet')
+            .run_async(pipe_stdin=True)
+    )
+    for fid in range(N):
+        process.stdin.write(
+                (np_srgb[fid,...] * 255.0)
+                .astype(np.uint8)
+                .tobytes()
+        )
+    process.stdin.close()
+    process.wait()
 
 class custom_display_geometry( pyfvvdp.fvvdp_display_geometry ):
     # Get the number of pixels per degree 
@@ -65,12 +91,15 @@ disp_geom = custom_display_geometry(resolution=(1440, 1600), distance_m=3, fov_d
 
 # The metric will use display_model.json to initialize photometric model (for 'htc_vive_pro'), but it 
 # will use the custom class for the geometric model
-fv = pyfvvdp.fvvdp(display_name='htc_vive_pro', display_geometry=disp_geom, heatmap=None, foveated=True)
+fv = pyfvvdp.fvvdp(display_name='htc_vive_pro', display_geometry=disp_geom, heatmap="supra-threshold", foveated=True)
 
 start = time.time()
-Q_JOD_dynamic, stats_dynamic = fv.predict(V_test_noise, V_ref,
+Q_JOD, stats = fv.predict(V_test_noise, V_ref,
                                dim_order="HWCF", frames_per_second=fps,
                                fixation_point=gaze_pos)
 end = time.time()
 
-print( 'Quality for dynamic noise: {:.3f} JOD (took {:.4f} secs to compute)'.format(Q_JOD_dynamic, end-start) )
+heatmap_frames = torch.squeeze(stats["heatmap"].permute((2,3,4,1,0)), dim=4).cpu().numpy()
+np2vid(heatmap_frames, "dynamic_noise_heatmap.mp4", fps )
+
+print( 'Quality for dynamic noise: {:.3f} JOD (took {:.4f} secs to compute)'.format(Q_JOD, end-start) )

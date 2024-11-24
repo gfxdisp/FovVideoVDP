@@ -1,3 +1,6 @@
+# v1.2.2 - ?
+  - [Python] Improved documentation, `ex_custom_ppd.py` example shows how to save heatmap from Python code
+
 # v1.2.1 - 22/11/2024
  - [Python] Extra channels (alpha, depth) are now ignored.
  - [Python] Better handling of grayscale images.
