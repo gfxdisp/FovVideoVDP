@@ -8,7 +8,7 @@
 - Increment version number [here](pyfvvdp/fvvdp_data/fvvdp_parameters.json) and [here](setup.py).
 - [Optional] Remove previous versions `rm dist/*`
 - Create the new package: `python setup.py sdist`
-- [Optiona] Upload to the testpypi: `twine upload --repository testpypi dist/*`
+- [Optional] Upload to the testpypi: `twine upload --repository testpypi dist/*`
 - Upload the package: `twine upload dist/*`. 
   - You need to create a token on the pypi.org web page, then enter `__token__` as username and paste the token password as the password. 
 

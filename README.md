@@ -170,9 +170,12 @@ By default, FovVideoVDP will run the code on a GPU using `gpuArray`s, which requ
 
 ## Release notes
 
+* v1.2.2 - 24/02/2025
+  * [Python] Improved documentation, `ex_custom_ppd.py` example shows how to save heatmap from Python code.
+
 * v1.2.1 - 22 November 2024
   * [Python] Extra channels (alpha, depth) are now ignored, better handling of grayscale images.
-  * [Python/Matlab] Fixed the ppd calculations for steep viewiewg angles when the gaze was not in the centre of the display
+  * [Python/Matlab] Fixed the ppd calculations for steep viewing angles when the gaze was not in the centre of the display
   * [Python/Matlab] Fixed the formula for computing display's pixels-per-degree for the fixation point different from the centre of the display
   * [Matlab] Minor bug fixes
 

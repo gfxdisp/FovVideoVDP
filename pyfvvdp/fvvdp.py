@@ -33,7 +33,7 @@ from interp import interp1, interp3
 import pyfvvdp.utils as utils
 
 #from utils import *
-from fvvdp_test import FovVideoVDP_Testbench
+#from fvvdp_test import FovVideoVDP_Testbench
 
 from pyfvvdp.fvvdp_display_model import fvvdp_display_photometry, fvvdp_display_geometry
 
