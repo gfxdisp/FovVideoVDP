@@ -45,7 +45,7 @@ classdef fvvdp_video_source_dm < fvvdp_video_source
             
             col_spaces = vs.load_json( 'color_spaces.json' );
             
-            if ~exist( 'color_space', 'var' ) || isempty( color_space_name )
+            if ~exist( 'color_space_name', 'var' ) || isempty( color_space_name )
                 color_space_name = 'sRGB';
             end
             

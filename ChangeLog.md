@@ -1,3 +1,7 @@
+# v1.2.3 - ?
+  - [Matlab] Fixed bug that caused to ignore passed colour space and used sRGB.
+  - Fixed the "DCI-P3 Apple" colour transform.
+
 # v1.2.2 - 24/02/2025
   - [Python] Improved documentation, `ex_custom_ppd.py` example shows how to save heatmap from Python code
 
