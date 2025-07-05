@@ -1,6 +1,8 @@
 # v1.2.3 - ?
   - [Matlab] Fixed bug that caused to ignore passed colour space and used sRGB.
   - Fixed the "DCI-P3 Apple" colour transform.
+  - [Matlab/Python] Fixed heat map visualization when the test image has very small dynamic range.
+  - [Matlab] Added "raw" heatmap.
 
 # v1.2.2 - 24/02/2025
   - [Python] Improved documentation, `ex_custom_ppd.py` example shows how to save heatmap from Python code
@@ -38,7 +40,7 @@
  - [Python] Updated Python dependencies - now works with earlier versions of PyTorch, Numpy and SciPy
 
 # v1.1.1 - 28/08/2022
-- [Python] Thoroughly redesided the interface so that the code can be easily run from python code.
+- [Python] Thoroughly redesigned the interface so that the metric can be easily run from python code.
 - [Python] All code examples are now both in python and Matlab.
 - [Python] Optimized code for the Laplacian pyramid decomposition - faster predictions. There is a small (<0.02) difference in the predicted JODs.
 - [Python] Improved compatibility with pytorch 1.12 + better performance

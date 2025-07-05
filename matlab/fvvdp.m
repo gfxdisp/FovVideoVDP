@@ -12,7 +12,7 @@ function [Q_JOD, diff_map, Q] = fvvdp(test_video, reference_video, varargin)
 % [...] = fvvdp(..., 'display_name', '?' )
 % [...] = fvvdp(..., 'display_photometry', disp_photo )
 % [...] = fvvdp(..., 'display_geometry', disp_geo )
-% [...] = fvvdp(..., 'color_space', 'rec709'|'rec2020' )
+% [...] = fvvdp(..., 'color_space', 'sRGB'|'BT.2020' )
 % [...] = fvvdp(..., 'foveated', true|[false] )
 % [Q_JOD, diff_map] = fvvdp(..., 'heatmap', 'supra-threshold'|'threshold' )
 % [...] = fvvdp(..., 'options', { 'fixation_point', [x y], ... } )
@@ -71,6 +71,7 @@ function [Q_JOD, diff_map, Q] = fvvdp(test_video, reference_video, varargin)
 %                 3 JOD.
 %   The images with the labelled color scale can be found in 'color_scales' 
 %   folder.
+%   'raw' - return the JOD map, no visualization.
 %
 % 'options' allow to pass extra options to the metric as a cell array of 
 %    'name', value pairs. The most relevant options are:
@@ -115,9 +116,9 @@ p.addParameter('display_name', 'standard_4k', @ischar);
 p.addParameter('display_photometry', []);
 p.addParameter('display_geometry', [], @(x) isa(x,'fvvdp_display_geometry') );
 p.addParameter('foveated', false, @islogical );
-p.addParameter('color_space', 'rec709', @ischar);
+p.addParameter('color_space', 'sRGB', @ischar);
 p.addParameter('options', {}, @iscell);
-p.addParameter('heatmap', [], @(x) ismember(x, { 'threshold', 'supra-threshold' }) );
+p.addParameter('heatmap', [], @(x) ismember(x, { 'threshold', 'supra-threshold', 'raw' }) );
 p.addParameter('quiet', false, @islogical );
 
 p.parse(test_video, reference_video, varargin{:});
