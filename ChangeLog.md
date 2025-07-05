@@ -1,7 +1,7 @@
 # v1.2.3 - ?
   - [Matlab] Fixed bug that caused to ignore passed colour space and used sRGB.
   - Fixed the "DCI-P3 Apple" colour transform.
-  - [Matlab/Python] Fixed heat map visualization when the test image has very small dynamic range.
+  - [Matlab/Python] Fixed heat map visualization when the test image has very small dynamic range (thanks to Yuta).
   - [Matlab] Added "raw" heatmap.
 
 # v1.2.2 - 24/02/2025
